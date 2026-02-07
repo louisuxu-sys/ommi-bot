@@ -2185,7 +2185,7 @@
                 <input type="text" id="profit-amount" value="0" disabled>
             </div>
             <button id="connect-btn" disabled>
-                <i class="fas fa-plug"></i> 連接房間
+                <i class="fas fa-plug"></i> 連結分析
             </button>
             <button class="secondary" id="reset-btn">
                 <i class="fas fa-sync-alt"></i> 重置系統
@@ -2541,7 +2541,7 @@
             if (isConnected) {
                 // 断开连接
                 isConnected = false;
-                connectBtn.innerHTML = '<i class="fas fa-plug"></i> 連接房間';
+                connectBtn.innerHTML = '<i class="fas fa-plug"></i> 連結分析';
                 showNotification(`已與 ${currentRoom} 斷開連接`, '成功', '');
             } else {
                 // 显示连接模态框并开始连接流程
