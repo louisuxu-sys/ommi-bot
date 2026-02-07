@@ -2230,6 +2230,22 @@
                 <div class="column">
                     <div class="section-header">
                         <h3><i class="fas fa-trophy"></i> 下注管理</h3>
+                        <span id="memo-preview" style="
+                            font-size: 12px;
+                            color: var(--text-secondary);
+                            background: rgba(0,240,255,0.04);
+                            border: 1px solid rgba(0,240,255,0.12);
+                            border-radius: 6px;
+                            padding: 4px 12px;
+                            max-width: 200px;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            font-family: 'Inter', sans-serif;
+                            display: none;
+                            cursor: default;
+                            transition: all 0.3s ease;
+                        " title=""></span>
                     </div>
                     
                     <div class="form-group">
@@ -3523,6 +3539,28 @@
             }, 3000);
         }
         
+        // ===== 備註即時預覽（顯示在「下注管理」標題旁）=====
+        (function() {
+            var memoTextarea = document.getElementById('round-memo');
+            var memoPreview = document.getElementById('memo-preview');
+            if (memoTextarea && memoPreview) {
+                memoTextarea.addEventListener('input', function() {
+                    var text = this.value.trim();
+                    if (text) {
+                        // 截取前 20 個字元作為預覽
+                        var preview = text.length > 20 ? text.substring(0, 20) + '…' : text;
+                        memoPreview.textContent = '📝 ' + preview;
+                        memoPreview.title = text; // hover 時顯示完整內容
+                        memoPreview.style.display = 'inline-block';
+                    } else {
+                        memoPreview.textContent = '';
+                        memoPreview.title = '';
+                        memoPreview.style.display = 'none';
+                    }
+                });
+            }
+        })();
+
         // 初始化
         updateHistoryDisplay();
         updateStatistics();
