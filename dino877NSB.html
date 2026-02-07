@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代理交收上分表格生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E40AF',
+                        secondary: '#3B82F6',
+                        accent: '#93C5FD',
+                    },
+                    fontFamily: {
+                        sans: ['system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none;
+            }
+            .btn-effect {
+                @apply transform hover:scale-105 active:scale-95 transition-all duration-200;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans p-4 md:p-6">
+    <div class="container mx-auto max-w-2xl">
+        <header class="text-center mb-6 md:mb-8">
+            <h1 class="text-[clamp(1.5rem,5vw,2rem)] font-bold text-primary mb-2">代理交收上分表格生成器</h1>
+            <p class="text-gray-600 text-sm md:text-base">輸入帳號和金額，系統自動識別並生成表格</p>
+        </header>
+        
+        <main>
+            <!-- 輸入區域 -->
+            <div class="bg-white rounded-xl shadow-md p-5 md:p-6 mb-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="combinedInput" class="block text-gray-700 font-medium mb-2">請輸入帳號和金額：</label>
+                        <textarea 
+                            id="combinedInput" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg input-focus text-base resize-none"
+                            rows="2"
+                            placeholder="例如：Aa19980311 500 或 500 Aa19980311"
+                        ></textarea>
+                        <p class="text-gray-500 text-xs md:text-sm mt-1">
+                            <i class="fa fa-info-circle"></i> 系統會自動識別：5000以下的數字為金額，其餘為帳號
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">經銷商：</label>
+                        <input 
+                            type="text" 
+                            id="dealer" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-base"
+                            value="HG07"
+                            readonly
+                        >
+                    </div>
+                    
+                    <button 
+                        id="generateBtn" 
+                        class="w-full bg-primary text-white font-medium px-4 py-3 rounded-lg btn-effect flex items-center justify-center text-base"
+                    >
+                        <i class="fa fa-table mr-2"></i> 生成表格
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 生成的表格 -->
+            <div id="tableContainer" class="hidden bg-white rounded-xl shadow-md p-5 md:p-6 mb-6">
+                <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fa fa-list-alt text-primary mr-2"></i>生成的表格：
+                </h2>
+                
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-5 text-sm md:text-base">
+                    <p class="mb-2"><span class="font-medium text-gray-700">會員帳號:</span> <span id="tableAccount" class="text-gray-800"></span></p>
+                    <p class="mb-2"><span class="font-medium text-gray-700">經銷商:</span> <span id="tableDealer" class="text-gray-800"></span></p>
+                    <p><span class="font-medium text-gray-700">代理交收上分金額:</span> <span id="tableAmount" class="text-gray-800"></span></p>
+                </div>
+                
+                <button 
+                    id="copyButton" 
+                    class="w-full bg-secondary hover:bg-primary text-white font-medium px-4 py-3 rounded-lg btn-effect flex items-center justify-center text-base"
+                >
+                    <i class="fa fa-copy mr-2"></i> 一鍵複製
+                </button>
+                <p id="copyMessage" class="mt-3 text-green-600 text-center hidden text-sm">
+                    <i class="fa fa-check-circle"></i> 已成功複製到剪貼簿！
+                </p>
+            </div>
+            
+            <!-- 錯誤提示 -->
+            <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+                <i class="fa fa-exclamation-circle mr-2"></i>
+                <span id="errorText"></span>
+            </div>
+        </main>
+        
+        <footer class="text-center text-gray-500 text-xs md:text-sm mt-8">
+            <p>代理交收上分系統 &copy; 2023</p>
+        </footer>
+    </div>
+
+    <script>
+        // 生成表格按鈕點擊事件
+        document.getElementById('generateBtn').addEventListener('click', processInput);
+        
+        // 輸入框按回車也觸發生成
+        document.getElementById('combinedInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                processInput();
+            }
+        });
+        
+        // 處理輸入並生成表格
+        function processInput() {
+            // 獲取輸入值
+            const input = document.getElementById('combinedInput').value.trim();
+            const dealer = document.getElementById('dealer').value.trim();
+            
+            // 隱藏之前的提示
+            document.getElementById('tableContainer').classList.add('hidden');
+            document.getElementById('errorMessage').classList.add('hidden');
+            
+            // 驗證輸入不為空
+            if (!input) {
+                showError('請輸入帳號和金額');
+                return;
+            }
+            
+            // 分割輸入內容為多個部分
+            const parts = input.split(/\s+/).filter(part => part.length > 0);
+            
+            // 查找5000以下的數字（金額）
+            let amount = null;
+            let accountParts = [];
+            
+            for (const part of parts) {
+                const num = parseFloat(part.replace(/,/g, ''));
+                // 檢查是否是有效的金額（5000以下的數字）
+                if (!isNaN(num) && num >= 0 && num <= 5000) {
+                    amount = num;
+                } else {
+                    accountParts.push(part);
+                }
+            }
+            
+            // 驗證是否找到金額
+            if (amount === null) {
+                showError('未找到有效的金額（請輸入5000以下的數字）');
+                return;
+            }
+            
+            // 驗證是否有帳號部分
+            if (accountParts.length === 0) {
+                showError('未找到有效的帳號信息');
+                return;
+            }
+            
+            // 組合帳號（如果有多個部分）
+            const account = accountParts.join(' ');
+            
+            // 填充表格
+            document.getElementById('tableAccount').textContent = account;
+            document.getElementById('tableDealer').textContent = dealer;
+            document.getElementById('tableAmount').textContent = amount;
+            
+            // 顯示表格容器
+            document.getElementById('tableContainer').classList.remove('hidden');
+            
+            // 滾動到表格位置
+            document.getElementById('tableContainer').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 顯示錯誤信息
+        function showError(message) {
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+            document.getElementById('errorMessage').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 複製功能
+        document.getElementById('copyButton').addEventListener('click', function() {
+            // 構建要複製的內容
+            const copyContent = `會員帳號:${document.getElementById('tableAccount').textContent}
+經銷商:${document.getElementById('tableDealer').textContent}
+代理交收上分金額:${document.getElementById('tableAmount').textContent}`;
+            
+            // 複製到剪貼簿
+            navigator.clipboard.writeText(copyContent).then(() => {
+                // 顯示複製成功消息
+                const copyMessage = document.getElementById('copyMessage');
+                copyMessage.classList.remove('hidden');
+                
+                // 3秒後隱藏消息
+                setTimeout(() => {
+                    copyMessage.classList.add('hidden');
+                }, 3000);
+            }).catch(err => {
+                console.error('複製失敗: ', err);
+                alert('複製失敗，請手動複製');
+            });
+        });
+    </script>
+</body>
+</html>
+    

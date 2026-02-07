@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戰神賽特專屬數據分析 - 房間 1~3000</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+    body { font-family: 'Noto Sans TC', sans-serif; }
+
+    /* ===== 登入遮罩樣式 ===== */
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000000; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #loginOverlay.hidden { display: none; }
+    .login-box {
+      background: #111827; border: 1px solid rgba(34,211,238,0.3);
+      border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px; margin: 0 16px;
+      box-shadow: 0 0 40px rgba(34,211,238,0.1);
+    }
+
+    /* ===== 登入進度條樣式 ===== */
+    .login-progress-container {
+      display: none;
+      text-align: center;
+      padding: 40px 32px;
+      width: 100%; max-width: 440px; margin: 0 16px;
+    }
+    .login-progress-title {
+      font-size: 22px; font-weight: 900; color: #fff;
+      margin-bottom: 8px; letter-spacing: 2px;
+    }
+    .login-progress-subtitle {
+      font-size: 13px; color: #22d3ee; letter-spacing: 3px;
+      margin-bottom: 6px; text-shadow: 0 0 10px #22d3ee;
+    }
+    .login-progress-user {
+      font-size: 15px; color: #a5b4fc; margin-bottom: 24px;
+      font-family: Consolas, monospace; letter-spacing: 1px;
+    }
+    .login-progress-status {
+      font-size: 16px; font-weight: 700; color: #22d3ee;
+      letter-spacing: 6px; margin-bottom: 20px;
+      text-shadow: 0 0 15px #22d3ee, 0 0 30px rgba(34,211,238,0.4);
+      opacity: 0; transition: opacity 0.5s ease;
+    }
+    .login-progress-status.visible { opacity: 1; }
+    .login-progress-bar-outer {
+      width: 100%; height: 6px; background: #1e293b;
+      border-radius: 3px; overflow: hidden; margin-bottom: 14px;
+      border: 1px solid rgba(34,211,238,0.2);
+    }
+    .login-progress-bar-inner {
+      height: 100%; width: 0%; border-radius: 3px;
+      background: linear-gradient(90deg, #06b6d4, #3b82f6, #22d3ee);
+      box-shadow: 0 0 12px rgba(34,211,238,0.6);
+      transition: width 0.3s ease;
+    }
+    .login-progress-percent {
+      font-size: 12px; color: #64748b; font-family: Consolas, monospace;
+    }
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .login-progress-container.active {
+      display: block;
+      animation: fadeInScale 0.4s ease forwards;
+    }
+    .login-box h2 { text-align: center; font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 6px; }
+    .login-box .sub { text-align: center; font-size: 12px; color: #22d3ee; letter-spacing: 3px; margin-bottom: 28px;
+      text-shadow: 0 0 10px #22d3ee; }
+    .login-box label { display: block; color: #9ca3af; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .login-box input {
+      width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(75,85,99,0.5);
+      color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 15px; margin-bottom: 18px;
+      outline: none; transition: all 0.3s;
+    }
+    .login-box input:focus { border-color: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,0.3); }
+    .login-box .login-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 17px; font-weight: 700;
+      color: #fff; cursor: pointer; background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      transition: all 0.3s;
+    }
+    .login-box .login-btn:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(34,211,238,0.5); }
+    .login-box .error { color: #f87171; font-size: 13px; text-align: center; margin-bottom: 10px; display: none; }
+    .login-box .lock-icon { text-align: center; margin-bottom: 20px; }
+    .login-box .lock-icon svg { width: 48px; height: 48px; margin: 0 auto; }
+    .login-box .footer-text { text-align: center; color: #4b5563; font-size: 11px; margin-top: 18px; }
+
+    /* ===== 自動刷新倒數計時 ===== */
+    #autoRefreshBar {
+      position: fixed; top: 0; left: 0; height: 4px; z-index: 100;
+      background: linear-gradient(90deg, #06b6d4, #3b82f6, #8b5cf6);
+      transition: width 1s linear;
+      box-shadow: 0 0 10px rgba(34,211,238,0.5);
+    }
+    /* 倒數計時器浮動顯示 */
+    #refreshCountdown {
+      position: fixed; top: 10px; right: 16px; z-index: 101;
+      background: rgba(17,24,39,0.9); border: 1px solid rgba(34,211,238,0.4);
+      border-radius: 10px; padding: 8px 16px; font-size: 13px;
+      color: #22d3ee; display: flex; align-items: center; gap: 8px;
+      backdrop-filter: blur(8px); box-shadow: 0 0 20px rgba(34,211,238,0.15);
+      transition: all 0.3s ease;
+    }
+    #refreshCountdown .timer-icon { animation: spin 4s linear infinite; display: inline-block; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    /* 更新通知 */
+    #refreshNotify {
+      position: fixed; top: 60px; right: 16px; z-index: 101;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 700;
+      color: #fff; opacity: 0; transform: translateX(40px);
+      transition: all 0.4s ease; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(34,211,238,0.4);
+    }
+    #refreshNotify.show { opacity: 1; transform: translateX(0); }
+    .glow-cyan { text-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee; }
+    .card-hover:hover { transform: scale(1.05); }
+    .bar-glow { box-shadow: 0 0 10px #22d3ee; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #22d3ee; border-radius: 4px; }
+
+    /* 搜尋框樣式 */
+    #searchInput:focus { box-shadow: 0 0 15px rgba(34, 211, 238, 0.5); }
+    
+    /* 分頁按鈕動畫 */
+    .page-btn { transition: all 0.2s ease; }
+    .page-btn:hover { transform: translateY(-2px); }
+    .page-btn.active { 
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.4);
+    }
+
+    /* 載入動畫 */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .loading-pulse { animation: pulse-glow 1.5s infinite; }
+
+    /* 卡片淡入 */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-animate { animation: fadeInUp 0.4s ease forwards; }
+
+    /* ===== 登出按鈕 ===== */
+    #logoutBtn {
+      position: fixed; top: 10px; left: 16px; z-index: 101;
+      background: rgba(17,24,39,0.9); border: 1px solid rgba(248,113,113,0.4);
+      border-radius: 10px; padding: 8px 18px; font-size: 13px; font-weight: 700;
+      color: #f87171; cursor: pointer; display: none;
+      backdrop-filter: blur(8px); box-shadow: 0 0 20px rgba(248,113,113,0.15);
+      transition: all 0.3s ease;
+    }
+    #logoutBtn:hover {
+      background: rgba(248,113,113,0.2); border-color: #f87171;
+      box-shadow: 0 0 20px rgba(248,113,113,0.4); transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-white">
+
+  <!-- ===== 登入遮罩 ===== -->
+  <div id="loginOverlay">
+    <!-- 登入表單 -->
+    <div class="login-box" id="loginBox">
+      <div class="lock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <h2>系統登入</h2>
+      <div class="sub">AUTHORIZED ACCESS ONLY</div>
+
+      <label>授權序號</label>
+      <input type="text" id="serialInput" placeholder="請輸入序號 (例: XXXX-XXXX-XXXX)" style="text-transform:uppercase; font-family:Consolas,monospace; letter-spacing:2px;">
+      <p class="error" id="serialError">⚠ 序號無效或格式錯誤</p>
+      <button type="button" class="login-btn" onclick="handleSerialLogin()">序號驗證登入</button>
+      <div class="footer-text" style="margin-top:12px;">請向管理員索取授權序號</div>
+
+      <div class="footer-text">🔒 此系統僅限授權人員使用</div>
+    </div>
+
+    <!-- 登入進度條（驗證成功後顯示） -->
+    <div class="login-progress-container" id="loginProgress">
+      <div class="login-progress-title">戰神賽特專屬數據分析</div>
+      <div class="login-progress-subtitle">AUTHORIZED ACCESS</div>
+      <div class="login-progress-user" id="loginProgressUser"></div>
+      <div class="login-progress-status" id="loginProgressStatus">ACCESS GRANTED</div>
+      <div class="login-progress-bar-outer">
+        <div class="login-progress-bar-inner" id="loginProgressBar"></div>
+      </div>
+      <div class="login-progress-percent" id="loginProgressPercent">0%</div>
+    </div>
+  </div>
+
+  <!-- ===== 登出按鈕 ===== -->
+  <button id="logoutBtn" onclick="handleLogout()" title="登出系統">🚪 登出</button>
+
+  <!-- 自動刷新進度條 -->
+  <div id="autoRefreshBar" style="width:0%"></div>
+
+  <!-- 倒數計時器 -->
+  <div id="refreshCountdown" style="display:none;">
+    <span class="timer-icon">⚙️</span>
+    <span>下次更新：<strong id="countdownText">5:00</strong></span>
+  </div>
+
+  <!-- 更新通知 -->
+  <div id="refreshNotify">✅ 爆分率數據已自動更新！</div>
+
+  <!-- 頂部標題 -->
+  <header class="pt-10 pb-6 text-center">
+    <h1 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-2">
+      戰神賽特專屬數據分析
+    </h1>
+    <p class="text-cyan-500 text-sm tracking-[0.2em] glow-cyan">REAL-TIME SIGNAL MONITORING</p>
+    <p class="text-gray-500 text-xs mt-2">房間總數：3000 | 數據即時更新</p>
+  </header>
+
+  <!-- 搜尋與篩選 -->
+  <div class="max-w-6xl mx-auto px-4 mb-6">
+    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+      <!-- 搜尋 -->
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <input 
+          id="searchInput" 
+          type="text" 
+          placeholder="🔍 搜尋房號 (1-3000)..." 
+          class="bg-gray-900 border border-gray-700 text-white px-4 py-2 rounded-lg w-full md:w-64 focus:border-cyan-500 outline-none transition-all"
+        >
+        <button 
+          onclick="searchRoom()" 
+          class="bg-cyan-600 hover:bg-cyan-500 text-black font-bold px-5 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          搜尋
+        </button>
+      </div>
+      <!-- 篩選 -->
+      <div class="flex items-center gap-3">
+        <label class="text-gray-400 text-sm">爆分率篩選：</label>
+        <select id="filterRate" onchange="applyFilter()" class="bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none">
+          <option value="all">全部</option>
+          <option value="80">≥ 80%</option>
+          <option value="60">≥ 60%</option>
+          <option value="40">≥ 40%</option>
+          <option value="20">≥ 20%</option>
+        </select>
+        <button 
+          onclick="refreshAllData(true)" 
+          class="bg-transparent border border-cyan-500 text-cyan-500 px-5 py-2 rounded-lg hover:bg-cyan-500 hover:text-black transition-all font-bold"
+        >
+          🔄 更新數據
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 統計資訊 -->
+  <div class="max-w-6xl mx-auto px-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-gray-500 text-xs mb-1">高爆分房間 (≥80%)</p>
+        <p id="statHigh" class="text-green-400 text-2xl font-black">--</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-gray-500 text-xs mb-1">中爆分房間 (50-79%)</p>
+        <p id="statMid" class="text-yellow-400 text-2xl font-black">--</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-gray-500 text-xs mb-1">低爆分房間 (<50%)</p>
+        <p id="statLow" class="text-red-400 text-2xl font-black">--</p>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+        <p class="text-gray-500 text-xs mb-1">平均爆分率</p>
+        <p id="statAvg" class="text-cyan-400 text-2xl font-black">--</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 房間卡片網格 -->
+  <div class="max-w-6xl mx-auto px-4">
+    <div id="roomGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      <!-- 動態生成 -->
+    </div>
+  </div>
+
+  <!-- 分頁 -->
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col items-center gap-4">
+      <div id="pagination" class="flex flex-wrap justify-center gap-2">
+        <!-- 動態生成 -->
+      </div>
+      <p id="pageInfo" class="text-gray-500 text-sm"></p>
+    </div>
+  </div>
+
+  <!-- 底部 -->
+  <footer class="text-center py-8 border-t border-gray-900">
+    <p class="text-gray-600 text-xs">戰神賽特數據分析系統 © 2026 | 數據僅供參考</p>
+  </footer>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<script>
+// ============ Firebase 初始化 ============
+var firebaseConfig = {
+  apiKey: "AIzaSyBPQ9m9uDsInFJiYpadA5LcZhQug6ob5no",
+  authDomain: "sai-bot-e36e8.firebaseapp.com",
+  databaseURL: "https://sai-bot-e36e8-default-rtdb.firebaseio.com",
+  projectId: "sai-bot-e36e8",
+  storageBucket: "sai-bot-e36e8.firebasestorage.app",
+  messagingSenderId: "464722073392",
+  appId: "1:464722073392:web:726915bcee927b588e1af5",
+  measurementId: "G-THDYRX6EGX"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+var serialsRef = db.ref('serials');
+
+// ============ 配置 ============
+const TOTAL_ROOMS = 3000;
+const ROOMS_PER_PAGE = 500;
+const TOTAL_PAGES = Math.ceil(TOTAL_ROOMS / ROOMS_PER_PAGE);
+
+// 訊號元素
+const SIGNAL_NAMES = ['甲蟲', '眼', '蛇', '弓', '刀'];
+const COLORS = [
+  { border: 'border-cyan-500', shadow: 'shadow-cyan-500/50', gradient: 'from-cyan-400 to-blue-500' },
+  { border: 'border-purple-500', shadow: 'shadow-purple-500/50', gradient: 'from-purple-400 to-pink-500' },
+  { border: 'border-pink-500', shadow: 'shadow-pink-500/50', gradient: 'from-pink-400 to-red-500' },
+  { border: 'border-blue-500', shadow: 'shadow-blue-500/50', gradient: 'from-blue-400 to-indigo-500' },
+  { border: 'border-green-500', shadow: 'shadow-green-500/50', gradient: 'from-green-400 to-emerald-500' },
+  { border: 'border-yellow-500', shadow: 'shadow-yellow-500/50', gradient: 'from-yellow-400 to-orange-500' },
+  { border: 'border-red-500', shadow: 'shadow-red-500/50', gradient: 'from-red-400 to-rose-500' },
+  { border: 'border-indigo-500', shadow: 'shadow-indigo-500/50', gradient: 'from-indigo-400 to-violet-500' },
+];
+
+// ============ 隨機數據生成 ============
+// 使用 seed 來確保每個房間的數據在刷新前是一致的
+let dataSeed = Date.now();
+
+function seededRandom(seed) {
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// ============ 全部房間數據 ============
+let allRooms = [];
+let filteredRooms = [];
+
+function generateAllRooms() {
+  allRooms = [];
+  const comboUsageCount = {};    // 記錄每種訊號組合被使用的次數
+  const MAX_ROOMS_PER_COMBO = 4; // 同一訊號組合最多出現在幾個房間
+
+  for (let i = 1; i <= TOTAL_ROOMS; i++) {
+    const baseSeed = dataSeed + i;
+    const rate = Math.floor(seededRandom(baseSeed) * 100) + 1;
+
+    // 每組訊號 3 或 4 個（不再出現 5 個）
+    const signalCount = 3 + Math.floor(seededRandom(baseSeed + 1) * 2); // 3 或 4
+
+    let combo, comboKey;
+    let attempts = 0;
+
+    do {
+      const aSeed = baseSeed + attempts * 97;
+
+      // Fisher-Yates 洗牌：確保每個訊號類型不重複
+      let indices = [0, 1, 2, 3, 4]; // 甲蟲=0, 眼=1, 蛇=2, 弓=3, 刀=4
+      for (let j = indices.length - 1; j > 0; j--) {
+        const k = Math.floor(seededRandom(aSeed + j * 3) * (j + 1));
+        [indices[j], indices[k]] = [indices[k], indices[j]];
+      }
+      // 只取前 signalCount 個（保證不重複）
+      indices = indices.slice(0, signalCount);
+
+      // 為每個訊號分配數字 1~6
+      combo = indices.map((sigIdx, pos) => {
+        const num = Math.floor(seededRandom(aSeed + 20 + pos) * 6) + 1;
+        return num + SIGNAL_NAMES[sigIdx];
+      });
+
+      // 用排序後的組合作為 key（忽略順序來判斷是否重複）
+      comboKey = [...combo].sort().join('|');
+      attempts++;
+    } while (comboUsageCount[comboKey] >= MAX_ROOMS_PER_COMBO && attempts < 50);
+
+    // 記錄此組合的使用次數
+    comboUsageCount[comboKey] = (comboUsageCount[comboKey] || 0) + 1;
+
+    const colorIdx = Math.floor(seededRandom(baseSeed + 100) * COLORS.length);
+
+    allRooms.push({
+      id: i,
+      displayId: String(i).padStart(4, '0'),
+      rate: rate,
+      signals: combo.join(' '),
+      color: COLORS[colorIdx]
+    });
+  }
+
+  filteredRooms = [...allRooms];
+}
+
+// ============ 統計 ============
+function updateStats() {
+  const data = filteredRooms;
+  const high = data.filter(r => r.rate >= 80).length;
+  const mid = data.filter(r => r.rate >= 50 && r.rate < 80).length;
+  const low = data.filter(r => r.rate < 50).length;
+  const avg = data.length > 0 ? (data.reduce((s, r) => s + r.rate, 0) / data.length).toFixed(1) : 0;
+
+  document.getElementById('statHigh').textContent = high;
+  document.getElementById('statMid').textContent = mid;
+  document.getElementById('statLow').textContent = low;
+  document.getElementById('statAvg').textContent = avg + '%';
+}
+
+// ============ 渲染卡片 ============
+function renderCards(page) {
+  const grid = document.getElementById('roomGrid');
+  grid.innerHTML = '';
+
+  const start = (page - 1) * ROOMS_PER_PAGE;
+  const end = Math.min(start + ROOMS_PER_PAGE, filteredRooms.length);
+  const pageRooms = filteredRooms.slice(start, end);
+
+  if (pageRooms.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center py-20">
+        <p class="text-gray-500 text-lg">沒有找到符合條件的房間</p>
+      </div>
+    `;
+    return;
+  }
+
+  pageRooms.forEach((room, idx) => {
+    const rateColor = room.rate >= 80 ? 'text-green-400' : room.rate >= 50 ? 'text-yellow-400' : 'text-red-400';
+    const barColor = room.rate >= 80 
+      ? 'bg-gradient-to-r from-green-400 to-emerald-500' 
+      : room.rate >= 50 
+        ? 'bg-gradient-to-r from-yellow-400 to-orange-500' 
+        : 'bg-gradient-to-r from-red-400 to-rose-500';
+
+    // 邊框顏色依照爆分率對應
+    const borderColor = room.rate >= 80 
+      ? 'border-green-500' 
+      : room.rate >= 50 
+        ? 'border-yellow-500' 
+        : 'border-red-500';
+    const shadowColor = room.rate >= 80 
+      ? 'shadow-green-500/50' 
+      : room.rate >= 50 
+        ? 'shadow-yellow-500/50' 
+        : 'shadow-red-500/50';
+
+    const card = document.createElement('div');
+    card.className = `bg-gray-900 border-2 ${borderColor} ${shadowColor} shadow-lg rounded-xl p-5 card-hover transition-transform duration-300 card-animate`;
+    card.style.animationDelay = `${idx * 0.03}s`;
+    card.style.opacity = '0';
+
+    card.innerHTML = `
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <p class="text-gray-400 text-xs font-bold mb-1">推薦房號</p>
+          <h3 class="text-white text-3xl font-black tracking-wider">${room.displayId}</h3>
+        </div>
+        <div class="text-right">
+          <p class="text-gray-400 text-xs font-bold mb-1">預測爆分率</p>
+          <span class="${rateColor} text-2xl font-bold">${room.rate}%</span>
+        </div>
+      </div>
+      <div class="w-full bg-gray-800 rounded-full h-2 mb-4">
+        <div class="${barColor} h-2 rounded-full bar-glow" style="width: ${room.rate}%; transition: width 1s ease;"></div>
+      </div>
+      <div class="pt-3 border-t border-gray-800">
+        <p class="text-gray-400 text-xs mb-1 font-bold">目前訊號組合：</p>
+        <p class="text-white text-sm tracking-widest">${room.signals}</p>
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+
+  // 更新頁面資訊
+  document.getElementById('pageInfo').textContent = 
+    `顯示第 ${start + 1} - ${end} 間房間，共 ${filteredRooms.length} 間`;
+}
+
+// ============ 分頁 ============
+let currentPage = 1;
+
+function renderPagination() {
+  const totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
+  const pag = document.getElementById('pagination');
+  pag.innerHTML = '';
+
+  // 上一頁
+  const prevBtn = createPageBtn('« 上一頁', () => goToPage(currentPage - 1), currentPage === 1);
+  pag.appendChild(prevBtn);
+
+  // 頁碼邏輯：顯示首頁、末頁和當前頁附近的頁碼
+  const pages = getPageNumbers(currentPage, totalPages);
+  pages.forEach(p => {
+    if (p === '...') {
+      const dots = document.createElement('span');
+      dots.className = 'text-gray-500 px-2 py-2 self-end';
+      dots.textContent = '...';
+      pag.appendChild(dots);
+    } else {
+      const btn = createPageBtn(p, () => goToPage(p), false, p === currentPage);
+      pag.appendChild(btn);
+    }
+  });
+
+  // 下一頁
+  const nextBtn = createPageBtn('下一頁 »', () => goToPage(currentPage + 1), currentPage === totalPages);
+  pag.appendChild(nextBtn);
+}
+
+function createPageBtn(text, onClick, disabled, active) {
+  const btn = document.createElement('button');
+  btn.textContent = text;
+  btn.onclick = onClick;
+  btn.disabled = disabled;
+  btn.className = `page-btn px-3 py-2 rounded-lg text-sm font-bold transition-all ${
+    active 
+      ? 'active text-white' 
+      : disabled 
+        ? 'bg-gray-900 text-gray-700 cursor-not-allowed' 
+        : 'bg-gray-900 text-gray-300 border border-gray-700 hover:border-cyan-500 hover:text-cyan-400'
+  }`;
+  return btn;
+}
+
+function getPageNumbers(current, total) {
+  if (total <= 10) return Array.from({ length: total }, (_, i) => i + 1);
+  
+  const pages = [];
+  pages.push(1);
+  
+  if (current > 4) pages.push('...');
+  
+  const start = Math.max(2, current - 2);
+  const end = Math.min(total - 1, current + 2);
+  
+  for (let i = start; i <= end; i++) pages.push(i);
+  
+  if (current < total - 3) pages.push('...');
+  
+  pages.push(total);
+  return pages;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(filteredRooms.length / ROOMS_PER_PAGE);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderCards(currentPage);
+  renderPagination();
+  window.scrollTo({ top: 300, behavior: 'smooth' });
+}
+
+// ============ 搜尋 ============
+function searchRoom() {
+  const input = document.getElementById('searchInput').value.trim();
+  if (!input) {
+    applyFilter();
+    return;
+  }
+
+  const num = parseInt(input);
+  if (isNaN(num) || num < 1 || num > TOTAL_ROOMS) {
+    alert('請輸入 1 到 3000 之間的房號！');
+    return;
+  }
+
+  // 找到該房間
+  filteredRooms = allRooms.filter(r => r.id === num);
+  currentPage = 1;
+  renderCards(currentPage);
+  renderPagination();
+  updateStats();
+}
+
+// Enter 鍵搜尋
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('searchInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchRoom();
+  });
+});
+
+// ============ 篩選 ============
+function applyFilter() {
+  const filterVal = document.getElementById('filterRate').value;
+  const searchVal = document.getElementById('searchInput').value.trim();
+
+  if (searchVal) {
+    const num = parseInt(searchVal);
+    if (!isNaN(num) && num >= 1 && num <= TOTAL_ROOMS) {
+      filteredRooms = allRooms.filter(r => r.id === num);
+    }
+  } else if (filterVal === 'all') {
+    filteredRooms = [...allRooms];
+  } else {
+    const minRate = parseInt(filterVal);
+    filteredRooms = allRooms.filter(r => r.rate >= minRate);
+  }
+
+  currentPage = 1;
+  renderCards(currentPage);
+  renderPagination();
+  updateStats();
+}
+
+// ============ 更新數據 ============
+function refreshAllData(isManual) {
+  dataSeed = Date.now();
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterRate').value = 'all';
+  generateAllRooms();
+  currentPage = 1;
+  updateStats();
+  renderCards(currentPage);
+  renderPagination();
+  // 手動點擊時也重置自動倒數
+  if (isManual) {
+    resetAutoRefreshTimer();
+    showRefreshNotify();
+  }
+}
+
+// ============ 序號系統 ============
+var SERIAL_SECRET = 'SAIT2026XKEY';
+var SERIAL_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function computeCheck(body) {
+  var hash = 0;
+  var str = body + SERIAL_SECRET;
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  var result = '';
+  var h = Math.abs(hash);
+  for (var i = 0; i < 4; i++) {
+    result += SERIAL_CHARS[h % SERIAL_CHARS.length];
+    h = Math.floor(h / SERIAL_CHARS.length);
+  }
+  return result;
+}
+
+function validateSerial(serial) {
+  var clean = serial.replace(/-/g, '').toUpperCase().trim();
+  if (clean.length !== 12) return false;
+  var random = clean.substring(0, 8);
+  var check = clean.substring(8, 12);
+  return computeCheck(random) === check;
+}
+
+// ============ 序號登入（Firebase 雲端版）============
+function findSerialInFirebase(serial, callback) {
+  var clean = serial.replace(/-/g, '').toUpperCase().trim();
+  serialsRef.once('value').then(function(snapshot) {
+    var data = snapshot.val();
+    var list = data ? data : [];
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || !list[i].code) continue;
+      var itemClean = list[i].code.replace(/-/g, '').toUpperCase().trim();
+      if (itemClean === clean) {
+        callback(list[i]);
+        return;
+      }
+    }
+    callback(null);
+  }).catch(function(err) {
+    console.error('Firebase 讀取失敗:', err);
+    callback(null);
+  });
+}
+
+function showLoginError(errorEl, message) {
+  errorEl.textContent = message;
+  errorEl.style.display = 'block';
+  var box = document.querySelector('.login-box');
+  box.style.borderColor = 'rgba(248,113,113,0.5)';
+  setTimeout(function(){ box.style.borderColor = 'rgba(34,211,238,0.3)'; }, 600);
+}
+
+function startLoginAnimation(serial) {
+  localStorage.setItem('rooms_serial', serial);
+  sessionStorage.setItem('rooms_loggedIn', 'true');
+  document.getElementById('serialError').style.display = 'none';
+
+  // 隱藏登入表單，顯示進度條
+  document.getElementById('loginBox').style.display = 'none';
+  var progressContainer = document.getElementById('loginProgress');
+  var progressBar = document.getElementById('loginProgressBar');
+  var progressPercent = document.getElementById('loginProgressPercent');
+  var progressStatus = document.getElementById('loginProgressStatus');
+  var progressUser = document.getElementById('loginProgressUser');
+
+  // 顯示序號（部分遮蔽）
+  var displaySerial = serial.length > 8 ? serial.substring(0, 4) + '****' + serial.substring(serial.length - 4) : serial;
+  progressUser.textContent = displaySerial;
+
+  progressContainer.classList.add('active');
+
+  // 0.5秒後顯示 ACCESS GRANTED
+  setTimeout(function() {
+    progressStatus.classList.add('visible');
+  }, 500);
+
+  // 進度條動畫
+  var loginProgress = 0;
+  var loginProgressTimer = setInterval(function() {
+    var increment = Math.random() * 8 + 2;
+    loginProgress += increment;
+    if (loginProgress >= 100) {
+      loginProgress = 100;
+      clearInterval(loginProgressTimer);
+      progressBar.style.width = '100%';
+      progressPercent.textContent = '100%';
+
+      setTimeout(function() {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        progressContainer.classList.remove('active');
+        progressBar.style.width = '0%';
+        progressPercent.textContent = '0%';
+        progressStatus.classList.remove('visible');
+        document.getElementById('loginBox').style.display = '';
+        document.getElementById('logoutBtn').style.display = 'block';
+        startAutoRefresh();
+      }, 600);
+    } else {
+      progressBar.style.width = Math.floor(loginProgress) + '%';
+      progressPercent.textContent = Math.floor(loginProgress) + '%';
+    }
+  }, 80);
+}
+
+function handleSerialLogin() {
+  var serial = document.getElementById('serialInput').value.trim().toUpperCase();
+  var errorEl = document.getElementById('serialError');
+
+  // 先驗證序號格式
+  if (!validateSerial(serial)) {
+    showLoginError(errorEl, '⚠ 序號無效或格式錯誤');
+    return;
+  }
+
+  // 禁用按鈕，顯示載入中
+  var loginBtn = document.querySelector('.login-btn');
+  loginBtn.textContent = '🔄 驗證中...';
+  loginBtn.disabled = true;
+  loginBtn.style.opacity = '0.6';
+
+  var now = Date.now();
+
+  // 1. 從 Firebase 雲端查找序號
+  findSerialInFirebase(serial, function(storedItem) {
+    // 恢復按鈕狀態
+    loginBtn.textContent = '序號驗證登入';
+    loginBtn.disabled = false;
+    loginBtn.style.opacity = '1';
+
+    if (storedItem) {
+      // 序號存在於雲端資料庫 → 檢查是否過期
+      if (storedItem.expiresAt && now > storedItem.expiresAt) {
+        showLoginError(errorEl, '⚠ 此序號已過期！（有效期：' + (storedItem.durationLabel || '未知') + '）');
+        removeUserSerialRecord(serial);
+        return;
+      }
+      // 未過期 → 儲存到用戶本地紀錄（備份有效期資訊）
+      saveUserSerialRecord(serial, storedItem.expiresAt, storedItem.durationLabel);
+      // 驗證通過 → 啟動登入動畫
+      startLoginAnimation(serial);
+    } else {
+      // 2. 序號不在雲端（可能被管理員刪除）→ 檢查用戶本地紀錄
+      var userRecord = getUserSerialRecord(serial);
+      if (userRecord) {
+        if (userRecord.expiresAt && now > userRecord.expiresAt) {
+          showLoginError(errorEl, '⚠ 此序號已過期！（有效期：' + (userRecord.durationLabel || '未知') + '）');
+          removeUserSerialRecord(serial);
+          return;
+        }
+        // 未過期 → 允許登入
+        startLoginAnimation(serial);
+      } else {
+        // 3. 完全找不到 → 拒絕登入
+        showLoginError(errorEl, '⚠ 此序號未被授權或已被撤銷');
+      }
+    }
+  });
+}
+
+// ============ 用戶本地序號紀錄（即使管理員刪除序號，期限未到仍可登入）============
+function getUserSerialRecords() {
+  try {
+    return JSON.parse(localStorage.getItem('rooms_user_serial_records') || '{}');
+  } catch(e) { return {}; }
+}
+
+function saveUserSerialRecord(serial, expiresAt, durationLabel) {
+  var clean = serial.replace(/-/g, '').toUpperCase().trim();
+  var records = getUserSerialRecords();
+  records[clean] = {
+    expiresAt: expiresAt,
+    durationLabel: durationLabel || '未知',
+    savedAt: Date.now()
+  };
+  localStorage.setItem('rooms_user_serial_records', JSON.stringify(records));
+}
+
+function getUserSerialRecord(serial) {
+  var clean = serial.replace(/-/g, '').toUpperCase().trim();
+  var records = getUserSerialRecords();
+  return records[clean] || null;
+}
+
+function removeUserSerialRecord(serial) {
+  var clean = serial.replace(/-/g, '').toUpperCase().trim();
+  var records = getUserSerialRecords();
+  delete records[clean];
+  localStorage.setItem('rooms_user_serial_records', JSON.stringify(records));
+}
+
+// ============ 每5分鐘自動刷新 ============
+var AUTO_REFRESH_INTERVAL = 5 * 60; // 5分鐘 = 300秒
+var refreshTimer = null;
+var refreshElapsed = 0;
+var autoRefreshCount = 0; // 記錄已自動更新幾次
+
+function formatCountdown(seconds) {
+  var m = Math.floor(seconds / 60);
+  var s = seconds % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function showRefreshNotify() {
+  var notify = document.getElementById('refreshNotify');
+  autoRefreshCount++;
+  var now = new Date();
+  var timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                now.getMinutes().toString().padStart(2, '0') + ':' + 
+                now.getSeconds().toString().padStart(2, '0');
+  notify.textContent = '✅ 爆分率數據已自動更新！(' + timeStr + ')';
+  notify.classList.add('show');
+  setTimeout(function() { notify.classList.remove('show'); }, 3500);
+}
+
+function startAutoRefresh() {
+  refreshElapsed = 0;
+  var bar = document.getElementById('autoRefreshBar');
+  var countdown = document.getElementById('refreshCountdown');
+  var countdownText = document.getElementById('countdownText');
+
+  // 顯示倒數計時器
+  countdown.style.display = 'flex';
+  countdownText.textContent = formatCountdown(AUTO_REFRESH_INTERVAL);
+
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(function() {
+    refreshElapsed++;
+    var remaining = AUTO_REFRESH_INTERVAL - refreshElapsed;
+    var pct = (refreshElapsed / AUTO_REFRESH_INTERVAL) * 100;
+    bar.style.width = pct + '%';
+
+    // 更新倒數文字
+    countdownText.textContent = formatCountdown(remaining);
+
+    // 最後30秒變色提醒
+    if (remaining <= 30) {
+      countdown.style.borderColor = 'rgba(250,204,21,0.6)';
+      countdown.style.color = '#facc15';
+    } else {
+      countdown.style.borderColor = 'rgba(34,211,238,0.4)';
+      countdown.style.color = '#22d3ee';
+    }
+
+    // 時間到 → 自動刷新
+    if (refreshElapsed >= AUTO_REFRESH_INTERVAL) {
+      refreshAllData();
+      showRefreshNotify();
+      refreshElapsed = 0;
+      bar.style.width = '0%';
+      countdownText.textContent = formatCountdown(AUTO_REFRESH_INTERVAL);
+    }
+  }, 1000);
+}
+
+// 手動更新也要重置倒數
+function resetAutoRefreshTimer() {
+  if (refreshTimer) {
+    refreshElapsed = 0;
+    var bar = document.getElementById('autoRefreshBar');
+    bar.style.width = '0%';
+    var countdownText = document.getElementById('countdownText');
+    if (countdownText) countdownText.textContent = formatCountdown(AUTO_REFRESH_INTERVAL);
+  }
+}
+
+// ============ 登出 ============
+function handleLogout() {
+  // 清除登入狀態
+  sessionStorage.removeItem('rooms_loggedIn');
+  // 停止自動刷新
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  // 隱藏相關 UI 元素
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('refreshCountdown').style.display = 'none';
+  document.getElementById('autoRefreshBar').style.width = '0%';
+  // 顯示登入遮罩
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  // 清除輸入欄位
+  document.getElementById('serialInput').value = '';
+  document.getElementById('serialError').style.display = 'none';
+  // 回到頁面頂部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============ 初始化 ============
+window.addEventListener('DOMContentLoaded', function() {
+  generateAllRooms();
+  updateStats();
+  renderCards(1);
+  renderPagination();
+
+  // 序號欄位按 Enter 鍵登入
+  document.getElementById('serialInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') handleSerialLogin();
+  });
+
+  // 序號輸入自動格式化（自動加破折號）
+  document.getElementById('serialInput').addEventListener('input', function(e) {
+    var val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (val.length > 12) val = val.substring(0, 12);
+    var formatted = '';
+    for (var i = 0; i < val.length; i++) {
+      if (i > 0 && i % 4 === 0) formatted += '-';
+      formatted += val[i];
+    }
+    this.value = formatted;
+  });
+
+  // 檢查是否已登入（session 恢復）
+  if (sessionStorage.getItem('rooms_loggedIn') === 'true') {
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('logoutBtn').style.display = 'block';
+    startAutoRefresh();
+  }
+  // 如果 localStorage 有已驗證的序號，自動填入
+  var savedSerial = localStorage.getItem('rooms_serial');
+  if (savedSerial) {
+    document.getElementById('serialInput').value = savedSerial;
+  }
+});
+</script>
+
+</body>
+</html>

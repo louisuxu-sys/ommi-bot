@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能預測系統 - 高勝率分析平台</title>
+    <!-- 外部資源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 科技感字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0ea5e9',
+                        secondary: '#7e22ce',
+                        accent: '#f97316',
+                        dark: '#0f172a',
+                        light: '#f1f5f9'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Rajdhani', 'sans-serif']
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定義工具類 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-gradient {
+                background-clip: text;
+                -webkit-background-clip: text;
+                color: transparent;
+            }
+            .bg-grid {
+                background-size: 30px 30px;
+                background-image: 
+                    linear-gradient(to right, rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+            }
+            .glass {
+                backdrop-filter: blur(12px);
+                background: rgba(15, 23, 42, 0.7);
+            }
+            .card-hover {
+                transition: all 0.4s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 20px 25px -5px rgba(14, 165, 233, 0.1), 0 8px 10px -6px rgba(14, 165, 233, 0.1);
+            }
+        }
+    </style>
+    
+    <style>
+        /* 粒子背景動畫增強 */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(14, 165, 233, 0.3);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        /* 光暈效果升級 */
+        .glow {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.5),
+                        0 0 30px rgba(126, 34, 206, 0.3);
+        }
+        
+        /* 數字翻轉動畫 */
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .counter {
+            animation: countUp 0.8s ease-out forwards;
+            opacity: 0;
+        }
+        
+        /* 進度條動畫 */
+        @keyframes progress {
+            from { width: 0; }
+            to { width: var(--width); }
+        }
+        
+        .progress-animate {
+            --width: 0%;
+            animation: progress 1.2s ease-out forwards;
+        }
+        
+        /* 導航欄滾動效果 */
+        .nav-scrolled {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 按鈕點擊反饋 */
+        .btn-active {
+            transform: scale(0.98);
+        }
+        
+        /* 工具卡片懸停細節 */
+        .tool-card img {
+            transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .tool-card:hover img {
+            transform: scale(1.12);
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-light font-sans overflow-x-hidden">
+    <!-- 背景網格 -->
+    <div class="fixed inset-0 bg-grid z-[-2]"></div>
+    
+    <!-- 粒子背景容器 -->
+    <div id="particleContainer" class="fixed inset-0 z-[-1]"></div>
+    
+    <!-- 頂部導航 (新增滾動效果) -->
+    <nav id="mainNav" class="glass border-b border-primary/20 sticky top-0 z-50 transition-all duration-300">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center animate-pulse-slow">
+                    <i class="fa fa-line-chart text-white text-xl"></i>
+                </div>
+                <h1 class="text-xl md:text-2xl font-display font-bold bg-gradient-to-r from-primary to-secondary text-gradient">
+                    智能預測系統
+                </h1>
+            </div>
+            
+            <!-- 桌面端導航 -->
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#features" class="hover:text-primary transition-colors duration-300 relative group">
+                    系統特色
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </a>
+                <a href="#tools" class="hover:text-primary transition-colors duration-300 relative group">
+                    分析工具
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </a>
+                <a href="#demo" class="hover:text-primary transition-colors duration-300 relative group">
+                    使用示範
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </a>
+                <a href="#contact" class="hover:text-primary transition-colors duration-300 relative group">
+                    聯絡我們
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </a>
+            </div>
+            
+            <!-- 移動端菜單按鈕 (新增動畫) -->
+            <button id="menuToggle" class="md:hidden text-light focus:outline-none transition-transform duration-300">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+    </nav>
+    
+    <!-- 移動端菜單 (新增滑入動畫) -->
+    <div id="mobileMenu" class="hidden md:hidden glass border-b border-primary/20 py-4 px-4 absolute w-full z-40 transform -translate-y-2 opacity-0 transition-all duration-300">
+        <div class="flex flex-col gap-4">
+            <a href="#features" class="py-2 hover:text-primary transition-colors duration-300">系統特色</a>
+            <a href="#tools" class="py-2 hover:text-primary transition-colors duration-300">分析工具</a>
+            <a href="#demo" class="py-2 hover:text-primary transition-colors duration-300">使用示範</a>
+            <a href="#contact" class="py-2 hover:text-primary transition-colors duration-300">聯絡我們</a>
+        </div>
+    </div>
+
+    <!-- 首屏標題與簡介 (增強視覺層次) -->
+    <header class="container mx-auto px-4 py-24 md:py-36">
+        <div class="max-w-4xl mx-auto text-center">
+            <!-- 裝飾元素 -->
+            <div class="absolute top-20 left-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl"></div>
+            <div class="absolute top-40 right-1/4 w-40 h-40 bg-secondary/5 rounded-full blur-3xl"></div>
+            
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight relative z-10">
+                <span class="block bg-gradient-to-r from-primary to-secondary text-gradient">高勝率智能預測</span>
+                <span class="block mt-2 text-white">數據驅動的決策平台</span>
+            </h1>
+            <p class="text-lg md:text-xl text-gray-300 mb-12 max-w-2xl mx-auto relative z-10">
+                透過先進的AI算法與大數據分析，提供精準的賽事與彩券預測，幫助您做出更明智的決策，提升獲利機率。
+            </p>
+            
+            <!-- 關鍵指標 (新增數字動畫) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 relative z-10">
+                <div class="glass rounded-xl p-5 border border-primary/10 card-hover">
+                    <p class="text-sm text-gray-400 mb-1">平均勝率</p>
+                    <p class="text-2xl md:text-3xl font-display font-bold text-primary counter" data-target="83">0%</p>
+                </div>
+                <div class="glass rounded-xl p-5 border border-primary/10 card-hover">
+                    <p class="text-sm text-gray-400 mb-1">活躍用戶</p>
+                    <p class="text-2xl md:text-3xl font-display font-bold text-primary counter" data-target="5200">0</p>
+                </div>
+                <div class="glass rounded-xl p-5 border border-primary/10 card-hover">
+                    <p class="text-sm text-gray-400 mb-1">分析工具</p>
+                    <p class="text-2xl md:text-3xl font-display font-bold text-primary counter" data-target="6">0</p>
+                </div>
+                <div class="glass rounded-xl p-5 border border-primary/10 card-hover">
+                    <p class="text-sm text-gray-400 mb-1">預測精度</p>
+                    <p class="text-2xl md:text-3xl font-display font-bold text-primary counter" data-target="91">0%</p>
+                </div>
+            </div>
+            
+            <a href="#tools" class="inline-block px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-full font-display hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 btn-hover glow transform hover:-translate-y-1">
+                立即體驗 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- 系統特色 (增強圖標與布局) -->
+    <section id="features" class="container mx-auto px-4 py-20">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-center mb-16">
+            <span class="bg-gradient-to-r from-primary to-secondary text-gradient">系統特色</span>
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="glass rounded-xl p-6 border border-primary/10 hover:border-primary/30 transition-all duration-500 card-hover">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 animate-float">
+                    <i class="fa fa-brain text-primary text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4 text-white">深度學習算法</h3>
+                <p class="text-gray-300">
+                    採用先進的深度神經網路，分析數百萬筆歷史數據，即時優化預測模型，不斷提升預測準確度。
+                </p>
+            </div>
+            
+            <div class="glass rounded-xl p-6 border border-primary/10 hover:border-primary/30 transition-all duration-500 card-hover">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 animate-float" style="animation-delay: 0.2s">
+                    <i class="fa fa-bolt text-primary text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4 text-white">即時數據處理</h3>
+                <p class="text-gray-300">
+                    毫秒級數據處理速度，同步抓取全球各地賽事與開獎資訊，確保您獲得最新、最精準的分析結果。
+                </p>
+            </div>
+            
+            <div class="glass rounded-xl p-6 border border-primary/10 hover:border-primary/30 transition-all duration-500 card-hover">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 animate-float" style="animation-delay: 0.4s">
+                    <i class="fa fa-shield text-primary text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4 text-white">銀行級安全保障</h3>
+                <p class="text-gray-300">
+                    採用軍事級加密技術保護用戶數據，多重防火牆與異常偵測系統，確保您的資訊與交易安全。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 分析工具展示 (增強懸停效果) -->
+    <section id="tools" class="container mx-auto px-4 py-20">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-center mb-16">
+            <span class="bg-gradient-to-r from-primary to-secondary text-gradient">智能分析工具</span>
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 賽特專業數值分析工具 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden relative">
+                    <img src="https://i.imgur.com/5Z7XhQH.png" alt="賽特專業數值分析工具界面" class="w-full h-full object-cover">
+                    <div class="absolute top-3 left-3 bg-accent/90 text-white text-xs px-3 py-1 rounded-full">
+                        熱門工具
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">賽特專業數值分析工具</h3>
+                    <p class="text-gray-300 mb-6">
+                        輸入四大彩金數值，智能模擬遊戲爆發概率，精準預測最佳投注時機與額度，提升獲利機會。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 百家樂預測模組 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden relative">
+                    <img src="https://i.imgur.com/9BwY6dT.png" alt="百家樂預測模組界面" class="w-full h-full object-cover">
+                    <div class="absolute top-3 left-3 bg-primary/90 text-white text-xs px-3 py-1 rounded-full">
+                        高勝率
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">百家樂預測模組</h3>
+                    <p class="text-gray-300 mb-6">
+                        分析近30局開獎結果，自動解析莊閒走勢與連勝概率，提供科學的投注策略建議。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 彩球出號分析助手 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://i.imgur.com/3FgTk7m.png" alt="彩球出號分析助手界面" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">彩球出號分析助手</h3>
+                    <p class="text-gray-300 mb-6">
+                        支援多種熱門彩種，分析歷史開獎數據，統計熱冷號頻率，預測潛在出號組合。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 捕魚機數據分析助手 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://i.imgur.com/8XtRvLp.png" alt="捕魚機數據分析助手界面" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">捕魚機數據分析助手</h3>
+                    <p class="text-gray-300 mb-6">
+                        實時採集捕魚機運行數據，分析魚群出現規律、倍率波動，優化捕獲策略。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- ATG棋牌牛牛助手 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://i.imgur.com/2QZ7Y9D.png" alt="ATG棋牌牛牛助手界面" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">ATG棋牌牛牛助手</h3>
+                    <p class="text-gray-300 mb-6">
+                        深度學習牌型組合規律，實時計算勝率，提供下注決策輔助與風險提示。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 體育賽事分析助手 -->
+            <div class="glass rounded-xl overflow-hidden border border-primary/10 tool-card">
+                <div class="h-48 overflow-hidden">
+                    <img src="https://i.imgur.com/7CvTzLk.png" alt="體育賽事分析助手界面" class="w-full h-full object-cover">
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-3 text-white">體育賽事分析助手</h3>
+                    <p class="text-gray-300 mb-6">
+                        分析球隊傷病、歷史戰績、主客場數據，預測賽事結果與比分區間，勝率達82%。
+                    </p>
+                    <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                        <span>啟動工具</span>
+                        <i class="fa fa-play"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 使用示範 (完善工具分析內容) -->
+    <section id="demo" class="container mx-auto px-4 py-20">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-center mb-16">
+            <span class="bg-gradient-to-r from-primary to-secondary text-gradient">使用示範</span>
+        </h2>
+        
+        <div class="max-w-4xl mx-auto glass rounded-xl overflow-hidden border border-primary/10">
+            <div class="p-6 md:p-8 border-b border-primary/10">
+                <h3 class="text-2xl font-bold mb-2 text-white">選擇分析工具</h3>
+                <p class="text-gray-400">請選擇您需要使用的預測工具，開始智能分析</p>
+            </div>
+            
+            <div class="p-6 md:p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-fire text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">賽特專業數值分析工具</span>
+                        </div>
+                    </button>
+                    
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-bar-chart text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">百家樂預測模組</span>
+                        </div>
+                    </button>
+                    
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-circle-o text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">彩球出號分析助手</span>
+                        </div>
+                    </button>
+                    
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-fish text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">捕魚機數據分析助手</span>
+                        </div>
+                    </button>
+                    
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-gamepad text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">ATG棋牌牛牛助手</span>
+                        </div>
+                    </button>
+                    
+                    <button class="demo-tool-btn glass border border-primary/10 hover:border-primary rounded-lg p-4 text-left transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <i class="fa fa-futbol-o text-primary"></i>
+                            </div>
+                            <span class="font-medium text-white">體育賽事分析助手</span>
+                        </div>
+                    </button>
+                </div>
+                
+                <!-- 分析結果展示區 -->
+                <div class="border border-primary/10 rounded-lg p-6 min-h-[250px] glass">
+                    <div class="flex flex-col items-center justify-center h-full text-center">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 animate-float">
+                            <i class="fa fa-lightbulb-o text-primary text-3xl"></i>
+                        </div>
+                        <p class="text-gray-300">請從上方選擇一個分析工具，開始您的智能預測體驗</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 行動引導 (增強視覺吸引力) -->
+    <section class="container mx-auto px-4 py-20">
+        <div class="max-w-4xl mx-auto glass rounded-2xl p-8 md:p-12 border border-primary/10 relative overflow-hidden card-hover">
+            <!-- 增強裝飾元素 -->
+            <div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse-slow"></div>
+            <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 1s"></div>
+            
+            <div class="relative z-10 text-center">
+                <h2 class="text-3xl md:text-4xl font-display font-bold mb-6">
+                    <span class="bg-gradient-to-r from-primary to-secondary text-gradient">準備好提升您的勝率了嗎？</span>
+                </h2>
+                <p class="text-lg mb-10 text-gray-300 max-w-2xl mx-auto">
+                    加入數千名用戶的行列，體驗智能預測帶來的精準決策，開始穩定獲利的旅程。
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <!-- 免費試用按鈕已修改為跳轉鏈接 -->
+                    <a href="https://reurl.cc/QYjLDq" target="_blank" class="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-full font-display btn-hover glow transform hover:-translate-y-1 active:translate-y-0">
+                        免費試用 <i class="fa fa-rocket ml-2"></i>
+                    </a>
+                    <!-- 聯絡顧問按鈕已修改為跳轉鏈接 -->
+                    <a href="https://reurl.cc/QYjLDq" target="_blank" class="px-8 py-4 border-2 border-primary text-primary font-bold rounded-full font-display hover:bg-primary/10 transition-colors duration-300 transform hover:-translate-y-1 active:translate-y-0">
+                        聯絡顧問 <i class="fa fa-user ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 聯絡我們 (已更新按鈕鏈接) -->
+    <section id="contact" class="container mx-auto px-4 py-20">
+        <h2 class="text-3xl md:text-4xl font-display font-bold text-center mb-16">
+            <span class="bg-gradient-to-r from-primary to-secondary text-gradient">聯絡我們</span>
+        </h2>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
+            <div>
+                <div class="glass rounded-xl p-6 border border-primary/10 mb-8 card-hover">
+                    <h3 class="text-xl font-bold mb-6 text-white">聯絡資訊</h3>
+                    
+                    <div class="space-y-6">
+                        <!-- LINE按鈕 -->
+                        <div>
+                            <p class="text-gray-400 text-sm mb-2">🅻🅸🅽🅴 聯絡</p>
+                            <a href="https://reurl.cc/QYjLDq" target="_blank" class="block w-full py-3 bg-gradient-to-r from-[#00C300] to-[#00A800] text-white font-medium rounded-lg text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#00C300]/20 transform hover:-translate-y-1 active:translate-y-0">
+                                <i class="fa fa-line mr-2"></i>加入 
+                            </a>
+                        </div>
+                        
+                        <!-- 服務時間 -->
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0 mt-1">
+                                <i class="fa fa-clock-o text-primary"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-sm mb-1">服務時間</p>
+                                <p class="text-white">每日 15:00 - 24:00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-6 border border-primary/10 card-hover">
+                    <h3 class="text-xl font-bold mb-6 text-white">常見問題</h3>
+                    
+                    <div class="space-y-6">
+                        <div class="border-b border-primary/10 pb-4">
+                            <p class="font-medium mb-2 text-white">如何開始使用智能預測系統？</p>
+                            <p class="text-gray-400 text-sm">註冊帳號後，選擇您需要的分析工具，按照提示輸入相關數據即可獲得預測結果。</p>
+                        </div>
+                        
+                        <div class="border-b border-primary/10 pb-4">
+                            <p class="font-medium mb-2 text-white">系統的預測準確率如何？</p>
+                            <p class="text-gray-400 text-sm">根據不同遊戲類型，我們的預測準確率介於78%-86%之間，並持續透過AI學習優化。</p>
+                        </div>
+                        
+                        <div>
+                            <p class="font-medium mb-2 text-white">是否提供免費試用？</p>
+                            <p class="text-gray-400 text-sm">是的，新用戶可獲得5次免費試用機會，體驗我們的分析工具效果。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="glass rounded-xl p-6 border border-primary/10 card-hover">
+                    <h3 class="text-xl font-bold mb-6 text-white">發送詢問</h3>
+                    
+                    <!-- 發送訊息按鈕已修改為跳轉鏈接 -->
+                    <a href="https://reurl.cc/QYjLDq" target="_blank" class="block w-full py-3 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-lg font-display btn-hover glow transform hover:-translate-y-1 active:translate-y-0 mb-6">
+                          發送訊息 <i class="fa fa-paper-plane ml-2"></i>
+                    </a>
+                    
+                    <div class="bg-dark/30 rounded-lg p-5">
+                        <p class="text-gray-300 text-sm">
+                            點擊上方按鈕，透過🅻🅸🅽🅴官方帳號與我們聯繫，我們的專業顧問將會盡快回覆您的疑問。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 頁腳 (增強信息層次) -->
+    <footer class="border-t border-primary/10 mt-12">
+        <div class="container mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+                <div class="md:col-span-1">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                            <i class="fa fa-line-chart text-white text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-display font-bold bg-gradient-to-r from-primary to-secondary text-gradient">
+                            智能預測系統
+                        </h2>
+                    </div>
+                    <p class="text-gray-400 mb-6">
+                        用先進的AI技術，為您提供高勝率的預測分析，助力穩定獲利。
+                    </p>
+                    <div class="flex gap-4">
+                        <a href="#" class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors duration-300 transform hover:-translate-y-1 active:translate-y-0">
+                            <i class="fa fa-facebook text-primary"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors duration-300 transform hover:-translate-y-1 active:translate-y-0">
+                            <i class="fa fa-twitter text-primary"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors duration-300 transform hover:-translate-y-1 active:translate-y-0">
+                            <i class="fa fa-instagram text-primary"></i>
+                        </a>
+                        <a href="https://reurl.cc/QYjLDq" target="_blank" class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors duration-300 transform hover:-translate-y-1 active:translate-y-0">
+                            <i class="fa fa-line text-primary"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-6 text-white">快速連結</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#features" class="text-gray-400 hover:text-primary transition-colors duration-300">系統特色</a></li>
+                        <li><a href="#tools" class="text-gray-400 hover:text-primary transition-colors duration-300">分析工具</a></li>
+                        <li><a href="#demo" class="text-gray-400 hover:text-primary transition-colors duration-300">使用示範</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-primary transition-colors duration-300">聯絡我們</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-6 text-white">分析工具</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">賽特專業數值分析工具</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">百家樂預測模組</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">彩球出號分析助手</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">捕魚機數據分析助手</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">ATG棋牌牛牛助手</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">體育賽事分析助手</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-6 text-white">法律資訊</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">服務條款</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">隱私政策</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">免責聲明</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-primary transition-colors duration-300">版權聲明</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-primary/10 mt-12 pt-8 text-center text-gray-500 text-sm">
+                <p>&copy; 2025 智能預測系統 版權所有 | 本網站僅供娛樂參考，請理性對待博弈行為</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript (增強交互效果) -->
+    <script>
+        // 粒子背景效果增強
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('particleContainer');
+            const particleCount = window.innerWidth < 768 ? 30 : 60;
+            
+            // 創建粒子
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                // 隨機屬性
+                const size = 1 + Math.random() * 5;
+                const left = Math.random() * 100;
+                const top = Math.random() * 100;
+                const delay = Math.random() * 5;
+                const duration = 10 + Math.random() * 20;
+                const opacity = 0.1 + Math.random() * 0.3;
+                
+                // 應用樣式
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${left}%`;
+                particle.style.top = `${top}%`;
+                particle.style.opacity = opacity;
+                
+                // 添加動畫
+                particle.animate([
+                    { transform: `translate(0, 0)` },
+                    { transform: `translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px)` },
+                    { transform: `translate(0, 0)` }
+                ], {
+                    duration: duration * 1000,
+                    delay: delay * 1000,
+                    iterations: Infinity
+                });
+                
+                container.appendChild(particle);
+            }
+            
+            // 移動端菜單切換 (增強動畫)
+            const menuToggle = document.getElementById('menuToggle');
+            const mobileMenu = document.getElementById('mobileMenu');
+            let menuOpen = false;
+            
+            menuToggle.addEventListener('click', function() {
+                menuOpen = !menuOpen;
+                if (menuOpen) {
+                    mobileMenu.classList.remove('hidden', '-translate-y-2', 'opacity-0');
+                    mobileMenu.classList.add('translate-y-0', 'opacity-100');
+                    menuToggle.innerHTML = '<i class="fa fa-times text-xl"></i>';
+                } else {
+                    mobileMenu.classList.add('-translate-y-2', 'opacity-0');
+                    mobileMenu.classList.remove('translate-y-0', 'opacity-100');
+                    setTimeout(() => {
+                        mobileMenu.classList.add('hidden');
+                    }, 300);
+                    menuToggle.innerHTML = '<i class="fa fa-bars text-xl"></i>';
+                }
+            });
+            
+            // 導航欄滾動效果
+            const mainNav = document.getElementById('mainNav');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 50) {
+                    mainNav.classList.add('nav-scrolled');
+                } else {
+                    mainNav.classList.remove('nav-scrolled');
+                }
+            });
+            
+            // 工具按鈕點擊效果 (完善分析內容)
+            const demoToolBtns = document.querySelectorAll('.demo-tool-btn');
+            // 每個工具的獨特數據
+            const toolData = {
+                '賽特專業數值分析工具': {
+                    winRate: '86%',
+                    confidence: '94%',
+                    analysis: '透過輸入GRAND/MAJOR/MINOR/MINI四大彩金數值，系統會模擬過去10萬次遊戲爆發數據，計算當前彩金累積狀態下的爆發概率，並給出最佳投注時機與額度建議。'
+                },
+                '百家樂預測模組': {
+                    winRate: '82%',
+                    confidence: '88%',
+                    analysis: '基於近30局開獎結果，分析莊閒走勢規律、連莊/連閒概率及路單特徵，結合馬爾可夫鏈模型預測下一局開獎趨勢，重點關注「長龍斷點」與「跳局規律」。'
+                },
+                '彩球出號分析助手': {
+                    winRate: '78%',
+                    confidence: '85%',
+                    analysis: '統計近100期開獎號碼的熱度分布、奇偶比例、區間出現頻率，透過泊松分佈計算每個號碼的理論出現概率，過濾低概率號碼組合，生成高潛力出號組合。'
+                },
+                '捕魚機數據分析助手': {
+                    winRate: '84%',
+                    confidence: '90%',
+                    analysis: '實時採集魚群移動軌跡、捕獲倍率與大炮等級對應關係，分析「黃金魚群」出現周期與獎勵池累積規律，給出最佳開火時機、炮等選擇與捕獲路線建議。'
+                },
+                'ATG棋牌牛牛助手': {
+                    winRate: '85%',
+                    confidence: '92%',
+                    analysis: '學習過去5萬局牌型組合數據，實時計算手牌與莊家牌的勝率差，結合「牛牛」「五花」等特殊牌型出現概率，給出「加注/跟注/棄牌」決策建議，動態調整風險等級。'
+                },
+                '體育賽事分析助手': {
+                    winRate: '81%',
+                    confidence: '87%',
+                    analysis: '整合球隊近20場比賽數據（進球數、控球率、傷病情況等），分析主客場優勢係數與歷史交戰記錄，透過隨機森林算法預測比分區間與勝負概率，重點標記「冷門爆發點」。'
+                }
+            };
+
+            demoToolBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 移除其他按鈕的活躍狀態
+                    demoToolBtns.forEach(b => {
+                        b.classList.remove('bg-primary/10', 'border-primary');
+                    });
+                    
+                    // 添加當前按鈕的活躍狀態
+                    this.classList.add('bg-primary/10', 'border-primary');
+                    
+                    // 更新結果區域
+                    const resultArea = document.querySelector('.border.border-primary\\/10.rounded-lg.p-6');
+                    const toolName = this.querySelector('span').textContent;
+                    const data = toolData[toolName]; // 獲取當前工具的數據
+                    
+                    resultArea.innerHTML = `
+                        <div class="flex flex-col h-full">
+                            <div class="mb-4">
+                                <h4 class="font-bold mb-2 text-white">${toolName} - 分析結果</h4>
+                                <p class="text-sm text-gray-400">基於最新數據的智能預測分析</p>
+                            </div>
+                            
+                            <div class="flex-grow bg-dark/30 rounded-lg p-5 mb-5">
+                                <div class="space-y-5">
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-2">
+                                            <span class="text-gray-300">預測勝率</span>
+                                            <span class="font-medium text-primary">${data.winRate}</span>
+                                        </div>
+                                        <div class="w-full bg-dark/50 border border-primary/20 rounded-full h-2.5">
+                                            <div class="bg-gradient-to-r from-primary to-secondary h-2.5 rounded-full progress-animate" style="--width: ${data.winRate}"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-2">
+                                            <span class="text-gray-300">信心指標</span>
+                                            <span class="font-medium text-primary">${data.confidence}</span>
+                                        </div>
+                                        <div class="w-full bg-dark/50 border border-primary/20 rounded-full h-2.5">
+                                            <div class="bg-gradient-to-r from-primary to-secondary h-2.5 rounded-full progress-animate" style="--width: ${data.confidence}"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <p class="text-sm mb-3 font-medium text-white">預測指標：</p>
+                                        <p class="text-sm text-gray-300">${data.analysis}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button class="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+                                <span>查看詳細分析報告</span>
+                                <i class="fa fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            });
+            
+            // 數字增長動畫
+            const counters = document.querySelectorAll('.counter');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const counter = entry.target;
+                        const target = parseInt(counter.getAttribute('data-target'));
+                        const suffix = counter.innerText.includes('%') ? '%' : (counter.innerText.includes('+') ? '+' : '');
+                        let count = 0;
+                        const duration = 2000; // 2秒完成動畫
+                        const step = target / (duration / 16); // 60fps
+                        
+                        const updateCount = () => {
+                            count += step;
+                            if (count < target) {
+                                counter.innerText = suffix === '%' ? `${Math.ceil(count)}%` : 
+                                                  suffix === '+' ? `${Math.ceil(count)}+` : 
+                                                  Math.ceil(count);
+                                requestAnimationFrame(updateCount);
+                            } else {
+                                counter.innerText = suffix === '%' ? `${target}%` : 
+                                                  suffix === '+' ? `${target}+` : 
+                                                  target;
+                            }
+                        };
+                        
+                        updateCount();
+                        observer.unobserve(counter);
+                    }
+                });
+            }, { threshold: 0.5 });
+            
+            counters.forEach(counter => {
+                observer.observe(counter);
+            });
+            
+            // 平滑滾動增強
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    
+                    // 關閉移動端菜單
+                    if (menuOpen) {
+                        menuOpen = false;
+                        mobileMenu.classList.add('-translate-y-2', 'opacity-0');
+                        mobileMenu.classList.remove('translate-y-0', 'opacity-100');
+                        setTimeout(() => {
+                            mobileMenu.classList.add('hidden');
+                        }, 300);
+                        menuToggle.innerHTML = '<i class="fa fa-bars text-xl"></i>';
+                    }
+                    
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+            
+            // 按鈕點擊反饋
+            document.querySelectorAll('button, a').forEach(el => {
+                if (el.tagName === 'A' && el.getAttribute('href') === '#') return;
+                
+                el.addEventListener('mousedown', function() {
+                    this.classList.add('btn-active');
+                });
+                
+                el.addEventListener('mouseup', function() {
+                    setTimeout(() => {
+                        this.classList.remove('btn-active');
+                    }, 150);
+                });
+                
+                el.addEventListener('mouseleave', function() {
+                    this.classList.remove('btn-active');
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
+    

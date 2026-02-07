@@ -1,0 +1,3947 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>百家樂計算系統</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ===== 登入遮罩樣式 ===== */
+        #serialLoginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #020a14; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #serialLoginOverlay.hidden { display: none; }
+        .serial-login-box {
+            background: rgba(8,18,35,0.95); border: 1px solid rgba(0,240,255,0.25);
+            border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 420px; margin: 0 16px;
+            box-shadow: 0 0 60px rgba(0,240,255,0.08);
+            position: relative; overflow: hidden;
+        }
+        .serial-login-box::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 200%; height: 2px;
+            background: linear-gradient(90deg, transparent, #00f0ff, #6d5acf, transparent);
+            animation: loginShine 3s ease-in-out infinite;
+        }
+        @keyframes loginShine {
+            0%,100% { left: -100%; }
+            50% { left: 100%; }
+        }
+        .serial-login-box h2 { text-align: center; font-size: 22px; font-weight: 700; color: #e8f0fe; margin-bottom: 4px; letter-spacing: 2px; }
+        .serial-login-box .sub-title {
+            text-align: center; font-size: 11px; color: #00f0ff; letter-spacing: 4px; margin-bottom: 28px;
+            text-shadow: 0 0 10px rgba(0,240,255,0.5);
+        }
+        .serial-login-box .icon-area { text-align: center; margin-bottom: 20px; }
+        .serial-login-box .icon-area svg { width: 52px; height: 52px; margin: 0 auto; filter: drop-shadow(0 0 12px rgba(0,240,255,0.4)); }
+        .serial-login-box label { display: block; color: #7b8fa8; font-size: 13px; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .serial-login-box input {
+            width: 100%; background: rgba(3,7,18,0.7); border: 1px solid rgba(0,240,255,0.15);
+            color: #00f0ff; padding: 12px 16px; border-radius: 10px; font-size: 16px; margin-bottom: 16px;
+            outline: none; transition: all 0.3s; font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 3px; text-align: center; text-transform: uppercase;
+        }
+        .serial-login-box input::placeholder { color: rgba(0,240,255,0.25); letter-spacing: 1px; font-size: 13px; }
+        .serial-login-box input:focus { border-color: #00f0ff; box-shadow: 0 0 20px rgba(0,240,255,0.2); }
+        .serial-login-box .serial-login-btn {
+            width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
+            color: #020a14; cursor: pointer; background: linear-gradient(135deg, #00f0ff, #6d5acf);
+            transition: all 0.3s; letter-spacing: 1px; position: relative; overflow: hidden;
+        }
+        .serial-login-box .serial-login-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 25px rgba(0,240,255,0.4); }
+        .serial-login-box .serial-login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .serial-login-box .serial-error { color: #ff3d71; font-size: 13px; text-align: center; margin-bottom: 12px; display: none; }
+        .serial-login-box .footer-info { text-align: center; color: #374151; font-size: 11px; margin-top: 20px; line-height: 1.8; }
+
+        /* 登入進度條 */
+        .serial-progress-container { display: none; text-align: center; padding: 40px 32px; width: 100%; max-width: 460px; margin: 0 16px; }
+        .serial-progress-container.active { display: block; animation: fadeInScale 0.4s ease forwards; }
+        @keyframes fadeInScale { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+        .serial-progress-title { font-size: 20px; font-weight: 700; color: #e8f0fe; margin-bottom: 6px; letter-spacing: 2px; }
+        .serial-progress-subtitle { font-size: 12px; color: #00f0ff; letter-spacing: 4px; margin-bottom: 6px; text-shadow: 0 0 10px rgba(0,240,255,0.5); }
+        .serial-progress-user { font-size: 14px; color: #a78bfa; margin-bottom: 20px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
+        .serial-progress-status { font-size: 15px; font-weight: 700; color: #00f0ff; letter-spacing: 6px; margin-bottom: 18px;
+            text-shadow: 0 0 15px rgba(0,240,255,0.6), 0 0 30px rgba(0,240,255,0.3); opacity: 0; transition: opacity 0.5s ease; }
+        .serial-progress-status.visible { opacity: 1; }
+        .serial-progress-bar-outer { width: 100%; height: 5px; background: rgba(0,240,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 12px; border: 1px solid rgba(0,240,255,0.12); }
+        .serial-progress-bar-inner { height: 100%; width: 0%; border-radius: 3px;
+            background: linear-gradient(90deg, #00f0ff, #6d5acf, #00f0ff); box-shadow: 0 0 12px rgba(0,240,255,0.5); transition: width 0.3s ease; }
+        .serial-progress-percent { font-size: 11px; color: #4b5563; font-family: 'JetBrains Mono', monospace; }
+
+        /* 登出按鈕（放在 sidebar 內） */
+        #dinoLogoutBtn {
+            width: 100%; padding: 11px; border: none; border-radius: 8px;
+            background: linear-gradient(135deg, #ff3d71, #e11d48);
+            color: #fff; cursor: pointer; margin-top: 10px;
+            font-weight: 600; font-size: 13px; display: none;
+            transition: all 0.3s ease; letter-spacing: 0.5px;
+            text-align: center;
+        }
+        #dinoLogoutBtn:hover { box-shadow: 0 4px 20px rgba(255,61,113,0.35); transform: translateY(-1px); }
+
+        /* 序號到期提示 */
+        #serialExpiryInfo {
+            position: fixed; top: 12px; left: 16px; z-index: 10000;
+            background: rgba(8,18,35,0.9); border: 1px solid rgba(0,240,255,0.2);
+            border-radius: 8px; padding: 6px 14px; font-size: 11px; font-weight: 500;
+            color: #7b8fa8; display: none; backdrop-filter: blur(8px);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        :root {
+            --primary: #00f0ff;
+            --primary-dim: rgba(0, 240, 255, 0.15);
+            --secondary: #6d5acf;
+            --secondary-dim: rgba(109, 90, 207, 0.15);
+            --accent: #ff3d71;
+            --accent-dim: rgba(255, 61, 113, 0.15);
+            --dark-bg: #020a14;
+            --panel-bg: rgba(8, 18, 35, 0.82);
+            --card-bg: rgba(12, 28, 52, 0.65);
+            --border-color: rgba(0, 240, 255, 0.12);
+            --border-hover: rgba(0, 240, 255, 0.45);
+            --text-primary: #e8f0fe;
+            --text-secondary: #7b8fa8;
+            --blue: #0ea5e9;
+            --red: #ef4444;
+            --green: #22c55e;
+            --glass: rgba(255, 255, 255, 0.03);
+            --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.55);
+            --shadow-glow: 0 0 30px rgba(0, 240, 255, 0.06);
+            --neon-cyan: 0 0 8px rgba(0,240,255,0.6), 0 0 25px rgba(0,240,255,0.15);
+            --neon-purple: 0 0 8px rgba(109,90,207,0.6), 0 0 25px rgba(109,90,207,0.15);
+            --neon-red: 0 0 8px rgba(255,61,113,0.6), 0 0 25px rgba(255,61,113,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+
+        html {
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            background-image:
+                radial-gradient(ellipse at 10% 5%, rgba(0, 240, 255, 0.07) 0%, transparent 45%),
+                radial-gradient(ellipse at 90% 95%, rgba(109, 90, 207, 0.07) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 61, 113, 0.025) 0%, transparent 55%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: auto;
+        }
+
+        /* ===== 粒子 / 流星 動畫背景 ===== */
+        .grid-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-size: 50px 50px;
+            background-image:
+                linear-gradient(to right, rgba(0,240,255,0.025) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,240,255,0.025) 1px, transparent 1px);
+            pointer-events: none;
+            z-index: -1;
+            mask-image: radial-gradient(ellipse at center, black 25%, transparent 78%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 78%);
+            animation: gridDrift 30s linear infinite;
+        }
+        @keyframes gridDrift {
+            0%   { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+
+        /* 掃描線 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,240,255,0.012) 2px,
+                rgba(0,240,255,0.012) 4px
+            );
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        /* 水平掃描光束 */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent 20%, rgba(0,240,255,0.25) 50%, transparent 80%);
+            z-index: 9999;
+            pointer-events: none;
+            animation: scanBeam 6s ease-in-out infinite;
+        }
+        @keyframes scanBeam {
+            0%   { top: -3px; opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { top: 100vh; opacity: 0; }
+        }
+
+        /* 浮動粒子 canvas 佔位 */
+        #particle-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            background: linear-gradient(180deg, rgba(6, 14, 30, 0.97), rgba(8, 18, 35, 0.92));
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            padding: 14px 30px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 4px 40px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(0, 240, 255, 0.08);
+            position: relative;
+            z-index: 10;
+        }
+        /* 頂部欄底部發光線 */
+        .top-bar::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 5%; right: 5%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent);
+            opacity: 0.5;
+        }
+
+        .system-status {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 8px rgba(0,240,255,0.3);
+        }
+
+        .status-indicator {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            box-shadow: 0 0 6px rgba(0,240,255,0.8), 0 0 15px rgba(0,240,255,0.4), 0 0 30px rgba(0,240,255,0.15);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(0,240,255,0.8), 0 0 15px rgba(0,240,255,0.4), 0 0 30px rgba(0,240,255,0.15); }
+            50% { opacity: 0.5; box-shadow: 0 0 3px rgba(0,240,255,0.4); }
+        }
+
+        .title {
+            font-size: clamp(16px, 5vw, 28px);
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), #a78bfa, var(--secondary), var(--primary));
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: shimmer 5s ease-in-out infinite;
+            letter-spacing: 2px;
+            text-shadow: none;
+            filter: drop-shadow(0 0 12px rgba(0,240,255,0.15));
+            white-space: nowrap;
+            word-break: keep-all;
+            flex-shrink: 0;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+        }
+
+        .title i {
+            color: var(--primary);
+            text-shadow: 0 0 20px rgba(0,240,255,0.6);
+            filter: drop-shadow(0 0 12px rgba(0,240,255,0.4));
+            animation: iconGlow 3s ease-in-out infinite alternate;
+        }
+        @keyframes iconGlow {
+            0% { filter: drop-shadow(0 0 8px rgba(0,240,255,0.3)); }
+            100% { filter: drop-shadow(0 0 18px rgba(0,240,255,0.6)); }
+        }
+
+        .info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 14px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 12px;
+            background: rgba(0,240,255,0.03);
+            border-radius: 6px;
+            border: 1px solid rgba(0,240,255,0.08);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .info-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,240,255,0.06), transparent);
+            animation: infoShine 4s ease-in-out infinite;
+        }
+        @keyframes infoShine {
+            0%, 100% { left: -100%; }
+            50% { left: 100%; }
+        }
+        .info-item i {
+            color: var(--primary);
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        /* ===== HUD 面板角落裝飾 ===== */
+        .sidebar, .main-content, .column {
+            position: relative;
+        }
+        .sidebar::before, .sidebar::after,
+        .main-content::before, .main-content::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .sidebar::before, .main-content::before {
+            top: -1px; left: -1px;
+            border-top: 2px solid var(--primary);
+            border-left: 2px solid var(--primary);
+            border-radius: 14px 0 0 0;
+            opacity: 0.6;
+        }
+        .sidebar::after, .main-content::after {
+            bottom: -1px; right: -1px;
+            border-bottom: 2px solid var(--secondary);
+            border-right: 2px solid var(--secondary);
+            border-radius: 0 0 14px 0;
+            opacity: 0.6;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 22px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg), var(--shadow-glow), inset 0 1px 0 rgba(0,240,255,0.04);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.4s ease;
+            overflow: visible;
+        }
+
+        .sidebar:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-lg), 0 0 35px rgba(0,240,255,0.08), inset 0 1px 0 rgba(0,240,255,0.06);
+        }
+
+        .sidebar h3 {
+            margin-bottom: 22px;
+            font-size: 15px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 10px rgba(0,240,255,0.25);
+        }
+
+        .sidebar h3 i {
+            font-size: 14px;
+            opacity: 0.9;
+            filter: drop-shadow(0 0 4px rgba(0,240,255,0.4));
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .form-group select:hover, .form-group input:hover {
+            border-color: rgba(0, 240, 255, 0.3);
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1), 0 0 12px rgba(0, 240, 255, 0.15);
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), #38bdf8);
+            color: var(--dark-bg);
+            cursor: pointer;
+            margin-top: 14px;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .sidebar button:hover::before {
+            left: 100%;
+        }
+
+        .sidebar button:hover {
+            box-shadow: 0 4px 20px rgba(0, 240, 255, 0.3), 0 0 40px rgba(0, 240, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .sidebar button.secondary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .sidebar button.secondary:hover {
+            border-color: var(--primary);
+            background: rgba(0, 240, 255, 0.05);
+            box-shadow: none;
+            transform: none;
+        }
+
+        .main-content {
+            flex: 1;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            overflow: visible;
+        }
+
+        .section {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: border-color 0.3s ease;
+        }
+
+        .section:hover {
+            border-color: rgba(0, 240, 255, 0.25);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+            letter-spacing: 0.5px;
+        }
+
+        .reset-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reset-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .game-history {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-scroll-container {
+            width: 100%;
+            height: 260px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 12px;
+            background: rgba(3, 7, 18, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar {
+            height: 5px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 3px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 3px;
+        }
+
+        .history-rows {
+            display: inline-grid;
+            grid-template-rows: repeat(6, 36px);
+            grid-auto-columns: 36px;
+            grid-auto-flow: column;
+            gap: 4px;
+            min-width: 100%;
+        }
+
+        .history-cell {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            border: 2.5px solid transparent;
+            background-color: transparent;
+            color: transparent;
+        }
+
+        .history-cell.blue { 
+            border-color: var(--blue);
+            background: radial-gradient(circle at 35% 35%, #38bdf8, var(--blue));
+            color: #fff;
+            box-shadow: 0 0 6px rgba(14,165,233,0.5), inset 0 -1px 2px rgba(0,0,0,0.2);
+            animation: cellAppear 0.3s ease-out;
+        }
+        .history-cell.red { 
+            border-color: var(--red);
+            background: radial-gradient(circle at 35% 35%, #f87171, var(--red));
+            color: #fff;
+            box-shadow: 0 0 6px rgba(239,68,68,0.5), inset 0 -1px 2px rgba(0,0,0,0.2);
+            animation: cellAppear 0.3s ease-out;
+        }
+        @keyframes cellAppear {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .history-cell.has-tie {
+            position: relative;
+        }
+        .history-cell.has-tie::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            width: 3px;
+            height: 90%;
+            background-color: var(--green);
+            transform: rotate(-35deg);
+            border-radius: 2px;
+        }
+
+        .history-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-buttons {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .history-btn {
+            padding: 10px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            flex: 1;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .history-btn.blue { 
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            box-shadow: 0 2px 12px rgba(14, 165, 233, 0.25);
+        }
+        .history-btn.blue:hover { 
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .history-btn.green { 
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 2px 12px rgba(34, 197, 94, 0.25);
+        }
+        .history-btn.green:hover { 
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .history-btn.red { 
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 2px 12px rgba(239, 68, 68, 0.25);
+        }
+        .history-btn.red:hover { 
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .undo-btn {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 100px;
+        }
+
+        .undo-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-dim);
+        }
+
+        .undo-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            border-color: rgba(255,255,255,0.05);
+            background: transparent;
+        }
+
+        .row {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .column {
+            flex: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 22px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.3s ease;
+        }
+
+        .column:hover {
+            border-color: rgba(0, 240, 255, 0.25);
+        }
+
+        .loading {
+            width: 60px;
+            height: 60px;
+            margin: 20px auto;
+        }
+
+        .spinner {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(0, 240, 255, 0.2);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, var(--accent), #e11d48);
+            color: #fff;
+            padding: 11px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .start-btn:hover::before { left: 100%; }
+
+        .start-btn:hover {
+            box-shadow: 0 4px 20px rgba(255, 61, 113, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .chip {
+            background: rgba(255,255,255,0.03);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .chip:hover {
+            background: var(--primary-dim);
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .result-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 11px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            flex: 1;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.25s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+
+        .btn.blue { background: linear-gradient(135deg, #0ea5e9, #0284c7); box-shadow: 0 2px 12px rgba(14, 165, 233, 0.2); }
+        .btn.blue:hover { box-shadow: 0 4px 20px rgba(14, 165, 233, 0.4); }
+        .btn.green { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 2px 12px rgba(34, 197, 94, 0.2); }
+        .btn.green:hover { box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4); }
+        .btn.red { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 2px 12px rgba(239, 68, 68, 0.2); }
+        .btn.red:hover { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); }
+
+        .right.sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right.sidebar table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            flex: 1;
+        }
+
+        .right.sidebar th, .right.sidebar td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.08);
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .right.sidebar th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 11px;
+        }
+
+        .prediction-result {
+            margin: 15px 0;
+            padding: 16px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.04), rgba(109, 90, 207, 0.04));
+            border-left: 3px solid var(--primary);
+            display: none;
+        }
+
+        .prediction-result.visible {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .probability-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            align-items: center;
+        }
+
+        .probability-bar {
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            flex: 1;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .probability-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease-in-out;
+        }
+
+        .probability-fill.blue { background-color: var(--blue); }
+        .probability-fill.green { background-color: var(--green); }
+        .probability-fill.red { background-color: var(--red); }
+
+        .notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 18px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1000;
+            max-width: 340px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification.error {
+            border-left: 3px solid var(--accent);
+            box-shadow: var(--shadow-lg), 0 0 20px rgba(255, 61, 113, 0.1);
+        }
+
+        .notification.success {
+            border-left: 3px solid var(--green);
+            box-shadow: var(--shadow-lg), 0 0 20px rgba(34, 197, 94, 0.1);
+        }
+
+        .current-room-display {
+            padding: 10px 14px;
+            background: rgba(0, 240, 255, 0.04);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        /* 连接房间模态框 */
+        .connection-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.88);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .connection-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 35px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 0 60px rgba(0, 240, 255, 0.1), var(--shadow-lg);
+            transform: translateY(30px) scale(0.97);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .connection-modal.active .modal-content {
+            transform: translateY(0) scale(1);
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .modal-spinner {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .spin-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border-width: 4px;
+            border-style: solid;
+            border-color: transparent;
+            animation: spin 1.5s linear infinite;
+        }
+
+        .spin-layer:nth-child(1) {
+            border-top-color: var(--primary);
+        }
+
+        .spin-layer:nth-child(2) {
+            border-right-color: var(--secondary);
+            animation-delay: 0.3s;
+        }
+
+        .spin-layer:nth-child(3) {
+            border-bottom-color: var(--accent);
+            animation-delay: 0.6s;
+        }
+
+        .bpi-logo {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .modal-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .bpi-info {
+            background-color: rgba(30, 41, 59, 0.5);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .bpi-info strong {
+            color: var(--primary);
+        }
+
+        .progress {
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== RWD 響應式設計 ===== */
+
+        /* ===== JS 偵測螢幕解析度後套用的手機模式 ===== */
+        /* 修正：正確的偽元素選擇器語法 */
+        body.force-mobile-layout .grid-bg {
+            display: none !important;
+        }
+        body.force-mobile-layout::before,
+        body.force-mobile-layout::after {
+            display: none !important;
+            content: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        body.force-mobile-layout .top-bar,
+        body.force-mobile-layout .sidebar,
+        body.force-mobile-layout .main-content,
+        body.force-mobile-layout .section,
+        body.force-mobile-layout .column,
+        body.force-mobile-layout .notification,
+        body.force-mobile-layout .modal-content,
+        body.force-mobile-layout .connection-modal,
+        body.force-mobile-layout .form-group select,
+        body.force-mobile-layout .form-group input {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        /* 手機模式：關閉所有非必要動畫與特效 */
+        body.force-mobile-layout .top-bar,
+        body.force-mobile-layout .sidebar,
+        body.force-mobile-layout .main-content,
+        body.force-mobile-layout .section,
+        body.force-mobile-layout .column,
+        body.force-mobile-layout .notification,
+        body.force-mobile-layout .info-item,
+        body.force-mobile-layout .history-cell,
+        body.force-mobile-layout .history-btn,
+        body.force-mobile-layout .btn,
+        body.force-mobile-layout .start-btn,
+        body.force-mobile-layout .sidebar button,
+        body.force-mobile-layout .status-indicator,
+        body.force-mobile-layout .title,
+        body.force-mobile-layout .title i,
+        body.force-mobile-layout .sidebar h3 {
+            box-shadow: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+            -webkit-filter: none !important;
+        }
+        body.force-mobile-layout .info-item::before,
+        body.force-mobile-layout .sidebar::before,
+        body.force-mobile-layout .sidebar::after,
+        body.force-mobile-layout .main-content::before,
+        body.force-mobile-layout .main-content::after,
+        body.force-mobile-layout .sidebar button::before,
+        body.force-mobile-layout .start-btn::before {
+            display: none !important;
+            animation: none !important;
+        }
+        body.force-mobile-layout {
+            touch-action: pan-y !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+        body.force-mobile-layout .top-bar {
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            gap: 8px;
+            padding: 12px 16px;
+            text-align: center;
+            align-items: center;
+        }
+        body.force-mobile-layout .title {
+            font-size: clamp(15px, 5vw, 20px) !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            writing-mode: horizontal-tb !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            justify-content: center !important;
+            align-items: center !important;
+            order: -1;
+            overflow: visible !important;
+            width: auto !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex-shrink: 0 !important;
+        }
+        body.force-mobile-layout .info {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+        body.force-mobile-layout .container {
+            flex-direction: column !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+            padding: 15px;
+            padding-bottom: 40px;
+        }
+        body.force-mobile-layout .sidebar,
+        body.force-mobile-layout .right.sidebar {
+            width: 100% !important;
+        }
+        body.force-mobile-layout .row {
+            flex-direction: column !important;
+        }
+        body.force-mobile-layout .history-controls {
+            flex-direction: column;
+            gap: 10px;
+        }
+        body.force-mobile-layout .history-buttons {
+            width: 100%;
+        }
+        body.force-mobile-layout .undo-btn {
+            margin-left: 0;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* 平板以下 ≤1200px */
+        @media (max-width: 1200px) {
+            html {
+                height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            body {
+                min-height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-x: none;
+                overscroll-behavior-y: auto;
+                touch-action: pan-y;
+            }
+
+            /* 平板性能優化：徹底關閉掃描線（content: none 確保不渲染）*/
+            body::before {
+                display: none !important;
+                content: none !important;
+                visibility: hidden !important;
+            }
+
+            body::after {
+                display: none !important;
+                content: none !important;
+                visibility: hidden !important;
+            }
+
+            .grid-bg {
+                display: none !important;
+            }
+
+            /* 關閉所有 HUD 角落裝飾動畫 */
+            .sidebar::before, .sidebar::after,
+            .main-content::before, .main-content::after,
+            .info-item::before,
+            .sidebar button::before,
+            .start-btn::before {
+                display: none !important;
+                animation: none !important;
+            }
+
+            /* 平板關閉 backdrop-filter（大幅提升滑動性能）*/
+            .top-bar,
+            .sidebar,
+            .main-content,
+            .section,
+            .column,
+            .notification,
+            .modal-content,
+            .connection-modal,
+            .form-group select,
+            .form-group input {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+
+            /* 關閉非必要的 box-shadow / text-shadow / filter */
+            .top-bar, .sidebar, .main-content, .section, .column,
+            .notification, .info-item, .history-cell,
+            .history-btn, .btn, .start-btn, .sidebar button,
+            .status-indicator, .title, .title i, .sidebar h3 {
+                text-shadow: none !important;
+                filter: none !important;
+                -webkit-filter: none !important;
+            }
+
+            /* 頂部欄改為垂直堆疊 - 在平板以下就套用 */
+            .top-bar {
+                flex-direction: column !important;
+                flex-wrap: nowrap !important;
+                gap: 8px;
+                padding: 12px 16px;
+                text-align: center;
+                align-items: center;
+            }
+
+            .title {
+                /* 讓 clamp() 自動縮放，不覆蓋 */
+                white-space: nowrap !important;
+                word-break: keep-all !important;
+                writing-mode: horizontal-tb !important;
+                text-orientation: mixed !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                justify-content: center !important;
+                align-items: center !important;
+                order: -1;
+                overflow: visible !important;
+                width: auto !important;
+                max-width: 100% !important;
+                flex-shrink: 0 !important;
+                min-width: 0 !important;
+            }
+
+            .system-status {
+                font-size: 12px;
+                justify-content: center;
+                white-space: nowrap;
+            }
+
+            .info {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .info-item {
+                white-space: nowrap;
+            }
+
+            .container {
+                flex-direction: column;
+                overflow: visible !important;
+                height: auto;
+                padding: 15px;
+                padding-bottom: 40px;
+            }
+
+            .sidebar, .right.sidebar {
+                width: 100%;
+            }
+
+            .row {
+                flex-direction: column;
+            }
+        }
+
+        /* 手機橫向 / 小平板 ≤768px */
+        @media (max-width: 768px) {
+            .title {
+                font-size: clamp(15px, 5vw, 20px) !important;
+            }
+
+            /* ===== 全局性能優化：關閉不必要的動畫和特效 ===== */
+            .grid-bg,
+            .info-item::before,
+            .sidebar::before, .sidebar::after,
+            .main-content::before, .main-content::after,
+            .sidebar button::before,
+            .start-btn::before {
+                animation: none !important;
+                display: none !important;
+            }
+
+            /* 關閉非必要元素的 box-shadow / text-shadow / filter */
+            .top-bar, .sidebar, .main-content, .section, .column,
+            .notification, .info-item, .history-cell,
+            .history-btn, .btn, .start-btn, .sidebar button,
+            .status-indicator, .title, .title i, .sidebar h3 {
+                box-shadow: none !important;
+                text-shadow: none !important;
+                filter: none !important;
+                -webkit-filter: none !important;
+            }
+
+            /* 保留必要的動畫（spinner 等） */
+            .spinner, .spin-layer, .serial-progress-bar-inner, .progress-bar {
+                animation-duration: 1.2s !important;
+                animation-iteration-count: infinite !important;
+            }
+
+            /* ===== 滑動性能優化 ===== */
+            html {
+                height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            body {
+                min-height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: auto;
+                touch-action: pan-y;
+            }
+
+            /* 關閉掃描線和掃描光束（避免觸控干擾 + 提升性能） */
+            body::before,
+            body::after {
+                display: none !important;
+                content: none !important;
+            }
+
+            /* 關閉格柵動畫背景 */
+            .grid-bg {
+                animation: none !important;
+                display: none !important;
+            }
+
+            /* 關閉所有 backdrop-filter（最大性能殺手）*/
+            .top-bar,
+            .sidebar,
+            .main-content,
+            .section,
+            .column,
+            .notification,
+            .modal-content,
+            .connection-modal,
+            .form-group select,
+            .form-group input {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+
+            /* 強制硬體加速關鍵滾動容器 */
+            .container {
+                will-change: scroll-position;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+
+            /* ===== 頂部欄改為垂直堆疊 ===== */
+            .top-bar {
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px 16px;
+                text-align: center;
+                align-items: center;
+            }
+
+            .title {
+                /* 讓 clamp() 自動縮放 */
+                letter-spacing: 1px;
+                justify-content: center !important;
+                order: -1;
+                white-space: nowrap !important;
+                word-break: keep-all !important;
+                overflow: visible !important;
+                width: 100% !important;
+                max-width: none !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-shrink: 0 !important;
+                writing-mode: horizontal-tb !important;
+                text-orientation: mixed !important;
+            }
+
+            .system-status {
+                font-size: 12px;
+                justify-content: center;
+                white-space: nowrap;
+            }
+
+            .info {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+                font-size: 11px;
+            }
+
+            .info-item {
+                padding: 4px 10px;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+
+            /* info-item 的動畫也關閉以提升性能 */
+            .info-item::before {
+                display: none;
+            }
+
+            /* 容器 - 不設 overflow，讓 body 處理滾動 */
+            .container {
+                padding: 10px;
+                gap: 12px;
+                height: auto;
+                overflow: visible !important;
+            }
+
+            /* 側邊欄 */
+            .sidebar {
+                width: 100% !important;
+                padding: 16px;
+                border-radius: 10px;
+            }
+
+            .sidebar h3 {
+                font-size: 14px;
+                margin-bottom: 16px;
+            }
+
+            .form-group {
+                margin-bottom: 12px;
+            }
+
+            .form-group label {
+                font-size: 11px;
+            }
+
+            .form-group select, .form-group input {
+                padding: 9px 12px;
+                font-size: 14px; /* 避免 iOS 自動縮放 */
+            }
+
+            .sidebar button {
+                padding: 12px;
+                font-size: 14px;
+                margin-top: 10px;
+            }
+
+            /* 主內容 */
+            .main-content {
+                padding: 12px;
+                gap: 12px;
+                border-radius: 10px;
+            }
+
+            .section {
+                padding: 14px;
+            }
+
+            .section-header {
+                margin-bottom: 12px;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .section h3 {
+                font-size: 14px;
+            }
+
+            /* 歷史記錄 */
+            .history-scroll-container {
+                height: 220px;
+                padding: 8px;
+            }
+
+            .history-rows {
+                grid-template-rows: repeat(6, 32px);
+                grid-auto-columns: 32px;
+                gap: 3px;
+            }
+
+            .history-cell {
+                width: 28px;
+                height: 28px;
+                font-size: 10px;
+            }
+
+            /* 歷史按鈕 */
+            .history-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .history-buttons {
+                width: 100%;
+            }
+
+            .history-btn {
+                padding: 12px 0;
+                font-size: 14px;
+            }
+
+            .undo-btn {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+                padding: 12px;
+                font-size: 13px;
+            }
+
+            /* 下方兩欄 */
+            .row {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .column {
+                padding: 16px;
+                border-radius: 10px;
+            }
+
+            /* 下注管理 */
+            .chip-group {
+                justify-content: center;
+            }
+
+            .chip {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .result-buttons {
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 12px 0;
+                font-size: 14px;
+            }
+
+            /* 開始分析按鈕 */
+            .start-btn {
+                padding: 14px 0;
+                font-size: 14px;
+            }
+
+            /* 右側統計 */
+            .right.sidebar table {
+                margin-top: 10px;
+            }
+
+            .right.sidebar th, .right.sidebar td {
+                padding: 8px 6px;
+                font-size: 12px;
+            }
+
+            /* 模態框 */
+            .modal-content {
+                padding: 24px 18px;
+                width: 95%;
+            }
+
+            .modal-title {
+                font-size: 17px;
+            }
+
+            .bpi-info {
+                font-size: 13px;
+                padding: 12px;
+            }
+
+            /* 序號登入框 */
+            .serial-login-box {
+                padding: 28px 20px;
+                margin: 0 12px;
+            }
+
+            .serial-login-box h2 {
+                font-size: 19px;
+            }
+
+            /* 通知 */
+            .notification {
+                left: 12px;
+                right: 12px;
+                bottom: 16px;
+                max-width: none;
+            }
+
+            /* 序號到期提示 */
+            #serialExpiryInfo {
+                top: auto;
+                bottom: 8px;
+                left: 8px;
+                right: 8px;
+                text-align: center;
+                font-size: 10px;
+                padding: 5px 10px;
+                z-index: 10001;
+            }
+        }
+
+        /* 手機直向 ≤480px */
+        @media (max-width: 480px) {
+            .top-bar {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+
+            .title {
+                font-size: clamp(14px, 4.5vw, 18px) !important;
+                gap: 8px;
+                white-space: nowrap !important;
+                word-break: keep-all !important;
+                writing-mode: horizontal-tb !important;
+                width: 100% !important;
+                justify-content: center !important;
+            }
+
+            .title i {
+                font-size: 18px;
+            }
+
+            .info {
+                gap: 6px;
+            }
+
+            .info-item {
+                padding: 3px 8px;
+                font-size: 10px;
+            }
+
+            .container {
+                padding: 8px;
+                gap: 10px;
+            }
+
+            .sidebar {
+                padding: 14px;
+            }
+
+            .sidebar h3 {
+                font-size: 13px;
+                letter-spacing: 1px;
+            }
+
+            .form-group select, .form-group input {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+
+            .current-room-display {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            /* 歷史記錄 - 更小的格子 */
+            .history-scroll-container {
+                height: 190px;
+                padding: 6px;
+            }
+
+            .history-rows {
+                grid-template-rows: repeat(6, 28px);
+                grid-auto-columns: 28px;
+                gap: 2px;
+            }
+
+            .history-cell {
+                width: 24px;
+                height: 24px;
+                font-size: 9px;
+                border-width: 2px;
+            }
+
+            .history-btn {
+                padding: 11px 0;
+                font-size: 13px;
+                gap: 4px;
+            }
+
+            /* 籌碼按鈕 */
+            .chip-group {
+                gap: 6px;
+            }
+
+            .chip {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            .result-buttons {
+                gap: 6px;
+            }
+
+            .btn {
+                padding: 11px 0;
+                font-size: 13px;
+            }
+
+            .start-btn {
+                padding: 12px 0;
+                font-size: 13px;
+            }
+
+            /* 預測概率 */
+            .probability-item {
+                font-size: 13px;
+            }
+
+            .probability-item span {
+                font-size: 12px;
+                min-width: 28px;
+            }
+
+            /* 序號登入框 */
+            .serial-login-box {
+                padding: 24px 16px;
+                margin: 0 8px;
+                border-radius: 12px;
+            }
+
+            .serial-login-box h2 {
+                font-size: 17px;
+            }
+
+            .serial-login-box .sub-title {
+                font-size: 10px;
+                letter-spacing: 3px;
+                margin-bottom: 20px;
+            }
+
+            .serial-login-box input {
+                padding: 10px 12px;
+                font-size: 15px;
+                letter-spacing: 2px;
+            }
+
+            .serial-login-box .serial-login-btn {
+                padding: 12px;
+                font-size: 15px;
+            }
+
+            .serial-login-box .footer-info {
+                font-size: 10px;
+            }
+
+            /* 進度條 */
+            .serial-progress-title {
+                font-size: 17px;
+            }
+
+            .serial-progress-subtitle {
+                font-size: 10px;
+            }
+
+            .serial-progress-user {
+                font-size: 12px;
+            }
+
+            .serial-progress-status {
+                font-size: 13px;
+                letter-spacing: 4px;
+            }
+
+            /* 模態框 */
+            .modal-content {
+                padding: 20px 14px;
+                border-radius: 12px;
+            }
+
+            .modal-title {
+                font-size: 15px;
+            }
+
+            .bpi-info {
+                font-size: 12px;
+                padding: 10px;
+            }
+
+            .modal-spinner {
+                width: 60px;
+                height: 60px;
+            }
+
+            .bpi-logo {
+                font-size: 13px;
+            }
+
+            /* 右側統計面板 */
+            .right.sidebar h3 {
+                margin-top: 14px !important;
+            }
+
+            .right.sidebar th, .right.sidebar td {
+                padding: 7px 5px;
+                font-size: 11px;
+            }
+        }
+
+        /* ===== 手機觸控優化：確保所有按鈕可正常點擊 ===== */
+        @media (max-width: 1200px) {
+            /* 消除所有按鈕的 300ms 觸控延遲 */
+            button, .btn, .history-btn, .chip, .start-btn, .undo-btn, .reset-btn,
+            .sidebar button, .serial-login-btn, select, input, a {
+                touch-action: manipulation !important;
+                -webkit-tap-highlight-color: rgba(0,240,255,0.15) !important;
+                cursor: pointer;
+            }
+
+            /* ★ 核心修復：所有按鈕最小觸控高度 48px（Google Material Design 標準）*/
+            .history-btn {
+                min-height: 52px !important;
+                padding: 14px 0 !important;
+                font-size: 16px !important;
+                gap: 8px !important;
+            }
+
+            .undo-btn {
+                min-height: 48px !important;
+                padding: 12px 16px !important;
+                font-size: 14px !important;
+            }
+
+            .btn {
+                min-height: 50px !important;
+                padding: 14px 0 !important;
+                font-size: 15px !important;
+            }
+
+            .start-btn {
+                min-height: 52px !important;
+                padding: 14px 0 !important;
+                font-size: 15px !important;
+            }
+
+            .chip {
+                min-height: 44px !important;
+                padding: 10px 18px !important;
+                font-size: 15px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            .sidebar button {
+                min-height: 48px !important;
+                padding: 12px !important;
+                font-size: 15px !important;
+            }
+
+            .reset-btn {
+                min-height: 40px !important;
+                padding: 8px 16px !important;
+                font-size: 13px !important;
+            }
+
+            /* 表單元素觸控友善 */
+            .form-group select,
+            .form-group input {
+                min-height: 46px !important;
+                padding: 10px 14px !important;
+                font-size: 16px !important; /* ≥16px 避免 iOS 自動縮放 */
+            }
+
+            /* 序號登入按鈕 */
+            .serial-login-box .serial-login-btn {
+                min-height: 50px !important;
+                padding: 14px !important;
+                font-size: 16px !important;
+            }
+
+            .serial-login-box input {
+                min-height: 48px !important;
+                font-size: 16px !important;
+            }
+
+            /* 連接房間按鈕加大 */
+            #connect-btn {
+                min-height: 50px !important;
+                font-size: 15px !important;
+            }
+
+            /* 登出按鈕 */
+            #dinoLogoutBtn {
+                min-height: 48px !important;
+                font-size: 14px !important;
+            }
+
+            /* 確保按鈕之間有足夠間距避免誤觸 */
+            .history-buttons {
+                gap: 12px !important;
+            }
+
+            .result-buttons {
+                gap: 10px !important;
+                margin-top: 12px !important;
+            }
+
+            .chip-group {
+                gap: 10px !important;
+                margin: 12px 0 !important;
+            }
+
+            /* 預測結果區域在手機上更明顯 */
+            .prediction-result {
+                padding: 18px !important;
+                margin: 12px 0 !important;
+                border-left-width: 4px !important;
+            }
+
+            .probability-item {
+                margin: 12px 0 !important;
+                font-size: 15px !important;
+            }
+
+            .probability-item span {
+                font-size: 14px !important;
+                min-width: 36px !important;
+            }
+
+            .probability-bar {
+                height: 10px !important;
+                border-radius: 5px !important;
+            }
+
+            .probability-fill {
+                border-radius: 5px !important;
+            }
+        }
+
+        /* 超小螢幕 ≤360px */
+        @media (max-width: 360px) {
+            .title {
+                font-size: clamp(13px, 4vw, 16px) !important;
+                white-space: nowrap !important;
+                word-break: keep-all !important;
+                writing-mode: horizontal-tb !important;
+                width: 100% !important;
+                justify-content: center !important;
+            }
+
+            .info-item {
+                font-size: 9px;
+                padding: 2px 6px;
+            }
+
+            .history-rows {
+                grid-template-rows: repeat(6, 26px);
+                grid-auto-columns: 26px;
+            }
+
+            .history-cell {
+                width: 22px;
+                height: 22px;
+                font-size: 8px;
+            }
+
+            .serial-login-box h2 {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== 序號登入遮罩 ===== -->
+    <div id="serialLoginOverlay">
+        <!-- 登入表單 -->
+        <div class="serial-login-box" id="serialLoginBox">
+            <div class="icon-area">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h2>百家樂計算系統</h2>
+            <div class="sub-title">AUTHORIZED ACCESS ONLY</div>
+            <label>授權序號</label>
+            <input type="text" id="dinoSerialInput" placeholder="XXXX-XXXX-XXXX" autocomplete="off">
+            <p class="serial-error" id="dinoSerialError">⚠ 序號無效或格式錯誤</p>
+            <button type="button" class="serial-login-btn" id="dinoLoginBtn" onclick="handleDinoSerialLogin()">序號驗證登入</button>
+            <div class="footer-info">
+                🔒 此系統僅限授權人員使用<br>請向管理員索取授權序號
+            </div>
+        </div>
+        <!-- 登入進度條 -->
+        <div class="serial-progress-container" id="dinoLoginProgress">
+            <div class="serial-progress-title">百家樂計算系統</div>
+            <div class="serial-progress-subtitle">AUTHORIZED ACCESS</div>
+            <div class="serial-progress-user" id="dinoProgressUser"></div>
+            <div class="serial-progress-status" id="dinoProgressStatus">ACCESS GRANTED</div>
+            <div class="serial-progress-bar-outer">
+                <div class="serial-progress-bar-inner" id="dinoProgressBar"></div>
+            </div>
+            <div class="serial-progress-percent" id="dinoProgressPercent">0%</div>
+        </div>
+    </div>
+
+    <!-- 序號到期資訊 -->
+    <div id="serialExpiryInfo"></div>
+
+    <div class="grid-bg"></div>
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="top-bar">
+        <div class="system-status">
+            <span class="status-indicator"></span>
+            系統在線
+        </div>
+        <div class="title">
+            <i class="fas fa-microchip"></i>
+            <span style="white-space:nowrap;word-break:keep-all;">百家樂計算系統</span>
+        </div>
+        <div class="info">
+            <div class="info-item">
+                <i class="fas fa-globe"></i>
+                <span>IP:14.33.34.215</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span id="current-time">04:26:39</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-user"></i>
+                <span>訪客模式</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h3><i class="fas fa-cogs"></i> 系統設定</h3>
+            
+            <!-- 房間設置 -->
+            <div class="form-group">
+                <label>遊戲平台</label>
+                <select id="platform-select">
+                    <option value="">選擇平台</option>
+                    <option value="dg">DG真人</option>
+                    <option value="mt">MT真人</option>
+                    <option value="wg">WG真人</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>房間/桌號選擇</label>
+                <select id="room-select" disabled>
+                    <option>請先選擇平台</option>
+                </select>
+            </div>
+            <div class="current-room-display" id="current-room-display">未選擇房間</div>
+            
+            <div class="form-group">
+                <label>模型算法</label>
+                <select id="algorithm-select">
+                    <option value="tianwang">天網導引分析</option>
+                    <option value="bianyi">變異纖維分析</option>
+                    <option value="chaowei">超維態勢分析</option>
+                    <option value="zhixu">智序演化分析</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>分析深度</label>
+                <select id="depth-select">
+                    <option value="light">輕量級 (快速)</option>
+                    <option value="medium" selected>標準級</option>
+                    <option value="deep">深度分析 (精確)</option>
+                    <option value="ultra">超級計算 (耗時)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>目前下注金額</label>
+                <input type="text" id="bet-amount" value="0" disabled>
+            </div>
+            <div class="form-group">
+                <label>目前輸贏金額</label>
+                <input type="text" id="profit-amount" value="0" disabled>
+            </div>
+            <button id="connect-btn" disabled>
+                <i class="fas fa-plug"></i> 連接房間
+            </button>
+            <button class="secondary" id="reset-btn">
+                <i class="fas fa-sync-alt"></i> 重置系統
+            </button>
+            <button id="dinoLogoutBtn" onclick="handleDinoLogout()">🚪 登出系統</button>
+        </div>
+
+        <div class="main-content">
+            <div class="section game-history">
+                <div class="section-header">
+                    <h3><i class="fas fa-history"></i> 賽局記錄</h3>
+                    <button class="reset-btn" id="clear-history">
+                        <i class="fas fa-trash"></i> 清空記錄
+                    </button>
+                </div>
+                
+                <div class="history-scroll-container">
+                    <div class="history-rows" id="history-container">
+                    </div>
+                </div>
+                
+                <div class="history-controls">
+                    <div class="history-buttons">
+                        <button class="history-btn blue" data-result="blue">
+                            <i class="fas fa-user"></i> 閒
+                        </button>
+                        <button class="history-btn red" data-result="red">
+                            <i class="fas fa-crown"></i> 莊
+                        </button>
+                        <button class="history-btn green" data-result="green">
+                            <i class="fas fa-balance-scale"></i> 和
+                        </button>
+                    </div>
+                    <button class="undo-btn" id="undo-btn" disabled>
+                        <i class="fas fa-undo"></i> 上一步
+                    </button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="column">
+                    <div class="section-header">
+                        <h3><i class="fas fa-brain"></i> 預測分析</h3>
+                    </div>
+                    
+                    <div class="loading" id="prediction-loading" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                    
+                    <div id="prediction-placeholder" style="text-align: center; padding: 30px 0; color: var(--text-secondary);">
+                        <i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>添加至少5條賽局記錄以啟動分析</p>
+                    </div>
+                    
+                    <div class="prediction-result" id="prediction-result">
+                        <div class="probability-item">
+                            <span>閒</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill blue" id="prob-blue" style="width: 0%"></div>
+                            </div>
+                            <span id="val-blue">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>莊</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill red" id="prob-red" style="width: 0%"></div>
+                            </div>
+                            <span id="val-red">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>和</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill green" id="prob-green" style="width: 0%"></div>
+                            </div>
+                            <span id="val-green">0%</span>
+                        </div>
+                    </div>
+                    
+                    <button class="start-btn" id="start-analysis">
+                        <i class="fas fa-play"></i> 開始分析
+                    </button>
+                </div>
+
+                <div class="column">
+                    <div class="section-header">
+                        <h3><i class="fas fa-trophy"></i> 下注管理</h3>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>下注金額</label>
+                        <input type="number" id="bet-input" placeholder="輸入金額" value="0">
+                    </div>
+                    
+                    <div class="chip-group">
+                        <div class="chip" data-value="100">+100</div>
+                        <div class="chip" data-value="500">+500</div>
+                        <div class="chip" data-value="1000">+1000</div>
+                        <div class="chip" data-value="5000">+5000</div>
+                        <div class="chip" data-value="0">清空</div>
+                    </div>
+                    
+                    <div class="result-buttons">
+                        <button class="btn blue" data-type="blue">閒</button>
+                        <button class="btn red" data-type="red">莊</button>
+                    </div>
+                    
+                    <div class="result-buttons">
+                        <button class="btn green" data-type="green">和</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar right">
+            <h3><i class="fas fa-chart-pie"></i> 統計數據</h3>
+            
+            <div class="form-group">
+                <label>總局數</label>
+                <input type="text" id="total-games" value="0" disabled>
+            </div>
+            <div class="form-group">
+                <label>閒勝率</label>
+                <input type="text" id="blue-rate" value="0%" disabled>
+            </div>
+            <div class="form-group">
+                <label>莊勝率</label>
+                <input type="text" id="red-rate" value="0%" disabled>
+            </div>
+            <div class="form-group">
+                <label>和局率</label>
+                <input type="text" id="green-rate" value="0%" disabled>
+            </div>
+            
+            <h3 style="margin-top: 20px;"><i class="fas fa-brain"></i> 預測勝率</h3>
+            <div class="form-group">
+                <label>閒 預測</label>
+                <input type="text" id="pred-blue-rate" value="--" disabled style="color: var(--blue);">
+            </div>
+            <div class="form-group">
+                <label>莊 預測</label>
+                <input type="text" id="pred-red-rate" value="--" disabled style="color: var(--red);">
+            </div>
+            <div class="form-group">
+                <label>和 預測</label>
+                <input type="text" id="pred-green-rate" value="0%" disabled style="color: var(--green);">
+            </div>
+            
+            <h3 style="margin-top: 20px;"><i class="fas fa-list"></i> 最近下注</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>時間</th>
+                        <th>結果</th>
+                        <th>金額</th>
+                    </tr>
+                </thead>
+                <tbody id="bet-history">
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">無記錄</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 连接房间模态框 -->
+    <div class="connection-modal" id="connection-modal">
+        <div class="modal-content">
+            <div class="loader">
+                <div class="modal-spinner">
+                    <div class="spin-layer"></div>
+                    <div class="spin-layer"></div>
+                    <div class="spin-layer"></div>
+                </div>
+                <div class="bpi-logo">BPI</div>
+            </div>
+            <h3 class="modal-title" id="modal-room-name">連接至 百家樂 D01</h3>
+            
+            <div class="bpi-info">
+                <p><strong>BPI - Baccarat Prediction Interface</strong></p>
+                <p>
+                    融合統計學、AI深度學習與趨勢識別的百家樂預測平台核心。<br>
+                    BPI-Core™ 主演算法核心，負責分析每局路單與投注趨勢。
+                </p>
+            </div>
+            
+            <div class="progress">
+                <div class="progress-bar" id="connection-progress"></div>
+            </div>
+            <p class="status" id="connection-status">建立加密通道...</p>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <div style="font-weight: bold; margin-bottom: 5px;" class="notification-title">通知</div>
+        <div class="notification-message">這是一條通知</div>
+    </div>
+
+    <script>
+        // 全局变量
+        let gameHistory = [];
+        let betRecords = [];
+        let historyBackup = []; // 用于撤销操作的历史备份
+        let isConnected = false;
+        let currentRoom = "未選擇房間"; // 當前房間/桌號
+        let connectionInterval; // 连接进度计时器
+        let analysisStarted = false; // 是否已啟動分析（啟動後每次輸入自動分析）
+        let isAnalysisRunning = false; // 防止重複觸發分析
+        let analysisTimer = null; // 分析計時器（可取消）
+        
+        // DOM元素
+        const platformSelect = document.getElementById('platform-select');
+        const roomSelect = document.getElementById('room-select');
+        const currentRoomDisplay = document.getElementById('current-room-display');
+        const connectBtn = document.getElementById('connect-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const clearHistoryBtn = document.getElementById('clear-history');
+        const historyContainer = document.getElementById('history-container');
+        const undoBtn = document.getElementById('undo-btn');
+        const startAnalysisBtn = document.getElementById('start-analysis');
+        const predictionLoading = document.getElementById('prediction-loading');
+        const predictionPlaceholder = document.getElementById('prediction-placeholder');
+        const predictionResult = document.getElementById('prediction-result');
+        const betInput = document.getElementById('bet-input');
+        const chips = document.querySelectorAll('.chip');
+        const betButtons = document.querySelectorAll('.result-buttons .btn');
+        const currentTimeElement = document.getElementById('current-time');
+        const notification = document.getElementById('notification');
+        const notificationTitle = notification.querySelector('.notification-title');
+        const notificationMessage = notification.querySelector('.notification-message');
+        
+        // 连接模态框元素
+        const connectionModal = document.getElementById('connection-modal');
+        const connectionProgress = document.getElementById('connection-progress');
+        const connectionStatus = document.getElementById('connection-status');
+        const modalRoomName = document.getElementById('modal-room-name');
+        
+        // 统计数据元素
+        const totalGamesElement = document.getElementById('total-games');
+        const blueRateElement = document.getElementById('blue-rate');
+        const redRateElement = document.getElementById('red-rate');
+        const greenRateElement = document.getElementById('green-rate');
+        const betAmountElement = document.getElementById('bet-amount');
+        const profitAmountElement = document.getElementById('profit-amount');
+        const betHistoryElement = document.getElementById('bet-history');
+        
+        // 平台房间数据
+        const roomsByPlatform = {
+            // DG真人房间列表
+            'dg': [
+                '百家樂 D01', '百家樂 D02', '百家樂 D03', '百家樂 D04', '百家樂 D05',
+                '百家樂 D06', '百家樂 D07', '百家樂 D08', '百家樂 D09', '百家樂 D10',
+                '百家樂 D11', '百家樂 D12', '百家樂 C01', '百家樂 C02', '百家樂 C03',
+                '百家樂 C05', '百家樂 C06', '百家樂 A01', '百家樂 A02', '百家樂 A03',
+                '百家樂 A05', '性感百家樂 S01', '性感百家樂 S02', '性感百家樂 S03',
+                '性感百家樂 S05', '性感百家樂 S06', '保險百家樂 A08', '保險百家樂 A13',
+                '保險百家樂 A15', '百家樂 QC01', '百家樂 QC02', '百家樂 QC03', '百家樂 QC05',
+                '百家樂 QC06', '百家樂 QC07', '百家樂 QD01', '百家樂 QD02', '百家樂 QD03',
+                '百家樂 QD05', '百家樂 QD06', '百家樂 QD07'
+            ],
+            // MT真人房间列表
+            'mt': [
+                '百家樂1', '百家樂2', '百家樂3', '百家樂3A', '百家樂5',
+                '百家樂6', '百家樂7', '百家樂8', '百家樂9', '百家樂10',
+                '百家樂11', '百家樂12', '百家樂13'
+            ],
+            // WG真人房间列表
+            'wg': [
+                '極速百家樂1', '極速百家樂2', '極速百家樂3', '極速百家樂4',
+                '極速百家樂5', '極速百家樂6', '極速百家樂7', '極速百家樂8',
+                '極速百家樂9', '極速百家樂10', '極速百家樂11', '極速百家樂12'
+            ]
+        };
+        
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            currentTimeElement.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+        // 初始化时间
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // 平台选择变化
+        platformSelect.addEventListener('change', function() {
+            const selectedPlatform = this.value;
+            roomSelect.innerHTML = '';
+            
+            if (selectedPlatform && roomsByPlatform[selectedPlatform]) {
+                roomsByPlatform[selectedPlatform].forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room;
+                    option.textContent = room;
+                    roomSelect.appendChild(option);
+                });
+                roomSelect.disabled = false;
+                connectBtn.disabled = false;
+            } else {
+                const option = document.createElement('option');
+                option.textContent = '請先選擇平台';
+                roomSelect.appendChild(option);
+                roomSelect.disabled = true;
+                connectBtn.disabled = true;
+                currentRoom = "未選擇房間";
+                currentRoomDisplay.textContent = currentRoom;
+            }
+        });
+        
+        // 房间选择变化时更新显示
+        roomSelect.addEventListener('change', function() {
+            if (this.value) {
+                currentRoom = this.value;
+                currentRoomDisplay.textContent = currentRoom;
+            }
+        });
+        
+        // 连接/断开房间
+        connectBtn.addEventListener('click', function() {
+            if (isConnected) {
+                // 断开连接
+                isConnected = false;
+                connectBtn.innerHTML = '<i class="fas fa-plug"></i> 連接房間';
+                showNotification(`已與 ${currentRoom} 斷開連接`, '成功', '');
+            } else {
+                // 显示连接模态框并开始连接流程
+                startConnectionProcess();
+            }
+        });
+        
+        // 开始连接流程
+        function startConnectionProcess() {
+            // 重置进度
+            let progress = 0;
+            connectionProgress.style.width = '0%';
+            
+            // 设置模态框信息
+            modalRoomName.textContent = `連接至 ${currentRoom}`;
+            connectionStatus.textContent = '建立加密通道...';
+            
+            // 显示模态框
+            connectionModal.classList.add('active');
+            
+            // 清除之前的计时器
+            if (connectionInterval) clearInterval(connectionInterval);
+            
+            // 模拟连接进度
+            connectionInterval = setInterval(() => {
+                progress += 5;
+                
+                // 更新进度和状态文本
+                connectionProgress.style.width = `${progress}%`;
+                
+                // 状态文本变化
+                if (progress >= 10 && progress < 30) {
+                    connectionStatus.textContent = '驗證房間憑證...';
+                } else if (progress >= 30 && progress < 50) {
+                    connectionStatus.textContent = '同步歷史數據...';
+                } else if (progress >= 50 && progress < 70) {
+                    connectionStatus.textContent = '初始化分析引擎...';
+                } else if (progress >= 70 && progress < 90) {
+                    connectionStatus.textContent = '建立持久連接...';
+                } else if (progress >= 90) {
+                    connectionStatus.textContent = '連接即將完成...';
+                }
+                
+                // 连接完成
+                if (progress >= 100) {
+                    clearInterval(connectionInterval);
+                    
+                    // 更新连接状态
+                    isConnected = true;
+                    connectBtn.innerHTML = '<i class="fas fa-unplug"></i> 斷開連接';
+                    
+                    // 延迟关闭模态框，让用户看到完成状态
+                    setTimeout(() => {
+                        connectionModal.classList.remove('active');
+                        showNotification(`已成功連接到 ${currentRoom}`, '連接成功', 'success');
+                    }, 800);
+                }
+            }, 200);
+        }
+        
+        // 重置系统
+        resetBtn.addEventListener('click', function() {
+            if (confirm('確定要重置系統嗎？所有記錄將被清空。')) {
+                gameHistory = [];
+                historyBackup = [];
+                betRecords = [];
+                updateHistoryDisplay();
+                updateStatistics();
+                updateBetHistory();
+                betInput.value = '0';
+                betAmountElement.value = '0';
+                profitAmountElement.value = '0';
+                updateUndoButtonState();
+                showNotification('系統已重置', '成功', 'success');
+            }
+        });
+        
+        // 清空历史记录
+        clearHistoryBtn.addEventListener('click', function() {
+            if (gameHistory.length > 0 && confirm('確定要清空賽局記錄嗎？')) {
+                gameHistory = [];
+                historyBackup = [];
+                updateHistoryDisplay();
+                updateStatistics();
+                updateUndoButtonState();
+                showNotification('賽局記錄已清空', '成功', '');
+            }
+        });
+        
+        // 撤销上一步操作
+        undoBtn.addEventListener('click', function() {
+            if (gameHistory.length === 0) return;
+            
+            // 将当前记录移到备份
+            historyBackup.push(gameHistory.pop());
+            
+            // 更新显示和统计
+            updateHistoryDisplay();
+            updateStatistics();
+            updateUndoButtonState();
+            
+            showNotification('已撤銷上一步操作', '操作成功', '');
+        });
+        
+        // 更新撤销按钮状态
+        function updateUndoButtonState() {
+            undoBtn.disabled = gameHistory.length === 0;
+        }
+        
+        // 添加赛局记录
+        document.querySelectorAll('.history-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!isConnected) {
+                    showNotification('請先連接房間', '錯誤', 'error');
+                    return;
+                }
+                
+                const result = this.getAttribute('data-result');
+                gameHistory.push(result);
+                updateHistoryDisplay();
+                updateStatistics();
+                updateUndoButtonState();
+                
+                // 如果有足够记录，自動觸發預測分析
+                if (gameHistory.length >= 5) {
+                    predictionPlaceholder.style.display = 'none';
+                    
+                    // ★ 修復：達到5筆記錄後自動啟動分析，不再需要手動點擊「開始分析」
+                    if (!analysisStarted) {
+                        // 首次達到5筆，自動啟動分析引擎
+                        analysisStarted = true;
+                        startAnalysisBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 自動分析中（輸入即分析）';
+                        showNotification('已達5筆記錄，自動啟動分析引擎', '系統提示', 'success');
+                    }
+                    // 每次輸入都自動觸發分析
+                    try {
+                        runAnalysis(true);
+                    } catch(e) {
+                        console.error('[自動分析觸發錯誤]', e);
+                        showNotification('分析觸發錯誤: ' + e.message, '錯誤', 'error');
+                    }
+                } else {
+                    // 記錄不足5筆時顯示進度提示
+                    if (predictionPlaceholder) {
+                        predictionPlaceholder.style.display = 'block';
+                        predictionPlaceholder.innerHTML = '<i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i><p>還需 ' + (5 - gameHistory.length) + ' 筆記錄以啟動分析（目前 ' + gameHistory.length + '/5）</p>';
+                    }
+                }
+            });
+        });
+        
+        // 更新历史记录显示 - 大路（Big Road）算法
+        function updateHistoryDisplay() {
+            historyContainer.innerHTML = '';
+            
+            if (gameHistory.length === 0) {
+                return;
+            }
+            
+            const maxRows = 6;
+            
+            // 大路算法：計算每個結果的 (col, row) 位置
+            // 和局不佔位，而是標記在前一個莊/閒格子上
+            let col = 1;
+            let row = 1;
+            let prevMainResult = null; // 上一個非和局結果（莊或閒）
+            let maxCol = 1;
+            let streakVerticalCol = 1; // 當前連續結果的「直欄」位置
+            let hasTurned = false; // 龍尾是否已經轉彎（開始水平延伸）
+            
+            const positions = []; // 只記錄莊和閒的位置
+            const tieMarkers = new Set(); // 記錄哪些位置有和局標記
+            const occupiedCells = new Set(); // 追蹤已佔用的格子
+            
+            gameHistory.forEach((result, index) => {
+                if (result === 'green') {
+                    // 和局：標記在最後一個莊/閒格子上
+                    if (positions.length > 0) {
+                        const lastPos = positions[positions.length - 1];
+                        tieMarkers.add(`${lastPos.col}-${lastPos.row}`);
+                    }
+                    return; // 和局不佔格子位置
+                }
+                
+                // 莊或閒
+                if (positions.length === 0) {
+                    // 第一個莊/閒結果
+                    col = 1;
+                    row = 1;
+                    streakVerticalCol = 1;
+                    hasTurned = false;
+                } else if (result === prevMainResult) {
+                    if (hasTurned) {
+                        // 已經轉彎，保持水平往右延伸（不再往下）
+                        col++;
+                    } else if (row < maxRows && !occupiedCells.has(`${col}-${row + 1}`)) {
+                        // 往下延伸
+                        row++;
+                    } else {
+                        // 遇到底部或碰撞，開始轉彎往右水平延伸
+                        hasTurned = true;
+                        col++;
+                    }
+                } else {
+                    // 不同結果，開在長龍直欄的隔壁
+                    col = streakVerticalCol + 1;
+                    row = 1;
+                    hasTurned = false;
+                    // 如果該位置已被佔用，往右找空位
+                    while (occupiedCells.has(`${col}-${row}`)) {
+                        col++;
+                    }
+                    streakVerticalCol = col; // 新連續結果的直欄位置
+                }
+                
+                if (col > maxCol) maxCol = col;
+                occupiedCells.add(`${col}-${row}`);
+                positions.push({ col, row, result });
+                prevMainResult = result;
+            });
+            
+            if (positions.length === 0) {
+                return;
+            }
+            
+            // 設定 grid 欄數
+            historyContainer.style.gridTemplateColumns = `repeat(${maxCol}, 36px)`;
+            
+            // 建立所有格子
+            const resultTextMap = { 'blue': '閒', 'red': '莊' };
+            positions.forEach(pos => {
+                const cell = document.createElement('div');
+                cell.className = `history-cell ${pos.result}`;
+                cell.textContent = resultTextMap[pos.result] || '';
+                cell.style.gridColumn = pos.col;
+                cell.style.gridRow = pos.row;
+                
+                // 如果此格有和局標記，加上綠色斜線
+                if (tieMarkers.has(`${pos.col}-${pos.row}`)) {
+                    cell.classList.add('has-tie');
+                }
+                
+                historyContainer.appendChild(cell);
+            });
+            
+            // 水平滾動到最右邊
+            const scrollContainer = document.querySelector('.history-scroll-container');
+            scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+        }
+        
+        // 更新统计数据
+        function updateStatistics() {
+            const total = gameHistory.length;
+            totalGamesElement.value = total;
+            
+            if (total === 0) {
+                blueRateElement.value = '0%';
+                redRateElement.value = '0%';
+                greenRateElement.value = '0%';
+                return;
+            }
+            
+            // 计算各结果数量
+            const counts = {
+                'blue': 0,
+                'red': 0,
+                'green': 0
+            };
+            
+            gameHistory.forEach(result => {
+                if (counts[result] !== undefined) counts[result]++;
+            });
+            
+            // 计算百分比
+            const blueRate = Math.round((counts.blue / total) * 100);
+            const redRate = Math.round((counts.red / total) * 100);
+            const greenRate = Math.round((counts.green / total) * 100);
+            
+            // 更新显示
+            blueRateElement.value = `${blueRate}%`;
+            redRateElement.value = `${redRate}%`;
+            greenRateElement.value = `${greenRate}%`;
+        }
+        
+        // ====== 深度參數配置（共用）======
+        const depthConfigMap = {
+            light: {
+                label: '輕量級',
+                delay: 800,
+                recentWindow: 5,
+                trendWeight: 15,
+                dragonWeight: 0.6,
+                altLookback: 5,
+                altThreshold: 0.75,
+                altBonus: 10,
+                pairEnabled: false,
+                pairLookback: 0,
+                pairBonus: 0,
+                subseqEnabled: false,
+                subseqLen: 0,
+                subseqWeight: 0,
+                noiseRange: 10,
+                minGap: 5,
+                maxRate: 88,
+                minRate: 10,
+                sumCap: 96,
+                momentumEnabled: false,
+                varianceEnabled: false,
+                longPatternEnabled: false
+            },
+            medium: {
+                label: '標準級',
+                delay: 1500,
+                recentWindow: 10,
+                trendWeight: 25,
+                dragonWeight: 1.0,
+                altLookback: 8,
+                altThreshold: 0.7,
+                altBonus: 15,
+                pairEnabled: true,
+                pairLookback: 8,
+                pairBonus: 10,
+                subseqEnabled: true,
+                subseqLen: 3,
+                subseqWeight: 15,
+                noiseRange: 6,
+                minGap: 8,
+                maxRate: 85,
+                minRate: 12,
+                sumCap: 95,
+                momentumEnabled: false,
+                varianceEnabled: false,
+                longPatternEnabled: false
+            },
+            deep: {
+                label: '深度分析',
+                delay: 3000,
+                recentWindow: 15,
+                trendWeight: 30,
+                dragonWeight: 1.3,
+                altLookback: 12,
+                altThreshold: 0.65,
+                altBonus: 18,
+                pairEnabled: true,
+                pairLookback: 12,
+                pairBonus: 13,
+                subseqEnabled: true,
+                subseqLen: 4,
+                subseqWeight: 20,
+                noiseRange: 4,
+                minGap: 10,
+                maxRate: 82,
+                minRate: 14,
+                sumCap: 94,
+                momentumEnabled: true,
+                momentumWindow: 6,
+                momentumWeight: 12,
+                varianceEnabled: false,
+                longPatternEnabled: true,
+                longPatternLen: 5,
+                longPatternWeight: 10
+            },
+            ultra: {
+                label: '超級計算',
+                delay: 5500,
+                recentWindow: 20,
+                trendWeight: 35,
+                dragonWeight: 1.6,
+                altLookback: 16,
+                altThreshold: 0.6,
+                altBonus: 22,
+                pairEnabled: true,
+                pairLookback: 16,
+                pairBonus: 15,
+                subseqEnabled: true,
+                subseqLen: 5,
+                subseqWeight: 25,
+                noiseRange: 2,
+                minGap: 12,
+                maxRate: 80,
+                minRate: 15,
+                sumCap: 93,
+                momentumEnabled: true,
+                momentumWindow: 10,
+                momentumWeight: 18,
+                varianceEnabled: true,
+                varianceWindow: 15,
+                varianceWeight: 10,
+                longPatternEnabled: true,
+                longPatternLen: 6,
+                longPatternWeight: 15
+            }
+        };
+
+        // ====== 純計算函數（同步，無動畫，手機自動分析用）======
+        function _doAnalysisCompute(depthLevel, isAuto) {
+            const cfg = depthConfigMap[depthLevel] || depthConfigMap.medium;
+            const mainHistory = gameHistory.filter(r => r === 'blue' || r === 'red');
+            const totalMain = mainHistory.length;
+            
+            if (totalMain < 3) {
+                // ★ 修復：自動分析時也要顯示提示，讓使用者知道需要更多莊/閒記錄
+                if (isAuto) {
+                    // 自動模式：靜默處理，但確保 placeholder 顯示正確訊息
+                    if (predictionPlaceholder) {
+                        predictionPlaceholder.style.display = 'block';
+                        predictionPlaceholder.innerHTML = '<i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i><p>需要更多莊/閒記錄（目前 ' + totalMain + '/3 筆）</p>';
+                    }
+                } else {
+                    showNotification('莊/閒記錄不足，請至少3筆（目前 ' + totalMain + ' 筆）', '提示', 'error');
+                }
+                isAnalysisRunning = false;
+                return;
+            }
+            
+            let blueScore = 50;
+            let redScore = 50;
+            
+            // ─── 1. 基礎頻率分析 ───
+            const blueCount = mainHistory.filter(r => r === 'blue').length;
+            const redCount = mainHistory.filter(r => r === 'red').length;
+            blueScore = (blueCount / totalMain) * 100;
+            redScore = (redCount / totalMain) * 100;
+            
+            // ─── 2. 近期趨勢分析 ───
+            const recentN = mainHistory.slice(-cfg.recentWindow);
+            const rNBlue = recentN.filter(r => r === 'blue').length;
+            const rNRed = recentN.length - rNBlue;
+            const recentBias = ((rNBlue - rNRed) / recentN.length) * cfg.trendWeight;
+            blueScore += recentBias;
+            redScore -= recentBias;
+            
+            // ─── 3. 長龍分析 ───
+            let streak = 0;
+            let streakType = null;
+            for (let i = mainHistory.length - 1; i >= 0; i--) {
+                if (streakType === null) streakType = mainHistory[i];
+                if (mainHistory[i] === streakType) streak++;
+                else break;
+            }
+            if (streakType) {
+                let dragonBonus = 0;
+                if (streak <= 3) dragonBonus = streak * 5 * cfg.dragonWeight;
+                else if (streak <= 5) dragonBonus = -(streak - 3) * 6 * cfg.dragonWeight;
+                else dragonBonus = -(streak * 4) * cfg.dragonWeight;
+                if (streakType === 'blue') { blueScore += dragonBonus; redScore -= dragonBonus; }
+                else { redScore += dragonBonus; blueScore -= dragonBonus; }
+            }
+            
+            // ─── 4. 交替模式偵測 ───
+            let alternateCount = 0;
+            for (let i = mainHistory.length - 1; i >= 1 && i >= mainHistory.length - cfg.altLookback; i--) {
+                if (mainHistory[i] !== mainHistory[i - 1]) alternateCount++;
+            }
+            const checkLen = Math.min(cfg.altLookback - 1, mainHistory.length - 1);
+            if (checkLen > 0) {
+                const alternateRatio = alternateCount / checkLen;
+                if (alternateRatio > cfg.altThreshold) {
+                    const lastResult = mainHistory[mainHistory.length - 1];
+                    if (lastResult === 'blue') { redScore += cfg.altBonus; blueScore -= cfg.altBonus; }
+                    else { blueScore += cfg.altBonus; redScore -= cfg.altBonus; }
+                }
+            }
+            
+            // ─── 5. 配對模式偵測 ───
+            if (cfg.pairEnabled) {
+                let pairCount = 0;
+                for (let i = mainHistory.length - 1; i >= 1 && i >= mainHistory.length - cfg.pairLookback; i--) {
+                    if (mainHistory[i] === mainHistory[i - 1]) pairCount++;
+                }
+                const pairCheckLen = Math.min(cfg.pairLookback - 1, mainHistory.length - 1);
+                if (pairCheckLen > 0) {
+                    const pairRatio = pairCount / pairCheckLen;
+                    if (pairRatio > 0.6) {
+                        const lastResult = mainHistory[mainHistory.length - 1];
+                        const prevResult = mainHistory.length >= 2 ? mainHistory[mainHistory.length - 2] : null;
+                        if (lastResult === prevResult) {
+                            if (lastResult === 'blue') { redScore += cfg.pairBonus; blueScore -= cfg.pairBonus; }
+                            else { blueScore += cfg.pairBonus; redScore -= cfg.pairBonus; }
+                        } else {
+                            if (lastResult === 'blue') { blueScore += cfg.pairBonus; redScore -= cfg.pairBonus; }
+                            else { redScore += cfg.pairBonus; blueScore -= cfg.pairBonus; }
+                        }
+                    }
+                }
+            }
+            
+            // ─── 6. 歷史子序列匹配 ───
+            if (cfg.subseqEnabled && mainHistory.length >= cfg.subseqLen + 1) {
+                const pattern = mainHistory.slice(-cfg.subseqLen).join(',');
+                let matchBlue = 0, matchRed = 0;
+                for (let i = 0; i < mainHistory.length - cfg.subseqLen; i++) {
+                    const sub = mainHistory.slice(i, i + cfg.subseqLen).join(',');
+                    if (sub === pattern) {
+                        const nextResult = mainHistory[i + cfg.subseqLen];
+                        if (nextResult === 'blue') matchBlue++;
+                        else if (nextResult === 'red') matchRed++;
+                    }
+                }
+                const matchTotal = matchBlue + matchRed;
+                if (matchTotal >= 1) {
+                    const matchBias = ((matchBlue - matchRed) / matchTotal) * cfg.subseqWeight;
+                    blueScore += matchBias;
+                    redScore -= matchBias;
+                }
+            }
+            
+            // ─── 7. 動量分析 ───
+            if (cfg.momentumEnabled && mainHistory.length >= cfg.momentumWindow) {
+                const momentumSlice = mainHistory.slice(-cfg.momentumWindow);
+                let momentum = 0;
+                for (let i = 0; i < momentumSlice.length; i++) {
+                    const weight = (i + 1) / momentumSlice.length;
+                    momentum += (momentumSlice[i] === 'blue' ? 1 : -1) * weight;
+                }
+                const momentumBias = (momentum / cfg.momentumWindow) * cfg.momentumWeight * 10;
+                blueScore += momentumBias;
+                redScore -= momentumBias;
+            }
+            
+            // ─── 8. 變異數穩定性分析 ───
+            if (cfg.varianceEnabled && mainHistory.length >= cfg.varianceWindow) {
+                const varSlice = mainHistory.slice(-cfg.varianceWindow);
+                const values = varSlice.map(r => r === 'blue' ? 1 : 0);
+                const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+                if (variance < 0.2) {
+                    const stableBias = (mean > 0.5 ? 1 : -1) * cfg.varianceWeight;
+                    blueScore += stableBias;
+                    redScore -= stableBias;
+                } else if (variance > 0.35) {
+                    const regBias = (50 - blueScore) * 0.1;
+                    blueScore += regBias;
+                    redScore -= regBias;
+                }
+            }
+            
+            // ─── 9. 長模式匹配 ───
+            if (cfg.longPatternEnabled && mainHistory.length >= cfg.longPatternLen + 2) {
+                let bestMatchScore = 0;
+                let bestMatchDir = 0;
+                for (let pLen = 3; pLen <= cfg.longPatternLen; pLen++) {
+                    if (mainHistory.length < pLen + 1) continue;
+                    const pat = mainHistory.slice(-pLen).join(',');
+                    let mBlue = 0, mRed = 0;
+                    for (let i = 0; i < mainHistory.length - pLen; i++) {
+                        const sub = mainHistory.slice(i, i + pLen).join(',');
+                        if (sub === pat) {
+                            const nxt = mainHistory[i + pLen];
+                            if (nxt === 'blue') mBlue++;
+                            else if (nxt === 'red') mRed++;
+                        }
+                    }
+                    const mTotal = mBlue + mRed;
+                    if (mTotal >= 1) {
+                        const confidence = pLen * mTotal;
+                        if (confidence > bestMatchScore) {
+                            bestMatchScore = confidence;
+                            bestMatchDir = (mBlue - mRed) / mTotal;
+                        }
+                    }
+                }
+                if (bestMatchScore > 0) {
+                    const longBias = bestMatchDir * cfg.longPatternWeight;
+                    blueScore += longBias;
+                    redScore -= longBias;
+                }
+            }
+            
+            // ─── 10. 模型算法差異化處理 ───
+            const algorithmKey = document.getElementById('algorithm-select').value;
+            
+            if (algorithmKey === 'tianwang') {
+                blueScore += recentBias * 0.3;
+                redScore -= recentBias * 0.3;
+                if (mainHistory.length >= 6) {
+                    const last6 = mainHistory.slice(-6);
+                    let regularCount = 0;
+                    for (let i = 2; i < last6.length; i++) {
+                        if (last6[i] === last6[i - 2]) regularCount++;
+                    }
+                    if (regularCount >= 3) {
+                        const predicted = last6[last6.length - 2];
+                        if (predicted === 'blue') { blueScore += 8; redScore -= 8; }
+                        else { redScore += 8; blueScore -= 8; }
+                    }
+                }
+            } else if (algorithmKey === 'bianyi') {
+                blueScore += (50 - blueScore) * 0.1 * (Math.random() - 0.3);
+                redScore += (50 - redScore) * 0.1 * (Math.random() - 0.3);
+                if (Math.random() < 0.2) {
+                    const tempScore = blueScore;
+                    blueScore = redScore;
+                    redScore = tempScore;
+                }
+                if (mainHistory.length >= 4) {
+                    const last4 = mainHistory.slice(-4);
+                    if (last4.every(r => r === last4[0])) {
+                        if (last4[0] === 'blue') { redScore += 15; blueScore -= 15; }
+                        else { blueScore += 15; redScore -= 15; }
+                    }
+                }
+            } else if (algorithmKey === 'chaowei') {
+                if (mainHistory.length >= 8) {
+                    let dimensionScore = 0;
+                    for (let patLen = 2; patLen <= Math.min(5, mainHistory.length - 1); patLen++) {
+                        const pat = mainHistory.slice(-patLen).join(',');
+                        let mBlue = 0, mRed = 0;
+                        for (let i = 0; i < mainHistory.length - patLen; i++) {
+                            if (mainHistory.slice(i, i + patLen).join(',') === pat) {
+                                const nxt = mainHistory[i + patLen];
+                                if (nxt === 'blue') mBlue++;
+                                else if (nxt === 'red') mRed++;
+                            }
+                        }
+                        dimensionScore += (mBlue - mRed) * patLen;
+                    }
+                    blueScore += dimensionScore * 2;
+                    redScore -= dimensionScore * 2;
+                }
+                if (blueScore > 70) blueScore -= (blueScore - 70) * 0.3;
+                if (redScore > 70) redScore -= (redScore - 70) * 0.3;
+            } else if (algorithmKey === 'zhixu') {
+                blueScore = blueScore + (50 - blueScore) * 0.15;
+                redScore = redScore + (50 - redScore) * 0.15;
+                if (mainHistory.length >= 10) {
+                    const half1 = mainHistory.slice(0, Math.floor(mainHistory.length / 2));
+                    const half2 = mainHistory.slice(Math.floor(mainHistory.length / 2));
+                    const h1Blue = half1.filter(r => r === 'blue').length / half1.length;
+                    const h2Blue = half2.filter(r => r === 'blue').length / half2.length;
+                    const evolution = (h2Blue - h1Blue) * 20;
+                    blueScore += evolution;
+                    redScore -= evolution;
+                }
+            }
+            
+            // ─── 隨機擾動 ───
+            const algoNoiseMult = { tianwang: 1.0, bianyi: 1.8, chaowei: 0.6, zhixu: 0.4 };
+            const noise = (Math.random() - 0.5) * cfg.noiseRange * (algoNoiseMult[algorithmKey] || 1.0);
+            blueScore += noise;
+            redScore -= noise;
+            
+            // ─── 最終校正 ───
+            let blueRate = Math.max(cfg.minRate, Math.min(cfg.maxRate, Math.round(blueScore)));
+            let redRate = Math.max(cfg.minRate, Math.min(cfg.maxRate, Math.round(redScore)));
+            
+            const totalValidRate = blueRate + redRate;
+            if (totalValidRate > cfg.sumCap) {
+                const ratio = cfg.sumCap / totalValidRate;
+                blueRate = Math.round(blueRate * ratio);
+                redRate = cfg.sumCap - blueRate;
+            }
+            if (Math.abs(blueRate - redRate) < cfg.minGap) {
+                const halfGap = Math.ceil(cfg.minGap / 2);
+                if (blueScore >= redScore) {
+                    blueRate = Math.min(cfg.maxRate, blueRate + halfGap);
+                    redRate = Math.max(cfg.minRate, redRate - halfGap);
+                } else {
+                    redRate = Math.min(cfg.maxRate, redRate + halfGap);
+                    blueRate = Math.max(cfg.minRate, blueRate - halfGap);
+                }
+            }
+            
+            let greenRate = 0;
+            if (depthLevel !== 'light') {
+                const greenCount = gameHistory.filter(r => r === 'green').length;
+                const totalAll = gameHistory.length;
+                if (greenCount > 0) {
+                    greenRate = Math.round((greenCount / totalAll) * 100);
+                    greenRate = Math.max(1, Math.min(12, greenRate));
+                }
+            }
+            
+            // ─── 更新 UI ───
+            document.getElementById('prob-blue').style.width = blueRate + '%';
+            document.getElementById('val-blue').textContent = blueRate + '%';
+            document.getElementById('prob-red').style.width = redRate + '%';
+            document.getElementById('val-red').textContent = redRate + '%';
+            document.getElementById('prob-green').style.width = greenRate + '%';
+            document.getElementById('val-green').textContent = greenRate + '%';
+            document.getElementById('pred-blue-rate').value = blueRate + '%';
+            document.getElementById('pred-red-rate').value = redRate + '%';
+            document.getElementById('pred-green-rate').value = greenRate + '%';
+            
+            // 確保預測結果區域可見
+            predictionLoading.style.display = 'none';
+            predictionPlaceholder.style.display = 'none';
+            predictionResult.classList.add('visible');
+            startAnalysisBtn.disabled = false;
+            
+            // 標記分析已啟動
+            analysisStarted = true;
+            isAnalysisRunning = false;
+            
+            // 更新按鈕文字
+            startAnalysisBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 自動分析中（輸入即分析）';
+            
+            // ★ 分析完成通知 + 手機自動捲動到預測結果區域
+            if (isAuto) {
+                showNotification('預測分析已更新 閒:' + blueRate + '% 莊:' + redRate + '%', '分析完成', 'success');
+            }
+            // ★★★ 臨時除錯：確認分析是否真的執行完成 ★★★
+            console.log('[分析完成] 閒:' + blueRate + '% 莊:' + redRate + '% visible=' + predictionResult.classList.contains('visible') + ' display=' + predictionResult.style.display);
+            if (window.innerWidth <= 1200 || document.body.classList.contains('force-mobile-layout')) {
+                setTimeout(function() {
+                    if (predictionResult) {
+                        predictionResult.style.display = 'block';
+                        predictionResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 200);
+            }
+        }
+
+        // ====== 分析核心函數（統一使用 _doAnalysisCompute）======
+        function runAnalysis(isAuto) {
+            // 如果有正在進行的分析，先取消它
+            if (analysisTimer) {
+                clearTimeout(analysisTimer);
+                analysisTimer = null;
+                isAnalysisRunning = false;
+            }
+            
+            if (gameHistory.length < 5) {
+                if (!isAuto) showNotification('請至少添加5條賽局記錄', '錯誤', 'error');
+                return;
+            }
+            
+            isAnalysisRunning = true;
+            var depthLevel = document.getElementById('depth-select').value;
+
+            // ===== 自動分析：跳過動畫直接同步計算（手機友善）=====
+            if (isAuto) {
+                try {
+                    _doAnalysisCompute(depthLevel, true);
+                } catch(e) {
+                    console.error('自動分析錯誤:', e);
+                    showNotification('自動分析發生錯誤: ' + e.message, '錯誤', 'error');
+                    isAnalysisRunning = false;
+                }
+                return;
+            }
+            
+            // ★★★ 關鍵修復：手動分析時立即設定 analysisStarted = true ★★★
+            // 不再等 setTimeout 完成才設定，確保手機上下次輸入能立即觸發自動分析
+            analysisStarted = true;
+            
+            // ===== 手動分析：顯示 loading 動畫 → 延遲後用同一個計算函數 =====
+            var cfg = depthConfigMap[depthLevel] || depthConfigMap.medium;
+            
+            // 顯示載入狀態
+            predictionLoading.style.display = 'block';
+            predictionResult.classList.remove('visible');
+            startAnalysisBtn.disabled = true;
+            var algoNameMap = {tianwang:'天網導引',bianyi:'變異纖維',chaowei:'超維態勢',zhixu:'智序演化'};
+            var currentAlgoName = algoNameMap[document.getElementById('algorithm-select').value] || '';
+            startAnalysisBtn.innerHTML = '<i class="fas fa-cog fa-spin"></i> ' + currentAlgoName + ' ' + cfg.label + ' 分析中...';
+            
+            // 延遲後執行計算（使用統一的 _doAnalysisCompute）
+            analysisTimer = setTimeout(function() {
+                analysisTimer = null;
+                try {
+                    // 呼叫統一計算函數
+                    _doAnalysisCompute(depthLevel, false);
+                } catch(e) {
+                    console.error('手動分析錯誤:', e);
+                    predictionLoading.style.display = 'none';
+                    startAnalysisBtn.disabled = false;
+                    startAnalysisBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 自動分析中（輸入即分析）';
+                    isAnalysisRunning = false;
+                }
+                
+                // 手動分析完成後顯示通知
+                var algorithmKey = document.getElementById('algorithm-select').value;
+                var algoFullName = {tianwang:'天網導引',bianyi:'變異纖維',chaowei:'超維態勢',zhixu:'智序演化'};
+                var depthLabels = {
+                    light: '輕量級分析完成（3項指標）',
+                    medium: '標準級分析完成（6項指標）',
+                    deep: '深度分析完成（9項指標）',
+                    ultra: '超級計算完成（全部指標 + 變異數分析）'
+                };
+                var algoTag = algoFullName[algorithmKey] ? '[' + algoFullName[algorithmKey] + '] ' : '';
+                showNotification(algoTag + (depthLabels[depthLevel] || '分析完成'), '成功', 'success');
+            }, cfg.delay);
+        }
+        
+        // 開始分析按鈕 - 點擊事件
+        startAnalysisBtn.addEventListener('click', function() {
+            runAnalysis(false);
+        });
+        
+        // 筹码点击事件
+        chips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const value = parseInt(this.getAttribute('data-value'));
+                if (value === 0) {
+                    betInput.value = '0';
+                } else {
+                    const current = parseInt(betInput.value) || 0;
+                    betInput.value = (current + value).toString();
+                }
+            });
+        });
+        
+        // 下注按钮点击事件
+        betButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const betType = this.getAttribute('data-type');
+                const amount = parseInt(betInput.value) || 0;
+                
+                if (amount <= 0) {
+                    showNotification('請輸入有效的下注金額', '錯誤', 'error');
+                    return;
+                }
+                
+                if (!isConnected) {
+                    showNotification('請先連接房間', '錯誤', 'error');
+                    return;
+                }
+                
+                // 获取当前分析的最高概率选项
+                let highestProbType = null;
+                let highestProb = 0;
+                
+                if (predictionResult.classList.contains('visible')) {
+                    const blueProb = parseInt(document.getElementById('val-blue').textContent);
+                    const redProb = parseInt(document.getElementById('val-red').textContent);
+                    
+                    if (blueProb > redProb) {
+                        highestProbType = 'blue';
+                        highestProb = blueProb;
+                    } else {
+                        highestProbType = 'red';
+                        highestProb = redProb;
+                    }
+                }
+                
+                // 结果生成逻辑：如果下注的是分析推荐的高概率选项，提高胜率
+                let result;
+                const winChance = highestProbType === betType ? 0.65 : 0.4; // 分析推荐项有65%胜率
+                
+                if (Math.random() < winChance) {
+                    // 赢了 - 结果等于下注类型
+                    result = betType;
+                } else {
+                    // 输了 - 随机其他结果
+                    const otherResults = ['blue', 'red', 'green'].filter(t => t !== betType);
+                    result = otherResults[Math.floor(Math.random() * otherResults.length)];
+                }
+                
+                // 计算盈亏
+                let profit = 0;
+                let isWin = (betType === result);
+                
+                if (isWin) {
+                    switch (betType) {
+                        case 'blue':
+                            profit = amount;
+                            break;
+                        case 'red':
+                            profit = Math.round(amount * 0.95); // 庄有5%佣金
+                            break;
+                        case 'green':
+                            profit = amount * 8;
+                            break;
+                    }
+                } else {
+                    profit = -amount;
+                }
+                
+                // 更新总下注和盈亏
+                const currentTotalBet = parseInt(betAmountElement.value) || 0;
+                const currentProfit = parseInt(profitAmountElement.value) || 0;
+                
+                betAmountElement.value = (currentTotalBet + amount).toString();
+                profitAmountElement.value = (currentProfit + profit).toString();
+                
+                // 记录结果到赛局记录（下注后自动添加到赛局记录）
+                gameHistory.push(result);
+                updateHistoryDisplay();
+                updateStatistics();
+                updateUndoButtonState();
+                
+                // 记录下注
+                const now = new Date();
+                const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                
+                const resultTextMap = {
+                    'blue': '閒',
+                    'red': '莊',
+                    'green': '和'
+                };
+                
+                betRecords.unshift({
+                    time: timeStr,
+                    result: resultTextMap[result],
+                    amount: amount,
+                    profit: profit
+                });
+                
+                // 保持记录不超过5条
+                if (betRecords.length > 5) {
+                    betRecords.pop();
+                }
+                
+                // 更新下注历史显示
+                updateBetHistory();
+                
+                // 重置输入
+                betInput.value = '0';
+                
+                // 显示通知
+                showNotification(
+                    `${isWin ? '贏得' : '輸掉'} ${Math.abs(profit)} 元`,
+                    `${isWin ? '恭喜獲勝' : '投注結果'}`,
+                    isWin ? 'success' : 'error'
+                );
+                
+                // 重新分析
+                if (gameHistory.length >= 5 && analysisStarted) {
+                    runAnalysis(true);
+                }
+            });
+        });
+        
+        // 更新下注历史显示
+        function updateBetHistory() {
+            betHistoryElement.innerHTML = '';
+            
+            if (betRecords.length === 0) {
+                betHistoryElement.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">無記錄</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            betRecords.forEach(record => {
+                const row = document.createElement('tr');
+                const profitClass = record.profit >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+                
+                row.innerHTML = `
+                    <td>${record.time}</td>
+                    <td>${record.result}</td>
+                    <td style="${profitClass}">${record.profit >= 0 ? '+' : ''}${record.profit}</td>
+                `;
+                
+                betHistoryElement.appendChild(row);
+            });
+        }
+        
+        // 显示通知
+        function showNotification(message, title, type = '') {
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+            
+            // 移除所有类型类
+            notification.classList.remove('error', 'success');
+            
+            // 添加类型类
+            if (type) {
+                notification.classList.add(type);
+            }
+            
+            // 显示通知
+            notification.classList.add('show');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 初始化
+        updateHistoryDisplay();
+        updateStatistics();
+        updateBetHistory();
+        updateUndoButtonState();
+
+        // ===== 粒子動畫系統（含滾動暫停優化）=====
+        (function initParticles() {
+            const canvas = document.getElementById('particle-canvas');
+            if (!canvas) return;
+
+            // ≤1200px（平板+手機）：完全隱藏粒子以最大化滑動性能
+            const isTabletOrMobile = window.innerWidth <= 1200;
+            if (isTabletOrMobile) {
+                canvas.style.display = 'none';
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            let W, H;
+            let isScrolling = false;
+            let scrollTimer = null;
+            let animFrameId = null;
+            const particles = [];
+            const PARTICLE_COUNT = 55;
+            const colors = [
+                'rgba(0,240,255,',
+                'rgba(109,90,207,',
+                'rgba(255,61,113,',
+                'rgba(14,165,233,',
+            ];
+
+            function resize() {
+                W = canvas.width = window.innerWidth;
+                H = canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            // 滾動時暫停粒子動畫，節省 GPU 資源給滾動渲染
+            window.addEventListener('scroll', function() {
+                isScrolling = true;
+                if (scrollTimer) clearTimeout(scrollTimer);
+                scrollTimer = setTimeout(function() {
+                    isScrolling = false;
+                }, 200);
+            }, { passive: true });
+
+            // 建立粒子
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push({
+                    x: Math.random() * W,
+                    y: Math.random() * H,
+                    r: Math.random() * 1.8 + 0.3,
+                    dx: (Math.random() - 0.5) * 0.35,
+                    dy: (Math.random() - 0.5) * 0.35,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: Math.random() * 0.5 + 0.15,
+                    pulse: Math.random() * Math.PI * 2,
+                    pulseSpeed: Math.random() * 0.02 + 0.005
+                });
+            }
+
+            function drawParticles() {
+                // 滾動中跳過渲染，讓瀏覽器專注於滾動合成
+                if (isScrolling) {
+                    animFrameId = requestAnimationFrame(drawParticles);
+                    return;
+                }
+
+                ctx.clearRect(0, 0, W, H);
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.pulse += p.pulseSpeed;
+                    const a = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + (a * 0.2) + ')';
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + a + ')';
+                    ctx.fill();
+
+                    p.x += p.dx;
+                    p.y += p.dy;
+
+                    if (p.x < 0 || p.x > W) p.dx *= -1;
+                    if (p.y < 0 || p.y > H) p.dy *= -1;
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                        if (dist < 120) {
+                            const lineAlpha = (1 - dist / 120) * 0.12;
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = 'rgba(0,240,255,' + lineAlpha + ')';
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                animFrameId = requestAnimationFrame(drawParticles);
+            }
+
+            drawParticles();
+        })();
+    </script>
+
+<!-- ===== Firebase SDK（序號驗證用）===== -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<script>
+// ============ 序號登入系統（Firebase 雲端驗證）============
+(function() {
+    // Firebase 初始化
+    var firebaseConfig = {
+        apiKey: "AIzaSyDmX3JdjdhNvL03cbqHl6mmLpfBoPmaFUQ",
+        authDomain: "ommi-86f1e.firebaseapp.com",
+        databaseURL: "https://ommi-86f1e-default-rtdb.firebaseio.com",
+        projectId: "ommi-86f1e",
+        storageBucket: "ommi-86f1e.firebasestorage.app",
+        messagingSenderId: "190683009623",
+        appId: "1:190683009623:web:23ed513a7ea67b9aa14912",
+        measurementId: "G-PR2G6H56TM"
+    };
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    var db = firebase.database();
+    var serialsRef = db.ref('serials_dino');
+
+    // 序號驗證常數
+    var SERIAL_SECRET = 'DINO8787XKEY';
+    var SERIAL_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+    function computeCheck(body) {
+        var hash = 0;
+        var str = body + SERIAL_SECRET;
+        for (var i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        var result = '';
+        var h = Math.abs(hash);
+        for (var i = 0; i < 4; i++) {
+            result += SERIAL_CHARS[h % SERIAL_CHARS.length];
+            h = Math.floor(h / SERIAL_CHARS.length);
+        }
+        return result;
+    }
+
+    function validateSerialFormat(serial) {
+        var clean = serial.replace(/-/g, '').toUpperCase().trim();
+        if (clean.length !== 12) return false;
+        var random = clean.substring(0, 8);
+        var check = clean.substring(8, 12);
+        return computeCheck(random) === check;
+    }
+
+    // Firebase 查詢序號
+    function findSerialInFirebase(serial, callback) {
+        var clean = serial.replace(/-/g, '').toUpperCase().trim();
+        serialsRef.once('value').then(function(snapshot) {
+            var data = snapshot.val();
+            var list = data ? data : [];
+            for (var i = 0; i < list.length; i++) {
+                if (!list[i] || !list[i].code) continue;
+                var itemClean = list[i].code.replace(/-/g, '').toUpperCase().trim();
+                if (itemClean === clean) {
+                    callback(list[i]);
+                    return;
+                }
+            }
+            callback(null);
+        }).catch(function(err) {
+            console.error('Firebase 讀取失敗:', err);
+            callback(null);
+        });
+    }
+
+    // 本地序號紀錄
+    function getUserSerialRecords() {
+        try { return JSON.parse(localStorage.getItem('dino_user_serial_records') || '{}'); }
+        catch(e) { return {}; }
+    }
+    function saveUserSerialRecord(serial, expiresAt, durationLabel) {
+        var clean = serial.replace(/-/g, '').toUpperCase().trim();
+        var records = getUserSerialRecords();
+        records[clean] = { expiresAt: expiresAt, durationLabel: durationLabel || '未知', savedAt: Date.now() };
+        localStorage.setItem('dino_user_serial_records', JSON.stringify(records));
+    }
+    function getUserSerialRecord(serial) {
+        var clean = serial.replace(/-/g, '').toUpperCase().trim();
+        return getUserSerialRecords()[clean] || null;
+    }
+    function removeUserSerialRecord(serial) {
+        var clean = serial.replace(/-/g, '').toUpperCase().trim();
+        var records = getUserSerialRecords();
+        delete records[clean];
+        localStorage.setItem('dino_user_serial_records', JSON.stringify(records));
+    }
+
+    // 顯示錯誤
+    function showSerialError(msg) {
+        var el = document.getElementById('dinoSerialError');
+        el.textContent = msg;
+        el.style.display = 'block';
+        var box = document.getElementById('serialLoginBox');
+        box.style.borderColor = 'rgba(255,61,113,0.5)';
+        setTimeout(function() { box.style.borderColor = 'rgba(0,240,255,0.25)'; }, 600);
+    }
+
+    // 登入動畫
+    function startLoginAnimation(serial, expiresAt, durationLabel) {
+        localStorage.setItem('dino_serial', serial);
+        if (expiresAt) localStorage.setItem('dino_serial_expiresAt', expiresAt);
+        if (durationLabel) localStorage.setItem('dino_serial_durationLabel', durationLabel);
+        sessionStorage.setItem('dino_loggedIn', 'true');
+        document.getElementById('dinoSerialError').style.display = 'none';
+
+        // 隱藏表單，顯示進度條
+        document.getElementById('serialLoginBox').style.display = 'none';
+        var progressContainer = document.getElementById('dinoLoginProgress');
+        var progressBar = document.getElementById('dinoProgressBar');
+        var progressPercent = document.getElementById('dinoProgressPercent');
+        var progressStatus = document.getElementById('dinoProgressStatus');
+        var progressUser = document.getElementById('dinoProgressUser');
+
+        var displaySerial = serial.length > 8 ? serial.substring(0, 4) + '****' + serial.substring(serial.length - 4) : serial;
+        progressUser.textContent = displaySerial;
+        progressContainer.classList.add('active');
+
+        setTimeout(function() { progressStatus.classList.add('visible'); }, 500);
+
+        var loginProgress = 0;
+        var timer = setInterval(function() {
+            loginProgress += Math.random() * 8 + 2;
+            if (loginProgress >= 100) {
+                loginProgress = 100;
+                clearInterval(timer);
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%';
+                setTimeout(function() {
+                    document.getElementById('serialLoginOverlay').classList.add('hidden');
+                    progressContainer.classList.remove('active');
+                    progressBar.style.width = '0%';
+                    progressPercent.textContent = '0%';
+                    progressStatus.classList.remove('visible');
+                    document.getElementById('serialLoginBox').style.display = '';
+                    document.getElementById('dinoLogoutBtn').style.display = 'block';
+                    startExpiryCountdown();
+                    // 登入完成後強制重置滾動狀態，解決滑動卡住問題
+                    window.scrollTo(0, 0);
+                    document.body.scrollTop = 0;
+                    // 強制觸發 reflow 以啟動滾動上下文
+                    document.body.style.overflowY = 'hidden';
+                    requestAnimationFrame(function() {
+                        document.body.style.overflowY = 'auto';
+                    });
+                }, 600);
+            } else {
+                progressBar.style.width = Math.floor(loginProgress) + '%';
+                progressPercent.textContent = Math.floor(loginProgress) + '%';
+            }
+        }, 80);
+    }
+
+    // 到期倒數顯示
+    var expiryTimer = null;
+    function startExpiryCountdown() {
+        var expiresAt = parseInt(localStorage.getItem('dino_serial_expiresAt'));
+        var infoEl = document.getElementById('serialExpiryInfo');
+        if (!expiresAt || isNaN(expiresAt)) { infoEl.style.display = 'none'; return; }
+
+        infoEl.style.display = 'block';
+        if (expiryTimer) clearInterval(expiryTimer);
+
+        function updateExpiry() {
+            var now = Date.now();
+            var remaining = expiresAt - now;
+            if (remaining <= 0) {
+                infoEl.innerHTML = '⚠️ 序號已到期';
+                infoEl.style.borderColor = 'rgba(255,61,113,0.4)';
+                infoEl.style.color = '#ff3d71';
+                clearInterval(expiryTimer);
+                // 自動登出
+                setTimeout(function() {
+                    alert('您的序號已到期，請重新取得授權序號。');
+                    handleDinoLogout();
+                }, 2000);
+                return;
+            }
+            var seconds = Math.floor(remaining / 1000);
+            var minutes = Math.floor(seconds / 60);
+            var hours = Math.floor(minutes / 60);
+            var days = Math.floor(hours / 24);
+            var timeStr = '';
+            if (days > 0) timeStr = days + '天 ' + (hours % 24) + '時';
+            else if (hours > 0) timeStr = hours + '時 ' + (minutes % 60) + '分';
+            else timeStr = minutes + '分 ' + (seconds % 60) + '秒';
+
+            var label = localStorage.getItem('dino_serial_durationLabel') || '';
+            infoEl.innerHTML = '🔑 ' + label + ' | 剩餘：' + timeStr;
+
+            if (remaining < 5 * 60 * 1000) {
+                infoEl.style.borderColor = 'rgba(255,61,113,0.4)';
+                infoEl.style.color = '#ff3d71';
+            } else {
+                infoEl.style.borderColor = 'rgba(0,240,255,0.2)';
+                infoEl.style.color = '#7b8fa8';
+            }
+        }
+        updateExpiry();
+        expiryTimer = setInterval(updateExpiry, 1000);
+    }
+
+    // 序號登入處理
+    window.handleDinoSerialLogin = function() {
+        var serial = document.getElementById('dinoSerialInput').value.trim().toUpperCase();
+
+        if (!validateSerialFormat(serial)) {
+            showSerialError('⚠ 序號無效或格式錯誤');
+            return;
+        }
+
+        var loginBtn = document.getElementById('dinoLoginBtn');
+        loginBtn.textContent = '🔄 驗證中...';
+        loginBtn.disabled = true;
+
+        var now = Date.now();
+
+        findSerialInFirebase(serial, function(storedItem) {
+            loginBtn.textContent = '序號驗證登入';
+            loginBtn.disabled = false;
+
+            if (storedItem) {
+                if (storedItem.expiresAt && now > storedItem.expiresAt) {
+                    showSerialError('⚠ 此序號已過期！（有效期：' + (storedItem.durationLabel || '未知') + '）');
+                    removeUserSerialRecord(serial);
+                    return;
+                }
+                saveUserSerialRecord(serial, storedItem.expiresAt, storedItem.durationLabel);
+                startLoginAnimation(serial, storedItem.expiresAt, storedItem.durationLabel);
+            } else {
+                var userRecord = getUserSerialRecord(serial);
+                if (userRecord) {
+                    if (userRecord.expiresAt && now > userRecord.expiresAt) {
+                        showSerialError('⚠ 此序號已過期！（有效期：' + (userRecord.durationLabel || '未知') + '）');
+                        removeUserSerialRecord(serial);
+                        return;
+                    }
+                    startLoginAnimation(serial, userRecord.expiresAt, userRecord.durationLabel);
+                } else {
+                    showSerialError('⚠ 此序號未被授權或已被撤銷');
+                }
+            }
+        });
+    };
+
+    // 登出
+    window.handleDinoLogout = function() {
+        sessionStorage.removeItem('dino_loggedIn');
+        if (expiryTimer) { clearInterval(expiryTimer); expiryTimer = null; }
+        document.getElementById('dinoLogoutBtn').style.display = 'none';
+        document.getElementById('serialExpiryInfo').style.display = 'none';
+        document.getElementById('serialLoginOverlay').classList.remove('hidden');
+        document.getElementById('dinoSerialInput').value = '';
+        document.getElementById('dinoSerialError').style.display = 'none';
+    };
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enter 鍵登入
+        document.getElementById('dinoSerialInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') window.handleDinoSerialLogin();
+        });
+
+        // 自動格式化序號輸入
+        document.getElementById('dinoSerialInput').addEventListener('input', function() {
+            var val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+            if (val.length > 12) val = val.substring(0, 12);
+            var formatted = '';
+            for (var i = 0; i < val.length; i++) {
+                if (i > 0 && i % 4 === 0) formatted += '-';
+                formatted += val[i];
+            }
+            this.value = formatted;
+        });
+
+        // 檢查是否已登入（session 恢復）
+        if (sessionStorage.getItem('dino_loggedIn') === 'true') {
+            // 先檢查序號是否仍有效
+            var expiresAt = parseInt(localStorage.getItem('dino_serial_expiresAt'));
+            if (expiresAt && Date.now() > expiresAt) {
+                sessionStorage.removeItem('dino_loggedIn');
+                alert('您的序號已到期，請重新登入。');
+            } else {
+                document.getElementById('serialLoginOverlay').classList.add('hidden');
+                document.getElementById('dinoLogoutBtn').style.display = 'block';
+                startExpiryCountdown();
+                // session 恢復後也強制重置滾動狀態
+                window.scrollTo(0, 0);
+                document.body.style.overflowY = 'hidden';
+                requestAnimationFrame(function() {
+                    document.body.style.overflowY = 'auto';
+                });
+            }
+        }
+
+        // 自動填入上次使用的序號
+        var savedSerial = localStorage.getItem('dino_serial');
+        if (savedSerial) {
+            document.getElementById('dinoSerialInput').value = savedSerial;
+        }
+    });
+})();
+</script>
+
+<!-- ===== 螢幕解析度偵測：小於電腦解析度自動切換手機版 ===== -->
+<script>
+(function() {
+    // 此佈局需要至少 1200px 寬度才能正常三欄顯示
+    // 當視窗寬度小於螢幕解析度（或小於1200px），自動套用手機版排版
+    var DESKTOP_MIN_WIDTH = 1200;
+
+    function checkLayout() {
+        var viewportWidth = window.innerWidth;
+        var screenWidth = screen.width;
+        // 如果視窗寬度小於螢幕解析度，或視窗寬度小於 1200px，就切換手機版
+        var needMobile = (viewportWidth < screenWidth) || (viewportWidth < DESKTOP_MIN_WIDTH);
+
+        if (needMobile) {
+            document.body.classList.add('force-mobile-layout');
+        } else {
+            document.body.classList.remove('force-mobile-layout');
+        }
+    }
+
+    // 初始化
+    checkLayout();
+    // 視窗大小改變時重新偵測
+    window.addEventListener('resize', checkLayout);
+})();
+</script>
+
+</body>
+</html>
+    

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>法務部調查局 - 通緝資料查詢</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* 頂部導航欄 */
+        .top-bar {
+            background-color: #003366;
+            color: white;
+            padding: 5px 0;
+            font-size: 14px;
+        }
+        
+        .top-bar-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        
+        .top-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        
+        .top-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* 主標題欄 */
+        .header {
+            background-color: white;
+            border-bottom: 3px solid #005ea6;
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo img {
+            height: 60px;
+            margin-right: 15px;
+        }
+        
+        .logo-text h1 {
+            font-size: 24px;
+            color: #003366;
+        }
+        
+        .logo-text p {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* 主導航 */
+        .main-nav {
+            background-color: #005ea6;
+        }
+        
+        .nav-list {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            list-style: none;
+        }
+        
+        .nav-list li {
+            position: relative;
+        }
+        
+        .nav-list a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            font-size: 15px;
+        }
+        
+        .nav-list a:hover {
+            background-color: #004a87;
+        }
+        
+        /* 內容區域 */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .sidebar {
+            width: 250px;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-title {
+            background-color: #005ea6;
+            color: white;
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .sidebar-menu {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        
+        .sidebar-menu li {
+            list-style: none;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .sidebar-menu a {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            text-decoration: none;
+        }
+        
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background-color: #f0f7ff;
+            color: #005ea6;
+            font-weight: bold;
+        }
+        
+        .main-content {
+            flex-grow: 1;
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 25px;
+            min-height: 500px;
+        }
+        
+        .page-title {
+            border-bottom: 2px solid #005ea6;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .page-title h2 {
+            color: #003366;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .page-title h2::before {
+            content: "●";
+            color: #005ea6;
+            margin-right: 8px;
+            font-size: 12px;
+        }
+        
+        /* 通緝信息樣式 */
+        .wanted-header {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .wanted-badge {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 10px;
+            border: 2px solid #005ea6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+        }
+        
+        .wanted-badge img {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .wanted-badge-text {
+            font-weight: bold;
+            color: #003366;
+            line-height: 1.5;
+        }
+        
+        .wanted-photo {
+            text-align: center;
+            margin: 20px 0 30px;
+        }
+        
+        .wanted-photo img {
+            width: 220px;
+            height: 280px;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .wanted-info {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .info-table th, .info-table td {
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            text-align: left;
+        }
+        
+        .info-table th {
+            width: 30%;
+            background-color: #f0f7ff;
+            color: #003366;
+            font-weight: bold;
+        }
+        
+        .info-table td {
+            width: 70%;
+        }
+        
+        .note-box {
+            background-color: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .note-box h4 {
+            color: #e65100;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .note-box h4::before {
+            content: "⚠️";
+            margin-right: 8px;
+        }
+        
+        /* 頁腳 */
+        .footer {
+            background-color: #003366;
+            color: white;
+            margin-top: 40px;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .footer-links {
+            margin: 10px 0;
+        }
+        
+        .footer-links a {
+            color: #cce5ff;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .copyright {
+            margin-top: 10px;
+            color: #b3c7e6;
+        }
+    </style>
+</head>
+<body>
+    <!-- 頂部欄 -->
+    <div class="top-bar">
+        <div class="top-bar-content">
+            <div class="top-date">2025年10月4日 星期六</div>
+            <div class="top-links">
+                <a href="#">網站地圖</a>
+                <a href="#">使用說明</a>
+                <a href="#">聯繫我們</a>
+                <a href="#">無障礙聲明</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 標題欄 -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <img src="https://i.postimg.cc/dtFkdM5y/HTML.png" alt="法務部調查局標誌">
+                <div class="logo-text">
+                    <h1>法務部調查局</h1>
+                    <p>Mandatory Judicial Police Bureau, Ministry of Justice</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 主導航 -->
+    <div class="main-nav">
+        <ul class="nav-list">
+            <li><a href="#">本局簡介</a></li>
+            <li><a href="#">新聞資訊</a></li>
+            <li><a href="#">組織架構</a></li>
+            <li><a href="#">業務介紹</a></li>
+            <li><a href="#">便民服務</a></li>
+            <li><a href="#">資訊公開</a></li>
+            <li><a href="#">招募資訊</a></li>
+            <li><a href="#">法規依據</a></li>
+        </ul>
+    </div>
+    
+    <!-- 內容區域 -->
+    <div class="container">
+        <!-- 側邊欄 -->
+        <div class="sidebar">
+            <div class="sidebar-title">通緝查詢</div>
+            <ul class="sidebar-menu">
+                <li><a href="#">通緝名單</a></li>
+                <li><a href="#" class="active">通緝詳情</a></li>
+                <li><a href="#">歷史通緝</a></li>
+                <li><a href="#">懸賞公告</a></li>
+                <li><a href="#">檢舉方式</a></li>
+            </ul>
+            
+            <div class="sidebar-title" style="margin-top: 20px;">相關連結</div>
+            <ul class="sidebar-menu">
+                <li><a href="#">法務部全球資訊網</a></li>
+                <li><a href="#">最高法院</a></li>
+                <li><a href="#">最高檢察署</a></li>
+                <li><a href="#">警察機關通緝系統</a></li>
+            </ul>
+        </div>
+        
+        <!-- 主內容 -->
+        <div class="main-content">
+            <div class="page-title">
+                <h2>通緝犯資料明細</h2>
+            </div>
+            
+            <div class="wanted-header">
+                <div class="wanted-badge">
+                    <img src="https://i.postimg.cc/dtFkdM5y/HTML.png" alt="調查局徽章">
+                </div>
+                <div class="wanted-badge-text">
+                    法務部調查局<br>
+                    通緝編號：W202510002
+                </div>
+            </div>
+            
+            <div class="wanted-photo">
+                <img src="https://ibb.co/r2DsYC43" alt="通緝犯照片">
+            </div>
+            
+            <div class="wanted-info">
+                <table class="info-table">
+                    <tr>
+                        <th>中文姓名</th>
+                        <td>魏宇谹</td>
+                    </tr>
+                    <tr>
+                        <th>英文姓名</th>
+                        <td>WEI,YU-HUNG </td>
+                    </tr>
+                    <tr>
+                        <th>性別</th>
+                        <td>男</td>
+                    </tr>
+                    <tr>
+                        <th>出生年月日</th>
+                        <td>2004年02月18日</td>
+                    </tr>
+                    <tr>
+                        <th>身份證統一編號</th>
+                        <td>K123324816</td>
+                    </tr>
+                    <tr>
+                        <th>護照號碼</th>
+                        <td>361231***</td>
+                    </tr>
+                    <tr>
+                        <th>身高/體重</th>
+                        <td>約171公分 / 約63公斤</td>
+                    </tr>
+                    <tr>
+                        <th>特徵</th>
+                        <td>身材中等，短髮，皮膚白皙，右耳有一顆明顯黑痣</td>
+                    </tr>
+                    <tr>
+                        <th>可能潛逃時間</th>
+                        <td>2025年10月11日</td>
+                    </tr>
+                    <tr>
+                        <th>可能潛逃地點</th>
+                        <td>臺中市北區、北屯區一帶</td>
+                    </tr>
+                    <tr>
+                        <th>通緝機關</th>
+                        <td>臺灣臺中地方檢察署 (Kaohsiung District Prosecutors Office)</td>
+                    </tr>
+                    <tr>
+                        <th>通緝時間</th>
+                        <td>2025年10月02日</td>
+                    </tr>
+                    <tr>
+                        <th>通緝罪名</th>
+                        <td>吸食二級毒品</td>
+                    </tr>
+                    <tr>
+                        <th>涉嫌事實</th>
+                        <td>經確認舉報內容屬實，持有,吸食二級毒品，案情重大。
+                        It has been confirmed that the report is true, and the case involves possession and use of Class II drugs, making it a serious one.
+                        </td>
+                    </tr>
+                </table>
+                
+                <div class="note-box">
+                    <h4>懸賞與檢舉說明</h4>
+                    <p>1. 任何人知悉本通緝犯行蹤者，請立即撥打110或調查局檢舉專線：0800-030-555</p>
+                    <p>2. 提供線索協助查獲者，將依規定核發懸賞金新臺幣100萬元</p>
+                    <p>3. 本案調查期間，將對檢舉人身分資料嚴格保密</p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button style="background-color: #005ea6; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">列印本頁</button>
+                    <button style="background-color: #666; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer;">分享資訊</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 頁腳 -->
+    <div class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="#">關於本局</a>
+                <a href="#">隱私政策</a>
+                <a href="#">資訊安全</a>
+                <a href="#">常見問題</a>
+            </div>
+            <div class="copyright">
+                地址：臺北市中正區重慶南路一段122號 電話：(02)2381-7171<br>
+                © 2025 法務部調查局 版權所有 最佳瀏覽環境：IE11以上、Chrome、Firefox 最新版本
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,2721 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT99 HG07百家樂超級計算系統</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #6d5acf;
+            --accent: #ff3d71;
+            --dark-bg: #050a14;
+            --panel-bg: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: rgba(0, 240, 255, 0.3);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --blue: #0ea5e9;
+            --red: #ef4444;
+            --green: #22c55e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 15%),
+                radial-gradient(circle at 90% 80%, rgba(109, 90, 207, 0.03) 0%, transparent 15%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            overflow: hidden;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: 30px 30px;
+            background-image: 
+                linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--panel-bg);
+            padding: 12px 25px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .system-status {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title i {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .info {
+            font-size: 14px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+            height: calc(100vh - 68px);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--primary);
+            color: var(--dark-bg);
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .sidebar button:hover {
+            background-color: #66f3ff;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+        }
+
+        .sidebar button.secondary {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .sidebar button.secondary:hover {
+            border-color: var(--primary);
+            box-shadow: none;
+        }
+
+        .sidebar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: var(--card-bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            box-shadow: none;
+        }
+
+        .main-content {
+            flex: 1;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .section {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section h3 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+        }
+
+        .reset-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--panel-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reset-btn:hover {
+            border-color: var(--primary);
+            background-color: #273449;
+        }
+
+        .reset-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: var(--border-color);
+            background-color: var(--panel-bg);
+        }
+
+        .game-history {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-scroll-container {
+            width: 100%;
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar-track {
+            background-color: var(--panel-bg);
+            border-radius: 3px;
+        }
+
+        .history-scroll-container::-webkit-scrollbar-thumb {
+            background-color: var(--primary);
+            border-radius: 3px;
+        }
+
+        .history-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .history-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            background-color: rgba(30, 41, 59, 0.5);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .history-row:hover {
+            border-color: var(--primary);
+            background-color: rgba(30, 41, 59, 0.8);
+        }
+
+        .history-index {
+            width: 30px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .history-cell {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            color: white;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .history-cell.blue { 
+            background-color: var(--blue);
+            box-shadow: 0 0 8px rgba(14, 165, 233, 0.3);
+        }
+        .history-cell.blue.series-1 { background-color: #38bdf8; }
+        .history-cell.blue.series-2 { background-color: #0ea5e9; }
+        .history-cell.blue.series-3 { background-color: #0284c7; }
+        .history-cell.blue.series-4 { background-color: #0369a1; }
+        
+        .history-cell.green { 
+            background-color: var(--green);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+        }
+        
+        .history-cell.red { 
+            background-color: var(--red);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+        }
+        .history-cell.red.series-1 { background-color: #f87171; }
+        .history-cell.red.series-2 { background-color: #ef4444; }
+        .history-cell.red.series-3 { background-color: #dc2626; }
+        .history-cell.red.series-4 { background-color: #b91c1c; }
+
+        .history-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-buttons {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .history-btn {
+            padding: 10px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            flex: 1;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .history-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .history-btn.blue { 
+            background-color: var(--blue);
+            box-shadow: 0 0 8px rgba(14, 165, 233, 0.2);
+        }
+        .history-btn.blue:hover { 
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+        }
+
+        .history-btn.green { 
+            background-color: var(--green);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+        }
+        .history-btn.green:hover { 
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+        }
+
+        .history-btn.red { 
+            background-color: var(--red);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+        }
+        .history-btn.red:hover { 
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .undo-btn {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--panel-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 100px;
+        }
+
+        .undo-btn:hover {
+            border-color: var(--primary);
+            background-color: #273449;
+        }
+
+        .undo-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: var(--border-color);
+            background-color: var(--panel-bg);
+        }
+
+        .row {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .column {
+            flex: 1;
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .loading {
+            width: 60px;
+            height: 60px;
+            margin: 20px auto;
+        }
+
+        .spinner {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(0, 240, 255, 0.2);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .start-btn {
+            background-color: var(--accent);
+            color: #fff;
+            padding: 10px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .start-btn:hover {
+            box-shadow: 0 0 10px rgba(255, 61, 113, 0.3);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .chip {
+            background-color: var(--panel-bg);
+            padding: 6px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .chip:hover {
+            background-color: #273449;
+            border-color: var(--primary);
+        }
+
+        .result-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 10px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .btn:hover::after {
+            transform: scaleX(1);
+        }
+
+        .btn.blue { background-color: var(--blue); }
+        .btn.green { background-color: var(--green); }
+        .btn.red { background-color: var(--red); }
+
+        .btn.active {
+            transform: scale(1.03);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .btn.high-probability {
+            animation: pulse-light 2s infinite;
+        }
+
+        @keyframes pulse-light {
+            0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+            50% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.4); }
+            100% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+        }
+
+        .btn.very-high-probability {
+            animation: glow 1.5s infinite;
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.6); }
+            100% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+        }
+
+        .right.sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right.sidebar table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            flex: 1;
+        }
+
+        .right.sidebar th, .right.sidebar td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .right.sidebar th {
+            color: var(--text-secondary);
+        }
+
+        .prediction-result {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 4px;
+            background-color: rgba(0, 240, 255, 0.05);
+            border-left: 2px solid var(--primary);
+            display: none;
+        }
+
+        .prediction-result.visible {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .probability-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            align-items: center;
+        }
+
+        .probability-bar {
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            flex: 1;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .probability-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease-in-out;
+        }
+
+        .probability-fill.blue { background-color: var(--blue); }
+        .probability-fill.green { background-color: var(--green); }
+        .probability-fill.red { background-color: var(--red); }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 15px;
+            background-color: var(--panel-bg);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification.error {
+            border-left: 3px solid var(--accent);
+        }
+
+        .notification.success {
+            border-left: 3px solid var(--green);
+        }
+
+        .current-room-display {
+            padding: 10px;
+            background-color: var(--card-bg);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        /* 连接房间模态框 */
+        .connection-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(5, 10, 20, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .connection-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.15);
+            transform: translateY(30px);
+            transition: transform 0.3s ease;
+        }
+
+        .connection-modal.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .modal-spinner {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .spin-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border-width: 4px;
+            border-style: solid;
+            border-color: transparent;
+            animation: spin 1.5s linear infinite;
+        }
+
+        .spin-layer:nth-child(1) {
+            border-top-color: var(--primary);
+        }
+
+        .spin-layer:nth-child(2) {
+            border-right-color: var(--secondary);
+            animation-delay: 0.3s;
+        }
+
+        .spin-layer:nth-child(3) {
+            border-bottom-color: var(--accent);
+            animation-delay: 0.6s;
+        }
+
+        .dino87-logo {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .modal-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .dino87-info {
+            background-color: rgba(30, 41, 59, 0.5);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .dino87-info strong {
+            color: var(--primary);
+        }
+
+        .progress {
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 预测结果指示 */
+        .prediction-indicator {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.05);
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .prediction-indicator.visible {
+            display: block;
+        }
+
+        /* 模型对比区域 */
+        .model-comparison {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .model-comparison h4 {
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        .model-results {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .model-result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+        }
+
+        .model-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .model-prediction {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .model-prediction.blue {
+            background-color: rgba(14, 165, 233, 0.2);
+            color: var(--blue);
+        }
+
+        .model-prediction.red {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: var(--red);
+        }
+
+        .model-accuracy {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 连续记录统计 */
+        .streak-stats {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+        }
+
+        .streak-stats h4 {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .streak-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .streak-label {
+            color: var(--text-secondary);
+        }
+
+        .streak-value {
+            font-weight: 500;
+        }
+
+        /* 历史准确率 */
+        .accuracy-history {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .accuracy-history h4 {
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .accuracy-bar-container {
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .accuracy-bar {
+            height: 100%;
+            border-radius: 5px;
+            background: linear-gradient(90deg, var(--blue), var(--primary));
+        }
+
+        .accuracy-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 导出按钮 */
+        .export-btn {
+            margin-top: 10px;
+            padding: 6px 10px;
+            font-size: 13px;
+            background-color: rgba(0, 240, 255, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .export-btn:hover {
+            background-color: rgba(0, 240, 255, 0.2);
+        }
+
+        /* 最近连接的房间 */
+        .recent-rooms {
+            margin-top: 15px;
+        }
+
+        .recent-rooms h4 {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .recent-room-item {
+            padding: 6px 10px;
+            margin-bottom: 5px;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .recent-room-item:hover {
+            background-color: rgba(255, 255, 255, 0.07);
+            border-color: var(--border-color);
+        }
+
+        /* 分析过程日志 */
+        .analysis-log {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: rgba(5, 10, 20, 0.5);
+            border-radius: 4px;
+            height: 100px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.5;
+            display: none;
+        }
+
+        .analysis-log.active {
+            display: block;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0;
+            animation: fadeInLog 0.3s forwards;
+        }
+
+        .log-entry.timestamp {
+            color: var(--primary);
+            display: inline-block;
+            width: 50px;
+        }
+
+        .log-entry.info {
+            color: var(--text-secondary);
+        }
+
+        .log-entry.success {
+            color: var(--green);
+        }
+
+        .log-entry.process {
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeInLog {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                overflow-y: auto;
+                height: auto;
+                padding-bottom: 40px;
+            }
+
+            .sidebar, .right.sidebar {
+                width: 100%;
+            }
+
+            .row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="top-bar">
+        <div class="system-status">
+            <span class="status-indicator"></span>
+            系統在線
+        </div>
+        <div class="title">
+            <i class="fas fa-microchip"></i>
+            AT99 HG07百家樂超級計算系統
+        </div>
+        <div class="info">
+            <div class="info-item">
+                <i class="fas fa-globe"></i>
+                <span>IP:14.33.34.215</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-clock"></i>
+                <span id="current-time">04:26:39</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-user"></i>
+                <span>訪客模式</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h3><i class="fas fa-cogs"></i> 系統設定</h3>
+            
+            <!-- 房間設置 -->
+            <div class="form-group">
+                <label>遊戲平台</label>
+                <select id="platform-select">
+                    <option value="">選擇平台</option>
+                    <option value="dg">DG真人</option>
+                    <option value="mt">MT真人</option>
+                    <option value="wg">WG真人</option>
+                </select>
+            </div>
+            
+            <div class="recent-rooms">
+                <h4>最近連接</h4>
+                <div id="recent-rooms-container">
+                    <!-- 最近连接的房间将在这里显示 -->
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>房間/桌號選擇</label>
+                <select id="room-select" disabled>
+                    <option value="未選擇房間">未選擇房間</option>
+                </select>
+            </div>
+            <div class="current-room-display" id="current-room-display">未選擇房間</div>
+            
+            <div class="form-group">
+                <label>模型算法</label>
+                <select id="algorithm-select">
+                    <option value="tianwang">天網導引分析</option>
+                    <option value="bianyi">變異纖維分析</option>
+                    <option value="chaowei">超維態勢分析</option>
+                    <option value="zhixu">智序演化分析</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>分析深度</label>
+                <select id="depth-select">
+                    <option value="light">輕量級 (快速)</option>
+                    <option value="medium" selected>標準級</option>
+                    <option value="deep">深度分析 (精確)</option>
+                    <option value="ultra">超級計算 (耗時)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>目前下注金額</label>
+                <input type="text" id="bet-amount" value="0" disabled>
+            </div>
+            <div class="form-group">
+                <label>目前輸贏金額</label>
+                <input type="text" id="profit-amount" value="0" disabled>
+            </div>
+            <button id="connect-btn" disabled>
+                <i class="fas fa-plug"></i> 連接房間
+            </button>
+            <button class="secondary" id="reset-btn">
+                <i class="fas fa-sync-alt"></i> 重置系統
+            </button>
+            <button class="secondary export-btn" id="export-data">
+                <i class="fas fa-download"></i> 導出數據
+            </button>
+        </div>
+
+        <div class="main-content">
+            <div class="section game-history">
+                <div class="section-header">
+                    <h3><i class="fas fa-history"></i> 賽局記錄</h3>
+                    <button class="reset-btn" id="clear-history">
+                        <i class="fas fa-trash"></i> 清空記錄
+                    </button>
+                </div>
+                
+                <div class="history-scroll-container">
+                    <div class="history-rows" id="history-container">
+                        <div class="empty-state" style="text-align: center; padding: 50px 0; color: var(--text-secondary);">
+                            <i class="fas fa-folder-open" style="font-size: 30px; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <p>沒有賽局記錄，請添加記錄</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="history-controls">
+                    <div class="history-buttons">
+                        <button class="history-btn blue" data-result="blue" disabled>
+                            <i class="fas fa-user"></i> 閒
+                        </button>
+                        <button class="history-btn red" data-result="red" disabled>
+                            <i class="fas fa-crown"></i> 莊
+                        </button>
+                        <button class="history-btn green" data-result="green" disabled>
+                            <i class="fas fa-balance-scale"></i> 和
+                        </button>
+                    </div>
+                    <button class="undo-btn" id="undo-btn" disabled>
+                        <i class="fas fa-undo"></i> 上一步
+                    </button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="column">
+                    <div class="section-header">
+                        <h3><i class="fas fa-brain"></i> 預測分析</h3>
+                    </div>
+                    
+                    <div class="prediction-indicator" id="prediction-indicator">
+                        當前預測結果：<span id="current-prediction-text">無</span>
+                    </div>
+                    
+                    <div class="loading" id="prediction-loading" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                    
+                    <!-- 分析日志 -->
+                    <div class="analysis-log" id="analysis-log">
+                        <!-- 分析过程日志将在这里显示 -->
+                    </div>
+                    
+                    <div id="prediction-placeholder" style="text-align: center; padding: 30px 0; color: var(--text-secondary);">
+                        <i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>添加至少5條賽局記錄以啟動分析</p>
+                    </div>
+                    
+                    <div class="prediction-result" id="prediction-result">
+                        <div class="probability-item">
+                            <span>閒</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill blue" id="prob-blue" style="width: 0%"></div>
+                            </div>
+                            <span id="val-blue">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>莊</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill red" id="prob-red" style="width: 0%"></div>
+                            </div>
+                            <span id="val-red">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>和</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill green" id="prob-green" style="width: 0%"></div>
+                            </div>
+                            <span id="val-green">0%</span>
+                        </div>
+                        
+                        <!-- 历史准确率 -->
+                        <div class="accuracy-history">
+                            <h4>模型準確率</h4>
+                            <div class="accuracy-bar-container">
+                                <div class="accuracy-bar" id="accuracy-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="accuracy-text">
+                                <span>近20局</span>
+                                <span id="accuracy-text-value">0%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 多模型对比 -->
+                        <div class="model-comparison">
+                            <h4>多模型預測對比</h4>
+                            <div class="model-results" id="model-results">
+                                <!-- 模型对比结果将在这里显示 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="start-btn" id="start-analysis" disabled>
+                        <i class="fas fa-play"></i> 開始分析
+                    </button>
+                </div>
+
+                <div class="column">
+                    <div class="section-header">
+                        <h3><i class="fas fa-trophy"></i> 本局結果與下注</h3>
+                    </div>
+                    
+                    <!-- 连续记录统计 -->
+                    <div class="streak-stats">
+                        <h4>連續記錄統計</h4>
+                        <div class="streak-item">
+                            <span class="streak-label">當前連閒</span>
+                            <span class="streak-value" id="current-blue-streak">0局</span>
+                        </div>
+                        <div class="streak-item">
+                            <span class="streak-label">當前連莊</span>
+                            <span class="streak-value" id="current-red-streak">0局</span>
+                        </div>
+                        <div class="streak-item">
+                            <span class="streak-label">最長連閒</span>
+                            <span class="streak-value" id="max-blue-streak">0局</span>
+                        </div>
+                        <div class="streak-item">
+                            <span class="streak-label">最長連莊</span>
+                            <span class="streak-value" id="max-red-streak">0局</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>下注金額</label>
+                        <input type="number" id="bet-input" placeholder="輸入金額" value="0" disabled>
+                    </div>
+                    
+                    <div class="chip-group">
+                        <div class="chip" data-value="100" style="pointer-events: none; opacity: 0.5;">+100</div>
+                        <div class="chip" data-value="500" style="pointer-events: none; opacity: 0.5;">+500</div>
+                        <div class="chip" data-value="1000" style="pointer-events: none; opacity: 0.5;">+1000</div>
+                        <div class="chip" data-value="5000" style="pointer-events: none; opacity: 0.5;">+5000</div>
+                        <div class="chip" data-value="0" style="pointer-events: none; opacity: 0.5;">清空</div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <label style="display: block; margin-bottom: 10px; color: var(--text-secondary);">選擇本局結果：</label>
+                        <div class="result-buttons">
+                            <button class="btn blue" data-type="blue" disabled>閒</button>
+                            <button class="btn red" data-type="red" disabled>莊</button>
+                            <button class="btn green" data-type="green" disabled>和</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar right">
+            <h3><i class="fas fa-chart-pie"></i> 統計數據</h3>
+            
+            <div class="form-group">
+                <label>總局數</label>
+                <input type="text" id="total-games" value="0" disabled>
+            </div>
+            <div class="form-group">
+                <label>閒勝率</label>
+                <input type="text" id="blue-rate" value="0%" disabled>
+            </div>
+            <div class="form-group">
+                <label>莊勝率</label>
+                <input type="text" id="red-rate" value="0%" disabled>
+            </div>
+            <div class="form-group">
+                <label>和局率</label>
+                <input type="text" id="green-rate" value="0%" disabled>
+            </div>
+            
+            <h3 style="margin-top: 20px;"><i class="fas fa-list"></i> 最近下注</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>時間</th>
+                        <th>結果</th>
+                        <th>金額</th>
+                    </tr>
+                </thead>
+                <tbody id="bet-history">
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">無記錄</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 连接房间模态框 -->
+    <div class="connection-modal" id="connection-modal">
+        <div class="modal-content">
+            <div class="loader">
+                <div class="modal-spinner">
+                    <div class="spin-layer"></div>
+                    <div class="spin-layer"></div>
+                    <div class="spin-layer"></div>
+                </div>
+                <div class="dino87-logo">dino87</div>
+            </div>
+            <h3 class="modal-title" id="modal-room-name">連接至 百家樂 D01</h3>
+            
+            <div class="dino87-info">
+                <p><strong>dino87 - Baccarat Prediction Interface</strong></p>
+                <p>
+                    融合統計學、AI深度學習與趨勢識別的百家樂預測平台核心。<br>
+                    dino87-Core™ 主演算法核心，負責分析每局路單與投注趨勢。
+                </p>
+            </div>
+            
+            <div class="progress">
+                <div class="progress-bar" id="connection-progress"></div>
+            </div>
+            <p class="status" id="connection-status">建立加密通道...</p>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <div style="font-weight: bold; margin-bottom: 5px;" class="notification-title">通知</div>
+        <div class="notification-message">這是一條通知</div>
+    </div>
+
+    <script>
+        // 全局变量
+        let gameHistory = [];
+        let betRecords = [];
+        let historyBackup = []; // 用于撤销操作的历史备份
+        let predictionHistory = []; // 存储预测历史，用于计算准确率
+        let isConnected = false;
+        let currentRoom = "未選擇房間"; // 當前房間/桌號
+        let connectionInterval; // 连接进度计时器
+        let selectedResult = null; // 当前选中的结果类型
+        let currentPrediction = null; // 当前预测结果
+        let recentRooms = []; // 最近连接的房间
+        const MAX_RECENT_ROOMS = 3; // 最多保存3个最近连接的房间
+        const resultTextMap = {
+            'blue': '閒',
+            'red': '莊',
+            'green': '和'
+        };
+        
+        // 算法模型数据
+        const algorithms = {
+            'tianwang': { name: '天網導引分析' },
+            'bianyi': { name: '變異纖維分析' },
+            'chaowei': { name: '超維態勢分析' },
+            'zhixu': { name: '智序演化分析' }
+        };
+        
+        // 分析过程日志
+        const analysisLogEntries = [
+            { type: 'info', message: '啟動dino87-Core™分析引擎' },
+            { type: 'process', message: '加載歷史數據樣本集' },
+            { type: 'process', message: '初始化深度學習模型參數' },
+            { type: 'process', message: '計算近期路單概率分布' },
+            { type: 'process', message: '應用馬爾可夫鏈預測模型' },
+            { type: 'process', message: '分析連續出現模式與概率' },
+            { type: 'process', message: '交叉驗證多維度分析結果' },
+            { type: 'process', message: '調整隨機波動因子權重' },
+            { type: 'process', message: '計算莊閒勝出概率' },
+            { type: 'success', message: '預測分析完成' }
+        ];
+        
+        // DOM元素
+        const platformSelect = document.getElementById('platform-select');
+        const roomSelect = document.getElementById('room-select');
+        const currentRoomDisplay = document.getElementById('current-room-display');
+        const connectBtn = document.getElementById('connect-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const clearHistoryBtn = document.getElementById('clear-history');
+        const historyContainer = document.getElementById('history-container');
+        const undoBtn = document.getElementById('undo-btn');
+        const startAnalysisBtn = document.getElementById('start-analysis');
+        const predictionLoading = document.getElementById('prediction-loading');
+        const predictionPlaceholder = document.getElementById('prediction-placeholder');
+        const predictionResult = document.getElementById('prediction-result');
+        const predictionIndicator = document.getElementById('prediction-indicator');
+        const currentPredictionText = document.getElementById('current-prediction-text');
+        const betInput = document.getElementById('bet-input');
+        const chips = document.querySelectorAll('.chip');
+        const betButtons = document.querySelectorAll('.result-buttons .btn');
+        const historyButtons = document.querySelectorAll('.history-btn');
+        const currentTimeElement = document.getElementById('current-time');
+        const notification = document.getElementById('notification');
+        const notificationTitle = notification.querySelector('.notification-title');
+        const notificationMessage = notification.querySelector('.notification-message');
+        const exportDataBtn = document.getElementById('export-data');
+        const recentRoomsContainer = document.getElementById('recent-rooms-container');
+        const analysisLog = document.getElementById('analysis-log');
+        const algorithmSelect = document.getElementById('algorithm-select');
+        const depthSelect = document.getElementById('depth-select');
+        
+        // 连续记录统计元素
+        const currentBlueStreakElement = document.getElementById('current-blue-streak');
+        const currentRedStreakElement = document.getElementById('current-red-streak');
+        const maxBlueStreakElement = document.getElementById('max-blue-streak');
+        const maxRedStreakElement = document.getElementById('max-red-streak');
+        
+        // 模型对比元素
+        const modelResultsContainer = document.getElementById('model-results');
+        const accuracyBarElement = document.getElementById('accuracy-bar');
+        const accuracyTextValueElement = document.getElementById('accuracy-text-value');
+        
+        // 连接模态框元素
+        const connectionModal = document.getElementById('connection-modal');
+        const connectionProgress = document.getElementById('connection-progress');
+        const connectionStatus = document.getElementById('connection-status');
+        const modalRoomName = document.getElementById('modal-room-name');
+        
+        // 统计数据元素
+        const totalGamesElement = document.getElementById('total-games');
+        const blueRateElement = document.getElementById('blue-rate');
+        const redRateElement = document.getElementById('red-rate');
+        const greenRateElement = document.getElementById('green-rate');
+        const betAmountElement = document.getElementById('bet-amount');
+        const profitAmountElement = document.getElementById('profit-amount');
+        const betHistoryElement = document.getElementById('bet-history');
+        
+        // 平台房间数据
+        const roomsByPlatform = {
+            // DG真人房间列表
+            'dg': [
+                '百家樂 D01', '百家樂 D02', '百家樂 D03', '百家樂 D04', '百家樂 D05',
+                '百家樂 D06', '百家樂 D07', '百家樂 D08', '百家樂 D09', '百家樂 D10',
+                '百家樂 D11', '百家樂 D12', '百家樂 C01', '百家樂 C02', '百家樂 C03',
+                '百家樂 C05', '百家樂 C06', '百家樂 A01', '百家樂 A02', '百家樂 A03',
+                '百家樂 A05', '性感百家樂 S01', '性感百家樂 S02', '性感百家樂 S03',
+                '性感百家樂 S05', '性感百家樂 S06', '保險百家樂 A08', '保險百家樂 A13',
+                '保險百家樂 A15', '百家樂 QC01', '百家樂 QC02', '百家樂 QC03', '百家樂 QC05',
+                '百家樂 QC06', '百家樂 QC07', '百家樂 QD01', '百家樂 QD02', '百家樂 QD03',
+                '百家樂 QD05', '百家樂 QD06', '百家樂 QD07'
+            ],
+            // MT真人房间列表
+            'mt': [
+                '百家樂1', '百家樂2', '百家樂3', '百家樂3A', '百家樂5',
+                '百家樂6', '百家樂7', '百家樂8', '百家樂9', '百家樂10',
+                '百家樂11', '百家樂12', '百家樂13'
+            ],
+            // WG真人房间列表
+            'wg': [
+                '極速百家樂1', '極速百家樂2', '極速百家樂3', '極速百家樂4',
+                '極速百家樂5', '極速百家樂6', '極速百家樂7', '極速百家樂8',
+                '極速百家樂9', '極速百家樂10', '極速百家樂11', '極速百家樂12'
+            ]
+        };
+        
+        // 初始化：从本地存储加载数据
+        function initialize() {
+            // 尝试加载最近连接的房间
+            const savedRecentRooms = localStorage.getItem('recentRooms');
+            if (savedRecentRooms) {
+                try {
+                    recentRooms = JSON.parse(savedRecentRooms);
+                    updateRecentRoomsDisplay();
+                } catch (e) {
+                    console.error('Failed to load recent rooms:', e);
+                }
+            }
+            
+            // 尝试加载游戏历史
+            const savedGameHistory = localStorage.getItem('gameHistory');
+            if (savedGameHistory) {
+                try {
+                    gameHistory = JSON.parse(savedGameHistory);
+                    // 过滤掉可能存在的超6记录
+                    gameHistory = gameHistory.filter(result => result !== 'super-six');
+                    updateHistoryDisplay();
+                    updateStatistics();
+                    updateUndoButtonState();
+                    updateStreakStats();
+                    
+                    // 如果有足够记录，显示预测区域
+                    if (gameHistory.length >= 5) {
+                        predictionPlaceholder.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error('Failed to load game history:', e);
+                }
+            }
+            
+            // 尝试加载投注记录
+            const savedBetRecords = localStorage.getItem('betRecords');
+            if (savedBetRecords) {
+                try {
+                    betRecords = JSON.parse(savedBetRecords);
+                    updateBetHistory();
+                } catch (e) {
+                    console.error('Failed to load bet records:', e);
+                }
+            }
+            
+            // 尝试加载财务数据
+            const savedBetAmount = localStorage.getItem('betAmount');
+            const savedProfitAmount = localStorage.getItem('profitAmount');
+            
+            if (savedBetAmount) {
+                betAmountElement.value = savedBetAmount;
+            }
+            
+            if (savedProfitAmount) {
+                profitAmountElement.value = savedProfitAmount;
+            }
+            
+            // 尝试加载预测历史
+            const savedPredictionHistory = localStorage.getItem('predictionHistory');
+            if (savedPredictionHistory) {
+                try {
+                    predictionHistory = JSON.parse(savedPredictionHistory);
+                } catch (e) {
+                    console.error('Failed to load prediction history:', e);
+                }
+            }
+        }
+        
+        // 保存数据到本地存储
+        function saveData() {
+            try {
+                localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+                localStorage.setItem('betRecords', JSON.stringify(betRecords));
+                localStorage.setItem('betAmount', betAmountElement.value);
+                localStorage.setItem('profitAmount', profitAmountElement.value);
+                localStorage.setItem('recentRooms', JSON.stringify(recentRooms));
+                localStorage.setItem('predictionHistory', JSON.stringify(predictionHistory));
+            } catch (e) {
+                console.error('Failed to save data:', e);
+            }
+        }
+        
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            currentTimeElement.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+        // 初始化时间
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // 平台选择变化
+        platformSelect.addEventListener('change', function() {
+            const selectedPlatform = this.value;
+            roomSelect.innerHTML = '';
+            
+            // 添加"未選擇房間"作为第一个选项
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '未選擇房間';
+            defaultOption.textContent = '未選擇房間';
+            roomSelect.appendChild(defaultOption);
+            
+            if (selectedPlatform && roomsByPlatform[selectedPlatform]) {
+                roomsByPlatform[selectedPlatform].forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room;
+                    option.textContent = room;
+                    roomSelect.appendChild(option);
+                });
+                roomSelect.disabled = false;
+                // 初始状态下房间选择为"未選擇房間"，禁用连接按钮
+                connectBtn.disabled = true;
+            } else {
+                roomSelect.disabled = true;
+                connectBtn.disabled = true;
+                currentRoom = "未選擇房間";
+                currentRoomDisplay.textContent = currentRoom;
+                
+                // 禁用所有操作按钮
+                disableAllActionButtons(true);
+            }
+        });
+        
+        // 更新最近连接的房间显示
+        function updateRecentRoomsDisplay() {
+            recentRoomsContainer.innerHTML = '';
+            
+            if (recentRooms.length === 0) {
+                recentRoomsContainer.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary);">無最近連接記錄</div>';
+                return;
+            }
+            
+            recentRooms.forEach(room => {
+                const roomElement = document.createElement('div');
+                roomElement.className = 'recent-room-item';
+                roomElement.textContent = room;
+                roomElement.addEventListener('click', () => {
+                    // 自动选择平台和房间
+                    selectRoomAutomatically(room);
+                });
+                recentRoomsContainer.appendChild(roomElement);
+            });
+        }
+        
+        // 自动选择平台和房间
+        function selectRoomAutomatically(roomName) {
+            // 查找房间属于哪个平台
+            let platform = null;
+            
+            for (const key in roomsByPlatform) {
+                if (roomsByPlatform[key].includes(roomName)) {
+                    platform = key;
+                    break;
+                }
+            }
+            
+            if (platform) {
+                // 选择平台
+                platformSelect.value = platform;
+                // 触发平台选择事件，加载房间列表
+                const event = new Event('change');
+                platformSelect.dispatchEvent(event);
+                
+                // 延迟选择房间，确保房间列表已加载
+                setTimeout(() => {
+                    roomSelect.value = roomName;
+                    currentRoom = roomName;
+                    currentRoomDisplay.textContent = currentRoom;
+                    connectBtn.disabled = false;
+                }, 100);
+            }
+        }
+        
+        // 添加到最近连接的房间
+        function addToRecentRooms(roomName) {
+            // 如果房间已在列表中，先移除
+            const index = recentRooms.indexOf(roomName);
+            if (index !== -1) {
+                recentRooms.splice(index, 1);
+            }
+            
+            // 添加到列表开头
+            recentRooms.unshift(roomName);
+            
+            // 确保不超过最大数量
+            if (recentRooms.length > MAX_RECENT_ROOMS) {
+                recentRooms.pop();
+            }
+            
+            // 更新显示
+            updateRecentRoomsDisplay();
+            
+            // 保存到本地存储
+            saveData();
+        }
+        
+        // 房间选择变化时更新显示和连接按钮状态
+        roomSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            currentRoom = selectedValue;
+            currentRoomDisplay.textContent = currentRoom;
+            
+            // 只有选择了具体房间（非"未選擇房間"）且已选择平台时，才启用连接按钮
+            if (selectedValue && selectedValue !== '未選擇房間' && platformSelect.value) {
+                connectBtn.disabled = false;
+            } else {
+                connectBtn.disabled = true;
+            }
+        });
+        
+        // 连接/断开房间
+        connectBtn.addEventListener('click', function() {
+            // 额外检查，确保不会在未选择房间时连接
+            if (currentRoom === '未選擇房間' || !currentRoom) {
+                showNotification('請先選擇具體房間', '錯誤', 'error');
+                return;
+            }
+            
+            if (isConnected) {
+                // 断开连接
+                isConnected = false;
+                connectBtn.innerHTML = '<i class="fas fa-plug"></i> 連接房間';
+                showNotification(`已與 ${currentRoom} 斷開連接`, '成功', '');
+                
+                // 禁用所有操作按钮
+                disableAllActionButtons(true);
+            } else {
+                // 显示连接模态框并开始连接流程
+                startConnectionProcess();
+            }
+        });
+        
+        // 禁用/启用所有操作按钮
+        function disableAllActionButtons(disable) {
+            // 下注相关
+            betInput.disabled = disable;
+            betButtons.forEach(btn => {
+                btn.disabled = disable;
+                // 移除概率相关的动画类
+                btn.classList.remove('high-probability', 'very-high-probability');
+            });
+            historyButtons.forEach(btn => btn.disabled = disable);
+            startAnalysisBtn.disabled = disable;
+            
+            // 筹码
+            chips.forEach(chip => {
+                if (disable) {
+                    chip.style.pointerEvents = 'none';
+                    chip.style.opacity = '0.5';
+                } else {
+                    chip.style.pointerEvents = 'auto';
+                    chip.style.opacity = '1';
+                }
+            });
+        }
+        
+        // 开始连接流程
+        function startConnectionProcess() {
+            // 重置进度
+            let progress = 0;
+            connectionProgress.style.width = '0%';
+            
+            // 设置模态框信息
+            modalRoomName.textContent = `連接至 ${currentRoom}`;
+            connectionStatus.textContent = '建立加密通道...';
+            
+            // 显示模态框
+            connectionModal.classList.add('active');
+            
+            // 清除之前的计时器
+            if (connectionInterval) clearInterval(connectionInterval);
+            
+            // 模拟连接进度
+            connectionInterval = setInterval(() => {
+                progress += 5;
+                
+                // 更新进度和状态文本
+                connectionProgress.style.width = `${progress}%`;
+                
+                // 状态文本变化
+                if (progress >= 10 && progress < 30) {
+                    connectionStatus.textContent = '驗證房間憑證...';
+                } else if (progress >= 30 && progress < 50) {
+                    connectionStatus.textContent = '同步歷史數據...';
+                } else if (progress >= 50 && progress < 70) {
+                    connectionStatus.textContent = '初始化分析引擎...';
+                } else if (progress >= 70 && progress < 90) {
+                    connectionStatus.textContent = '建立持久連接...';
+                } else if (progress >= 90) {
+                    connectionStatus.textContent = '連接即將完成...';
+                }
+                
+                // 连接完成
+                if (progress >= 100) {
+                    clearInterval(connectionInterval);
+                    
+                    // 更新连接状态
+                    isConnected = true;
+                    connectBtn.innerHTML = '<i class="fas fa-unplug"></i> 斷開連接';
+                    
+                    // 添加到最近连接的房间
+                    addToRecentRooms(currentRoom);
+                    
+                    // 启用所有操作按钮
+                    disableAllActionButtons(false);
+                    
+                    // 延迟关闭模态框，让用户看到完成状态
+                    setTimeout(() => {
+                        connectionModal.classList.remove('active');
+                        showNotification(`已成功連接到 ${currentRoom}`, '連接成功', 'success');
+                    }, 800);
+                }
+            }, 200);
+        }
+        
+        // 重置系统
+        resetBtn.addEventListener('click', function() {
+            if (confirm('確定要重置系統嗎？所有記錄將被清空。')) {
+                gameHistory = [];
+                historyBackup = [];
+                betRecords = [];
+                predictionHistory = [];
+                selectedResult = null;
+                currentPrediction = null;
+                updateHistoryDisplay();
+                updateStatistics();
+                updateBetHistory();
+                updateStreakStats();
+                betInput.value = '0';
+                betAmountElement.value = '0';
+                profitAmountElement.value = '0';
+                updateUndoButtonState();
+                // 移除所有按钮的active状态
+                betButtons.forEach(btn => {
+                    btn.classList.remove('active', 'high-probability', 'very-high-probability');
+                });
+                // 重置预测显示
+                predictionPlaceholder.style.display = 'block';
+                predictionResult.classList.remove('visible');
+                predictionIndicator.classList.remove('visible');
+                currentPredictionText.textContent = '無';
+                analysisLog.classList.remove('active');
+                analysisLog.innerHTML = '';
+                // 保存数据
+                saveData();
+                showNotification('系統已重置', '成功', 'success');
+            }
+        });
+        
+        // 清空历史记录
+        clearHistoryBtn.addEventListener('click', function() {
+            if (gameHistory.length > 0 && confirm('確定要清空賽局記錄嗎？')) {
+                gameHistory = [];
+                historyBackup = [];
+                selectedResult = null;
+                currentPrediction = null;
+                updateHistoryDisplay();
+                updateStatistics();
+                updateStreakStats();
+                updateUndoButtonState();
+                // 移除所有按钮的active状态
+                betButtons.forEach(btn => {
+                    btn.classList.remove('active', 'high-probability', 'very-high-probability');
+                });
+                // 重置预测显示
+                predictionPlaceholder.style.display = 'block';
+                predictionResult.classList.remove('visible');
+                predictionIndicator.classList.remove('visible');
+                currentPredictionText.textContent = '無';
+                analysisLog.classList.remove('active');
+                analysisLog.innerHTML = '';
+                // 保存数据
+                saveData();
+                showNotification('賽局記錄已清空', '成功', '');
+            }
+        });
+        
+        // 撤销上一步操作
+        undoBtn.addEventListener('click', function() {
+            if (gameHistory.length === 0) return;
+            
+            // 将当前记录移到备份
+            historyBackup.push(gameHistory.pop());
+            
+            // 更新显示和统计
+            updateHistoryDisplay();
+            updateStatistics();
+            updateStreakStats();
+            updateUndoButtonState();
+            
+            // 如果撤销的是最后选中的结果，则移除active状态
+            if (historyBackup.length > 0 && historyBackup[historyBackup.length - 1] === selectedResult) {
+                betButtons.forEach(btn => {
+                    btn.classList.remove('active', 'high-probability', 'very-high-probability');
+                });
+                selectedResult = null;
+            }
+            
+            // 如果记录不足5条，隐藏预测结果
+            if (gameHistory.length < 5) {
+                predictionPlaceholder.style.display = 'block';
+                predictionResult.classList.remove('visible');
+                predictionIndicator.classList.remove('visible');
+                currentPredictionText.textContent = '無';
+                currentPrediction = null;
+                analysisLog.classList.remove('active');
+                analysisLog.innerHTML = '';
+            }
+            
+            // 保存数据
+            saveData();
+            showNotification('已撤銷上一步操作', '操作成功', '');
+        });
+        
+        // 更新撤销按钮状态
+        function updateUndoButtonState() {
+            undoBtn.disabled = gameHistory.length === 0;
+            // 修复清空记录按钮状态
+            clearHistoryBtn.disabled = gameHistory.length === 0;
+        }
+        
+        // 添加赛局记录
+        document.querySelectorAll('.history-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!isConnected) {
+                    showNotification('請先連接房間', '錯誤', 'error');
+                    return;
+                }
+                
+                const result = this.getAttribute('data-result');
+                gameHistory.push(result);
+                updateHistoryDisplay();
+                updateStatistics();
+                updateStreakStats();
+                updateUndoButtonState();
+                
+                // 如果有足够记录，显示预测区域
+                if (gameHistory.length >= 5) {
+                    predictionPlaceholder.style.display = 'none';
+                }
+                
+                // 保存数据
+                saveData();
+            });
+        });
+        
+        // 更新连续记录统计
+        function updateStreakStats() {
+            if (gameHistory.length === 0) {
+                currentBlueStreakElement.textContent = '0局';
+                currentRedStreakElement.textContent = '0局';
+                maxBlueStreakElement.textContent = '0局';
+                maxRedStreakElement.textContent = '0局';
+                return;
+            }
+            
+            // 计算当前连闲和连庄
+            let currentBlueStreak = 0;
+            let currentRedStreak = 0;
+            let lastResult = gameHistory[gameHistory.length - 1];
+            
+            if (lastResult === 'blue') {
+                currentBlueStreak = 1;
+                for (let i = gameHistory.length - 2; i >= 0; i--) {
+                    if (gameHistory[i] === 'blue') {
+                        currentBlueStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            } else if (lastResult === 'red') {
+                currentRedStreak = 1;
+                for (let i = gameHistory.length - 2; i >= 0; i--) {
+                    if (gameHistory[i] === 'red') {
+                        currentRedStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            // 计算最长连闲和连庄
+            let maxBlueStreak = 0;
+            let maxRedStreak = 0;
+            let currentStreak = 0;
+            let currentType = null;
+            
+            gameHistory.forEach(result => {
+                if (result === 'blue') {
+                    if (currentType === 'blue') {
+                        currentStreak++;
+                    } else {
+                        currentType = 'blue';
+                        currentStreak = 1;
+                    }
+                    maxBlueStreak = Math.max(maxBlueStreak, currentStreak);
+                } else if (result === 'red') {
+                    if (currentType === 'red') {
+                        currentStreak++;
+                    } else {
+                        currentType = 'red';
+                        currentStreak = 1;
+                    }
+                    maxRedStreak = Math.max(maxRedStreak, currentStreak);
+                } else {
+                    currentType = null;
+                    currentStreak = 0;
+                }
+            });
+            
+            // 更新显示
+            currentBlueStreakElement.textContent = `${currentBlueStreak}局`;
+            currentRedStreakElement.textContent = `${currentRedStreak}局`;
+            maxBlueStreakElement.textContent = `${maxBlueStreak}局`;
+            maxRedStreakElement.textContent = `${maxRedStreak}局`;
+        }
+        
+        // 更新历史记录显示（添加连续颜色变化）
+        function updateHistoryDisplay() {
+            historyContainer.innerHTML = '';
+            
+            if (gameHistory.length === 0) {
+                historyContainer.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 50px 0; color: var(--text-secondary);">
+                        <i class="fas fa-folder-open" style="font-size: 30px; margin-bottom: 10px; opacity: 0.5;"></i>
+                        <p>沒有賽局記錄，請添加記錄</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 分析连续出现的结果，为显示做准备
+            const styledHistory = [];
+            let currentStreak = 0;
+            let currentType = null;
+            
+            gameHistory.forEach(result => {
+                if (result === currentType && (result === 'blue' || result === 'red')) {
+                    currentStreak++;
+                } else {
+                    currentType = result;
+                    currentStreak = 1;
+                }
+                
+                // 确定连续等级（最多4级）
+                const streakLevel = Math.min(Math.floor(currentStreak / 2), 3) + 1;
+                
+                styledHistory.push({
+                    result: result,
+                    streakLevel: (result === 'blue' || result === 'red') ? streakLevel : 1
+                });
+            });
+            
+            // 按每10个一组显示记录行
+            const rowSize = 10;
+            let currentRow;
+            
+            styledHistory.forEach((item, index) => {
+                // 每10个创建一个新行
+                if (index % rowSize === 0) {
+                    currentRow = document.createElement('div');
+                    currentRow.className = 'history-row';
+                    historyContainer.appendChild(currentRow);
+                    
+                    // 添加序号
+                    const indexElement = document.createElement('div');
+                    indexElement.className = 'history-index';
+                    indexElement.textContent = `${styledHistory.length - index}`;
+                    currentRow.appendChild(indexElement);
+                }
+                
+                // 创建结果单元格
+                const cell = document.createElement('div');
+                let cellClass = `history-cell ${item.result}`;
+                
+                // 对于连续的闲或庄，添加等级类
+                if (item.result === 'blue' || item.result === 'red') {
+                    cellClass += ` series-${item.streakLevel}`;
+                }
+                
+                cell.className = cellClass;
+                cell.textContent = resultTextMap[item.result];
+                currentRow.appendChild(cell);
+            });
+            
+            // 滚动到底部
+            const scrollContainer = document.querySelector('.history-scroll-container');
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+        
+        // 更新统计数据
+        function updateStatistics() {
+            const total = gameHistory.length;
+            totalGamesElement.value = total;
+            
+            if (total === 0) {
+                blueRateElement.value = '0%';
+                redRateElement.value = '0%';
+                greenRateElement.value = '0%';
+                return;
+            }
+            
+            // 计算各结果数量
+            const counts = {
+                'blue': 0,
+                'red': 0,
+                'green': 0
+            };
+            
+            gameHistory.forEach(result => {
+                counts[result]++;
+            });
+            
+            // 计算百分比
+            const blueRate = Math.round((counts.blue / total) * 100);
+            const redRate = Math.round((counts.red / total) * 100);
+            const greenRate = Math.round((counts.green / total) * 100);
+            
+            // 更新显示
+            blueRateElement.value = `${blueRate}%`;
+            redRateElement.value = `${redRate}%`;
+            greenRateElement.value = `${greenRate}%`;
+        }
+        
+        // 计算预测准确率
+        function calculateAccuracy() {
+            if (predictionHistory.length === 0) {
+                return 0;
+            }
+            
+            const correctCount = predictionHistory.filter(item => item.correct).length;
+            return Math.round((correctCount / predictionHistory.length) * 100);
+        }
+        
+        // 更新模型对比显示
+        function updateModelComparison(mainProbabilities) {
+            modelResultsContainer.innerHTML = '';
+            
+            // 为每个算法生成预测结果
+            Object.keys(algorithms).forEach(algorithmKey => {
+                // 基于主概率稍作调整，模拟不同算法的结果
+                let probBlue = mainProbabilities.blue;
+                let probRed = mainProbabilities.red;
+                
+                // 为不同算法添加不同的偏差
+                switch (algorithmKey) {
+                    case 'bianyi':
+                        probBlue = Math.min(92, Math.max(0, probBlue + (Math.random() * 10 - 5)));
+                        probRed = 92 - probBlue;
+                        break;
+                    case 'chaowei':
+                        probBlue = Math.min(92, Math.max(0, probBlue + (Math.random() * 8 - 4)));
+                        probRed = 92 - probBlue;
+                        break;
+                    case 'zhixu':
+                        probBlue = Math.min(92, Math.max(0, probBlue + (Math.random() * 6 - 3)));
+                        probRed = 92 - probBlue;
+                        break;
+                }
+                
+                const prediction = probBlue > probRed ? 'blue' : 'red';
+                
+                // 创建模型结果项
+                const modelItem = document.createElement('div');
+                modelItem.className = 'model-result-item';
+                
+                // 随机生成一个准确率（基于主模型稍作调整）
+                const baseAccuracy = calculateAccuracy();
+                const accuracy = Math.max(30, Math.min(80, baseAccuracy + (Math.random() * 10 - 5)));
+                
+                modelItem.innerHTML = `
+                    <span class="model-name">${algorithms[algorithmKey].name}</span>
+                    <span class="model-prediction ${prediction}">${resultTextMap[prediction]}</span>
+                    <span class="model-accuracy">${accuracy.toFixed(0)}%</span>
+                `;
+                
+                modelResultsContainer.appendChild(modelItem);
+            });
+            
+            // 更新准确率显示
+            const accuracy = calculateAccuracy();
+            accuracyBarElement.style.width = `${accuracy}%`;
+            accuracyTextValueElement.textContent = `${accuracy}%`;
+        }
+        
+        // 添加分析日志条目
+        function addAnalysisLogEntry(entry, delay) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const now = new Date();
+                    const timeStr = `${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                    
+                    const logElement = document.createElement('div');
+                    logElement.className = `log-entry ${entry.type}`;
+                    logElement.innerHTML = `
+                        <span class="timestamp">${timeStr}</span>
+                        <span>${entry.message}</span>
+                    `;
+                    
+                    analysisLog.appendChild(logElement);
+                    analysisLog.scrollTop = analysisLog.scrollHeight;
+                    resolve();
+                }, delay);
+            });
+        }
+        
+        // 开始分析（增强版，带随机预测和详细日志）
+        startAnalysisBtn.addEventListener('click', function() {
+            if (gameHistory.length < 5) {
+                showNotification('請至少添加5條賽局記錄', '錯誤', 'error');
+                return;
+            }
+            
+            // 显示加载状态和分析日志
+            predictionLoading.style.display = 'block';
+            predictionResult.classList.remove('visible');
+            predictionIndicator.classList.remove('visible');
+            startAnalysisBtn.disabled = true;
+            analysisLog.classList.add('active');
+            analysisLog.innerHTML = '';
+            
+            // 移除所有按钮的概率相关类
+            betButtons.forEach(btn => {
+                btn.classList.remove('high-probability', 'very-high-probability');
+            });
+            
+            // 根据分析深度设置延迟时间
+            const depth = depthSelect.value;
+            let baseDelay = 300; // 标准延迟
+            
+            switch(depth) {
+                case 'light':
+                    baseDelay = 150; // 快速分析
+                    break;
+                case 'deep':
+                    baseDelay = 500; // 深度分析
+                    break;
+                case 'ultra':
+                    baseDelay = 800; // 超级计算
+                    break;
+            }
+            
+            // 根据选择的算法调整日志
+            const algorithm = algorithmSelect.value;
+            let algorithmSpecificLogs = [];
+            
+            switch(algorithm) {
+                case 'tianwang':
+                    algorithmSpecificLogs = [
+                        { type: 'process', message: '天網算法：構建多維概率矩陣' },
+                        { type: 'process', message: '天網算法：應用網格搜索優化' }
+                    ];
+                    break;
+                case 'bianyi':
+                    algorithmSpecificLogs = [
+                        { type: 'process', message: '變異算法：模擬基因突變概率模型' },
+                        { type: 'process', message: '變異算法：計算適應度評分' }
+                    ];
+                    break;
+                case 'chaowei':
+                    algorithmSpecificLogs = [
+                        { type: 'process', message: '超維算法：構建高維空間映射' },
+                        { type: 'process', message: '超維算法：降維處理特徵向量' }
+                    ];
+                    break;
+                case 'zhixu':
+                    algorithmSpecificLogs = [
+                        { type: 'process', message: '智序算法：分析自組織模式' },
+                        { type: 'process', message: '智序算法：預測演化趨勢' }
+                    ];
+                    break;
+            }
+            
+            // 插入算法特定日志到通用日志中
+            const modifiedLogEntries = [
+                ...analysisLogEntries.slice(0, 4),
+                ...algorithmSpecificLogs,
+                ...analysisLogEntries.slice(4)
+            ];
+            
+            // 逐步显示分析日志
+            let currentDelay = 0;
+            const logPromises = modifiedLogEntries.map((entry, index) => {
+                currentDelay += baseDelay;
+                return addAnalysisLogEntry(entry, currentDelay);
+            });
+            
+            // 所有日志显示完成后计算预测结果
+            Promise.all(logPromises).then(() => {
+                // 基于历史记录计算基础概率，但加入较大的随机波动
+                const recentHistory = gameHistory.slice(-Math.min(20, gameHistory.length));
+                const counts = {
+                    'blue': 0,
+                    'red': 0,
+                    'green': 0
+                };
+                
+                // 只统计闲和庄用于概率计算
+                let validCount = 0;
+                recentHistory.forEach(result => {
+                    counts[result]++;
+                    if (result === 'blue' || result === 'red') {
+                        validCount++;
+                    }
+                });
+                
+                // 计算基础概率
+                let baseBlueRate = validCount > 0 ? (counts.blue / validCount) * 100 : 50;
+                let baseRedRate = 100 - baseBlueRate;
+                
+                // 根据选择的算法添加不同程度的随机波动
+                let randomFactor = 0;
+                switch(algorithm) {
+                    case 'tianwang':
+                        randomFactor = Math.random() * 15 - 7.5; // -7.5 到 +7.5 之间
+                        break;
+                    case 'bianyi':
+                        randomFactor = Math.random() * 25 - 12.5; // 更大的随机波动
+                        break;
+                    case 'chaowei':
+                        randomFactor = Math.random() * 20 - 10; // 中等随机波动
+                        break;
+                    case 'zhixu':
+                        randomFactor = Math.random() * 10 - 5; // 较小的随机波动
+                        break;
+                }
+                
+                // 应用随机因子，确保概率在合理范围内
+                let blueRate = Math.round(baseBlueRate + randomFactor);
+                blueRate = Math.max(30, Math.min(70, blueRate)); // 确保在30%-70%之间
+                let redRate = 100 - blueRate;
+                
+                // 确保闲+庄≤92%
+                const totalValidRate = blueRate + redRate;
+                if (totalValidRate > 92) {
+                    const ratio = 92 / totalValidRate;
+                    blueRate = Math.round(blueRate * ratio);
+                    redRate = 92 - blueRate;
+                }
+                
+                // 随机决定是否反转预测（增加不确定性）
+                if (Math.random() < 0.2) { // 20%的概率反转预测
+                    [blueRate, redRate] = [redRate, blueRate];
+                }
+                
+                // 确定预测结果（概率最高的）
+                currentPrediction = blueRate > redRate ? 'blue' : 'red';
+                
+                // 应用概率到UI，添加动画效果
+                setTimeout(() => {
+                    document.getElementById('prob-blue').style.width = `${blueRate}%`;
+                    document.getElementById('val-blue').textContent = `${blueRate}%`;
+                }, 300);
+                
+                setTimeout(() => {
+                    document.getElementById('prob-red').style.width = `${redRate}%`;
+                    document.getElementById('val-red').textContent = `${redRate}%`;
+                }, 600);
+                
+                // 和概率固定为0
+                document.getElementById('prob-green').style.width = '0%';
+                document.getElementById('val-green').textContent = '0%';
+                
+                // 更新预测结果显示
+                setTimeout(() => {
+                    currentPredictionText.textContent = resultTextMap[currentPrediction];
+                    predictionIndicator.classList.add('visible');
+                }, 900);
+                
+                // 根据概率添加动画效果
+                setTimeout(() => {
+                    const maxProb = Math.max(blueRate, redRate);
+                    const maxProbType = blueRate > redRate ? 'blue' : 'red';
+                    
+                    betButtons.forEach(btn => {
+                        const type = btn.getAttribute('data-type');
+                        if (type === maxProbType) {
+                            if (maxProb >= 60 && maxProb < 75) {
+                                btn.classList.add('high-probability');
+                            } else if (maxProb >= 75) {
+                                btn.classList.add('very-high-probability');
+                            }
+                        }
+                    });
+                }, 1200);
+                
+                // 更新模型对比
+                setTimeout(() => {
+                    updateModelComparison({
+                        blue: blueRate,
+                        red: redRate,
+                        green: 0
+                    });
+                }, 1500);
+                
+                // 显示结果
+                setTimeout(() => {
+                    predictionLoading.style.display = 'none';
+                    predictionResult.classList.add('visible');
+                    startAnalysisBtn.disabled = false;
+                    
+                    showNotification(`分析完成！預測結果：${resultTextMap[currentPrediction]}`, '成功', 'success');
+                }, 1800);
+            });
+        });
+        
+        // 筹码点击事件
+        chips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const value = parseInt(this.getAttribute('data-value'));
+                if (value === 0) {
+                    betInput.value = '0';
+                } else {
+                    const current = parseInt(betInput.value) || 0;
+                    betInput.value = (current + value).toString();
+                }
+            });
+        });
+        
+        // 下注按钮点击事件（核心功能：选择本局结果立即同步到赛局记录）
+        betButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const resultType = this.getAttribute('data-type');
+                
+                if (!isConnected) {
+                    showNotification('請先連接房間', '錯誤', 'error');
+                    return;
+                }
+                
+                // 移除其他按钮的active状态，添加当前按钮的active状态
+                betButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                selectedResult = resultType;
+                
+                // 立即将结果添加到赛局记录（核心联动）
+                gameHistory.push(resultType);
+                
+                // 记录预测准确性（如果有预测结果）
+                if (currentPrediction) {
+                    const isCorrect = resultType === currentPrediction;
+                    predictionHistory.push({
+                        prediction: currentPrediction,
+                        actual: resultType,
+                        correct: isCorrect,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // 只保留最近20条预测历史
+                    if (predictionHistory.length > 20) {
+                        predictionHistory.shift();
+                    }
+                }
+                
+                updateHistoryDisplay();
+                updateStatistics();
+                updateStreakStats();
+                updateUndoButtonState();
+                
+                // 如果有足够记录，显示预测区域
+                if (gameHistory.length >= 5) {
+                    predictionPlaceholder.style.display = 'none';
+                    // 自动重新分析
+                    setTimeout(() => {
+                        startAnalysisBtn.click();
+                    }, 500);
+                }
+                
+                // 处理下注金额
+                const amount = parseInt(betInput.value) || 0;
+                if (amount > 0) {
+                    // 计算盈亏（根据预测结果与实际结果比较）
+                    let profit = 0;
+                    
+                    // 和局特殊处理：无论预测结果如何，输赢均为0
+                    if (resultType === 'green') {
+                        profit = 0;
+                    } 
+                    // 有预测结果时才计算输赢
+                    else if (currentPrediction) {
+                        if (resultType === currentPrediction) {
+                            // 预测正确，赢钱
+                            switch (resultType) {
+                                case 'blue':
+                                    profit = amount;
+                                    break;
+                                case 'red':
+                                    profit = amount; // 已移除佣金计算
+                                    break;
+                            }
+                        } else {
+                            // 预测错误，输钱
+                            profit = -amount;
+                        }
+                    } else {
+                        // 没有预测结果时，默认不计算输赢
+                        profit = 0;
+                        showNotification('沒有預測結果，無法計算輸贏', '提示', '');
+                    }
+                    
+                    // 更新总下注和盈亏
+                    const currentTotalBet = parseInt(betAmountElement.value) || 0;
+                    const currentProfit = parseInt(profitAmountElement.value) || 0;
+                    
+                    betAmountElement.value = (currentTotalBet + amount).toString();
+                    profitAmountElement.value = (currentProfit + profit).toString();
+                    
+                    // 记录下注
+                    const now = new Date();
+                    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    
+                    betRecords.unshift({
+                        time: timeStr,
+                        result: resultTextMap[resultType],
+                        amount: amount,
+                        profit: profit
+                    });
+                    
+                    // 保持记录不超过5条
+                    if (betRecords.length > 5) {
+                        betRecords.pop();
+                    }
+                    
+                    // 更新下注历史显示
+                    updateBetHistory();
+                    
+                    // 重置输入
+                    betInput.value = '0';
+                    
+                    // 显示通知
+                    if (resultType === 'green') {
+                        // 和局特殊通知
+                        showNotification(
+                            `本局結果: ${resultTextMap[resultType]}, 和局無輸贏`,
+                            '投注結果',
+                            ''
+                        );
+                    } else if (currentPrediction) {
+                        if (profit > 0) {
+                            showNotification(
+                                `本局結果: ${resultTextMap[resultType]}, 預測正確！贏得 ${profit} 元`,
+                                '投注成功',
+                                'success'
+                            );
+                        } else if (profit < 0) {
+                            showNotification(
+                                `本局結果: ${resultTextMap[resultType]}, 預測錯誤！輸掉 ${Math.abs(profit)} 元`,
+                                '投注結果',
+                                'error'
+                            );
+                        }
+                    }
+                } else {
+                    // 只记录结果，不下注
+                    showNotification(
+                        `已記錄本局結果: ${resultTextMap[resultType]}`,
+                        '記錄成功',
+                        ''
+                    );
+                }
+                
+                // 保存数据
+                saveData();
+            });
+        });
+        
+        // 更新下注历史显示
+        function updateBetHistory() {
+            betHistoryElement.innerHTML = '';
+            
+            if (betRecords.length === 0) {
+                betHistoryElement.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">無記錄</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            betRecords.forEach(record => {
+                const row = document.createElement('tr');
+                let profitClass = '';
+                
+                // 和局特殊显示（黑色）
+                if (record.result === '和') {
+                    profitClass = '';
+                } else {
+                    profitClass = record.profit >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+                }
+                
+                row.innerHTML = `
+                    <td>${record.time}</td>
+                    <td>${record.result}</td>
+                    <td style="${profitClass}">${record.profit !== 0 ? (record.profit >= 0 ? '+' : '') : ''}${record.profit}</td>
+                `;
+                
+                betHistoryElement.appendChild(row);
+            });
+        }
+        
+        // 导出数据
+        exportDataBtn.addEventListener('click', function() {
+            if (gameHistory.length === 0 && betRecords.length === 0) {
+                showNotification('沒有可導出的數據', '提示', '');
+                return;
+            }
+            
+            // 准备导出数据
+            let exportData = "時間,局數,結果,下注金額,輸贏金額\n";
+            
+            // 添加游戏历史
+            gameHistory.forEach((result, index) => {
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const betRecord = betRecords.find(r => {
+                    // 简单匹配，实际应用中应该有更好的关联方式
+                    return true;
+                });
+                
+                exportData += `${dateStr},${index + 1},${resultTextMap[result]},${betRecord ? betRecord.amount : 0},${betRecord ? betRecord.profit : 0}\n`;
+            });
+            
+            // 创建下载链接
+            const blob = new Blob([exportData], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            
+            // 文件名包含当前日期
+            const date = new Date();
+            const fileName = `百家樂記錄_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}.csv`;
+            
+            a.setAttribute('download', fileName);
+            a.style.visibility = 'hidden';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showNotification('數據已成功導出', '成功', 'success');
+        });
+        
+        // 显示通知
+        function showNotification(message, title, type = '') {
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+            
+            // 移除所有类型类
+            notification.classList.remove('error', 'success');
+            
+            // 添加类型类
+            if (type) {
+                notification.classList.add(type);
+            }
+            
+            // 显示通知
+            notification.classList.add('show');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 初始化
+        initialize();
+        updateHistoryDisplay();
+        updateStatistics();
+        updateBetHistory();
+        updateUndoButtonState();
+        updateStreakStats();
+    </script>
+</body>
+</html>
+    

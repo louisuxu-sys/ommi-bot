@@ -1,0 +1,603 @@
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的自訂連結導覽</title>
+    <!-- 引入免費圖標庫 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <style>
+        /* 頁面基礎樣式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        }
+        body {
+            /* 增強漸變背景效果 */
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            background-image: 
+                radial-gradient(at 40% 20%, rgba(52, 152, 219, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 0%, rgba(142, 68, 173, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 50%, rgba(52, 152, 219, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 50%, rgba(46, 204, 113, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(142, 68, 173, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 100%, rgba(52, 152, 219, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, rgba(46, 204, 113, 0.05) 0px, transparent 50%);
+            padding: 20px;
+            min-height: 100vh;
+            background-attachment: fixed;
+            line-height: 1.6;
+        }
+        /* 標題樣式增強 */
+        .page-title {
+            text-align: center;
+            color: #2c3e50;
+            margin: 30px 0 50px;
+            font-size: 36px;
+            font-weight: 700;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.08);
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0 20px;
+        }
+        .page-title::after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: #3498db;
+            border-radius: 2px;
+            margin: 15px auto 0;
+            transition: width 0.3s ease;
+        }
+        .page-title:hover::after {
+            width: 120px;
+        }
+        /* 連結分類卡片樣式增強 */
+        .link-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            padding-bottom: 60px;
+        }
+        .link-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.09);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.6);
+            overflow: hidden;
+            position: relative;
+        }
+        /* 卡片裝飾元素 */
+        .link-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #3498db, #8e44ad);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .link-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+            border-color: rgba(255,255,255,0.9);
+        }
+        .link-card:hover::before {
+            transform: scaleX(1);
+        }
+        /* 突出顯示註冊連結卡片 */
+        .link-card.important {
+            border: 2px solid #3498db;
+            order: -1; /* 排在最前面 */
+            background: rgba(255, 255, 255, 0.98);
+            position: relative;
+        }
+        .link-card.important::before {
+            content: '重要';
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: #3498db;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+            z-index: 1;
+        }
+        .card-title {
+            color: #3498db;
+            font-size: 22px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: color 0.3s ease;
+        }
+        .link-card:hover .card-title {
+            color: #2980b9;
+        }
+        .card-title i {
+            margin-right: 12px;
+            color: #3498db;
+            font-size: 24px;
+            transition: transform 0.3s ease;
+        }
+        .link-card:hover .card-title i {
+            transform: scale(1.1) rotate(5deg);
+        }
+        /* 單個連結樣式增強 */
+        .link-item {
+            padding: 15px 0;
+            border-bottom: 1px solid #f1f1f1;
+            transition: background-color 0.2s ease;
+        }
+        .link-item:hover {
+            background-color: rgba(240, 244, 248, 0.5);
+            padding-left: 8px;
+            border-radius: 4px;
+        }
+        .link-item:last-child {
+            border-bottom: none;
+        }
+        .link-description {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            padding-left: 36px;
+            transition: color 0.3s ease;
+        }
+        .link-item:hover .link-description {
+            color: #34495e;
+        }
+        .link-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        .link-wrapper i {
+            width: 24px;
+            text-align: center;
+            margin-right: 12px;
+            color: #27ae60;
+            font-size: 18px;
+            transition: transform 0.3s ease;
+        }
+        .link-item:hover .link-wrapper i {
+            transform: translateX(3px);
+        }
+        .link-wrapper a {
+            color: #2c3e50;
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s, padding-left 0.3s;
+            flex-grow: 1;
+            word-break: break-all;
+            position: relative;
+        }
+        .link-wrapper a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: #3498db;
+            transition: width 0.3s ease;
+        }
+        .link-wrapper a:hover {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .link-wrapper a:hover::after {
+            width: 100%;
+        }
+        /* 複製按鈕樣式增強 */
+        .copy-btn {
+            background: #f1f5f9;
+            border: none;
+            color: #34495e;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            opacity: 0.8;
+            transform: translateY(2px);
+        }
+        .link-item:hover .copy-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .copy-btn i {
+            margin-right: 5px;
+            color: #34495e;
+            width: auto;
+            font-size: 14px;
+        }
+        .copy-btn:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+        }
+        .copy-btn:hover i {
+            color: white;
+        }
+        /* 複製成功提示動畫增強 */
+        .copy-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2ecc71;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s, box-shadow 0.3s;
+            pointer-events: none;
+            transform: translate(-50%, 20px);
+            z-index: 1000;
+        }
+        .copy-toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
+        }
+        /* 深色模式切換按鈕增強 */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(10deg);
+            background: #f1f1f1;
+        }
+        .theme-toggle i {
+            font-size: 20px;
+            color: #34495e;
+            transition: transform 0.3s ease;
+        }
+        .theme-toggle:hover i {
+            transform: rotate(90deg);
+        }
+
+        /* 深色模式樣式增強 */
+        .dark-mode body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background-image: 
+                radial-gradient(at 40% 20%, rgba(76, 201, 240, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 0%, rgba(156, 39, 176, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 50%, rgba(76, 201, 240, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 50%, rgba(46, 204, 113, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(156, 39, 176, 0.05) 0px, transparent 50%),
+                radial-gradient(at 80% 100%, rgba(76, 201, 240, 0.05) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, rgba(46, 204, 113, 0.05) 0px, transparent 50%);
+        }
+        .dark-mode .link-card {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: rgba(50, 65, 87, 0.6);
+        }
+        .dark-mode .link-card:hover {
+            border-color: rgba(76, 201, 240, 0.4);
+        }
+        .dark-mode .link-card::before {
+            background: linear-gradient(90deg, #4cc9f0, #9c27b0);
+        }
+        .dark-mode .card-title, 
+        .dark-mode .link-item a, 
+        .dark-mode .page-title {
+            color: #e2e8f0;
+        }
+        .dark-mode .link-item:hover {
+            background-color: rgba(45, 55, 72, 0.5);
+        }
+        .dark-mode .link-item i {
+            color: #4cc9f0;
+        }
+        .dark-mode .link-item {
+            border-bottom: 1px solid #334155;
+        }
+        .dark-mode .link-card.important {
+            border-color: #4cc9f0;
+        }
+        .dark-mode .link-card.important::before {
+            background: #4cc9f0;
+            box-shadow: 0 2px 5px rgba(76, 201, 240, 0.3);
+        }
+        .dark-mode .link-card.important .card-title {
+            color: #4cc9f0;
+        }
+        .dark-mode .theme-toggle {
+            background: #1e293b;
+        }
+        .dark-mode .theme-toggle i {
+            color: #e2e8f0;
+        }
+        .dark-mode .copy-btn {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        .dark-mode .copy-btn i {
+            color: #e2e8f0;
+        }
+        .dark-mode .copy-btn:hover {
+            background: #4cc9f0;
+            box-shadow: 0 3px 8px rgba(76, 201, 240, 0.3);
+        }
+        .dark-mode .link-description {
+            color: #94a3b8;
+        }
+        .dark-mode .link-item:hover .link-description {
+            color: #cbd5e1;
+        }
+        .dark-mode .page-title::after {
+            background: #4cc9f0;
+        }
+        .dark-mode .link-wrapper a::after {
+            background-color: #4cc9f0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 深色模式切換按鈕 -->
+    <button class="theme-toggle" id="themeToggle">
+        <i class="fa fa-moon-o"></i>
+    </button>
+
+    <!-- 頁面標題 -->
+    <h1 class="page-title">我的自訂連結導覽</h1>
+
+    <!-- 複製成功提示 -->
+    <div class="copy-toast" id="copyToast">複製成功！</div>
+
+    <!-- 連結容器（按分類整理） -->
+    <div class="link-container">
+        <!-- 第一區：註冊連結（突出顯示） -->
+        <div class="link-card important">
+            <h2 class="card-title"><i class="fa fa-user-plus"></i>註冊連結</h2>
+            <div class="link-item">
+                <div class="link-description">AT99 HG07註冊</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-link"></i>
+                    <a href="https://at99.one/Register?p=HG07" target="_blank">https://at99.one/Register?p=HG07</a>
+                    <button class="copy-btn" data-link="https://at99.one/Register?p=HG07"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">TU HG07 註冊</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-link"></i>
+                    <a href="https://tu123.app/a/register?promoCode=HG07" target="_blank">https://tu123.app/a/register?promoCode=HG07</a>
+                    <button class="copy-btn" data-link="https://tu123.app/a/register?promoCode=HG07"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">推薦用戶註冊頁面</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-link"></i>
+                    <a href="【替換連結3】" target="_blank">【替換連結3】專屬註冊通道</a>
+                    <button class="copy-btn" data-link="【替換連結3】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">快速註冊無需驗證</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-link"></i>
+                    <a href="【替換連結4】" target="_blank">【替換連結4】快速註冊頁面</a>
+                    <button class="copy-btn" data-link="【替換連結4】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">新會員優惠活動</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-link"></i>
+                    <a href="【替換連結5】" target="_blank">【替換連結5】新會員註冊</a>
+                    <button class="copy-btn" data-link="【替換連結5】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 測試帳號 -->
+        <div class="link-card">
+            <h2 class="card-title"><i class="fa fa-star"></i>測試帳號</h2>
+            <div class="link-item">
+                <div class="link-description">AT99</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-home"></i>
+                    <a href="https://at9demo.com/" target="_blank">https://at9demo.com/</a>
+                    <button class="copy-btn" data-link="https://at9demo.com/"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">RG</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-user"></i>
+                    <a href="https://rg888.dev" target="_blank">https://rg888.dev</a>
+                    <button class="copy-btn" data-link="https://rg888.dev"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">TU</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-cog"></i>
+                    <a href="https://yhwt999.com" target="_blank">https://yhwt999.com</a>
+                    <button class="copy-btn" data-link="https://yhwt999.com"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工具資源 -->
+        <div class="link-card">
+            <h2 class="card-title"><i class="fa fa-wrench"></i>工具資源</h2>
+            <div class="link-item">
+                <div class="link-description">豆包</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-search"></i>
+                    <a href="https://www.doubao.com/chat/" target="_blank">https://www.doubao.com/chat/</a>
+                    <button class="copy-btn" data-link="https://www.doubao.com/chat/"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">GPT</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-file-text"></i>
+                    <a href="https://chatgpt.com/?locale=zh-TW" target="_blank">https://chatgpt.com/?locale=zh-TW</a>
+                    <button class="copy-btn" data-link="https://chatgpt.com/?locale=zh-TW"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">圖片編輯與轉換</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-image"></i>
+                    <a href="【替換連結3】" target="_blank">【替換連結3】圖片工具</a>
+                    <button class="copy-btn" data-link="【替換連結3】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 娛樂休閒 -->
+        <div class="link-card">
+            <h2 class="card-title"><i class="fa fa-film"></i>娛樂休閒</h2>
+            <div class="link-item">
+                <div class="link-description">線上音樂收聽</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-music"></i>
+                    <a href="https://agent.at99tw.v588.co" target="_blank">agent.at99tw.v588.co</a>
+                    <button class="copy-btn" data-link="agent.at99tw.v588.co"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">影視劇觀看平台</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-television"></i>
+                    <a href="https://t22.354785.com" target="_blank">t22.354785.com</a>
+                    <button class="copy-btn" data-link="t22.354785.com"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">線上遊戲娛樂</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-gamepad"></i>
+                    <a href="【替換連結3】" target="_blank">【替換連結3】遊戲平台</a>
+                    <button class="copy-btn" data-link="【替換連結3】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 社交網路 -->
+        <div class="link-card">
+            <h2 class="card-title"><i class="fa fa-users"></i>社交網路</h2>
+            <div class="link-item">
+                <div class="link-description">即時通訊工具</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-comments"></i>
+                    <a href="【替換連結1】" target="_blank">【替換連結1】聊天工具</a>
+                    <button class="copy-btn" data-link="【替換連結1】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">內容分享平台</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-share-alt"></i>
+                    <a href="【替換連結2】" target="_blank">【替換連結2】分享平台</a>
+                    <button class="copy-btn" data-link="【替換連結2】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+            <div class="link-item">
+                <div class="link-description">電子郵件服務</div>
+                <div class="link-wrapper">
+                    <i class="fa fa-envelope"></i>
+                    <a href="【替換連結3】" target="_blank">【替換連結3】郵件服務</a>
+                    <button class="copy-btn" data-link="【替換連結3】"><i class="fa fa-copy"></i>複製</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 複製功能
+        const copyButtons = document.querySelectorAll('.copy-btn');
+        const copyToast = document.getElementById('copyToast');
+        
+        copyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 獲取要複製的連結
+                const link = button.getAttribute('data-link');
+                
+                // 複製到剪貼簿
+                navigator.clipboard.writeText(link).then(() => {
+                    // 顯示成功提示
+                    copyToast.classList.add('show');
+                    setTimeout(() => {
+                        copyToast.classList.remove('show');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('無法複製: ', err);
+                });
+            });
+        });
+
+        // 深色模式切換功能
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        const icon = themeToggle.querySelector('i');
+        
+        // 檢查本地存儲中的主題設置
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark-mode');
+            icon.classList.remove('fa-moon-o');
+            icon.classList.add('fa-sun-o');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark-mode')) {
+                // 切換到淺色模式
+                html.classList.remove('dark-mode');
+                icon.classList.remove('fa-sun-o');
+                icon.classList.add('fa-moon-o');
+                localStorage.setItem('theme', 'light');
+            } else {
+                // 切換到深色模式
+                html.classList.add('dark-mode');
+                icon.classList.remove('fa-moon-o');
+                icon.classList.add('fa-sun-o');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    </script>
+
+</body>
+</html>
+    

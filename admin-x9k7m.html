@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系統管理後台</title>
+  <!-- 防止搜尋引擎索引 -->
+  <meta name="robots" content="noindex, nofollow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+    body { font-family: 'Noto Sans TC', sans-serif; }
+
+    /* ===== 登入遮罩樣式 ===== */
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.97); z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #loginOverlay.hidden { display: none; }
+    .login-box {
+      background: rgba(17,24,39,0.95); border: 1px solid rgba(245,158,11,0.4);
+      border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px; margin: 0 16px;
+      box-shadow: 0 0 40px rgba(245,158,11,0.15);
+    }
+    .login-box h2 { text-align: center; font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 6px; }
+    .login-box .sub { text-align: center; font-size: 12px; color: #f59e0b; letter-spacing: 3px; margin-bottom: 28px;
+      text-shadow: 0 0 10px #f59e0b; }
+    .login-box label { display: block; color: #9ca3af; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .login-box input {
+      width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(75,85,99,0.5);
+      color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 15px; margin-bottom: 18px;
+      outline: none; transition: all 0.3s;
+    }
+    .login-box input:focus { border-color: #f59e0b; box-shadow: 0 0 12px rgba(245,158,11,0.3); }
+    .login-box .login-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 17px; font-weight: 700;
+      color: #fff; cursor: pointer; background: linear-gradient(135deg, #f59e0b, #ef4444);
+      transition: all 0.3s;
+    }
+    .login-box .login-btn:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(245,158,11,0.5); }
+    .login-box .error { color: #f87171; font-size: 13px; text-align: center; margin-bottom: 10px; display: none; }
+    .login-box .lock-icon { text-align: center; margin-bottom: 20px; }
+    .login-box .lock-icon svg { width: 48px; height: 48px; margin: 0 auto; }
+    .login-box .footer-text { text-align: center; color: #4b5563; font-size: 11px; margin-top: 18px; }
+
+    /* ===== 登入嘗試限制提示 ===== */
+    .lockout-msg {
+      color: #f87171; font-size: 14px; text-align: center; margin-bottom: 10px;
+      padding: 10px; background: rgba(248,113,113,0.1); border-radius: 8px;
+      border: 1px solid rgba(248,113,113,0.3); display: none;
+    }
+
+    /* ===== 主面板樣式 ===== */
+    .glow-amber { text-shadow: 0 0 10px #f59e0b, 0 0 20px #f59e0b; }
+
+    .serial-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(75,85,99,0.4);
+      font-family: 'Consolas', monospace; font-size: 15px; color: #22d3ee;
+    }
+    .serial-item .copy-btn {
+      background: rgba(34,211,238,0.2); border: 1px solid rgba(34,211,238,0.4);
+      color: #22d3ee; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 12px; transition: all 0.3s;
+    }
+    .serial-item .copy-btn:hover { background: #22d3ee; color: #000; }
+    .gen-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
+      color: #000; cursor: pointer; background: linear-gradient(135deg, #f59e0b, #ef4444);
+      transition: all 0.3s; margin-bottom: 12px;
+    }
+    .gen-btn:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(245,158,11,0.5); }
+
+    /* 登出按鈕 */
+    #logoutBtn {
+      position: fixed; top: 16px; right: 16px; z-index: 101;
+      background: rgba(17,24,39,0.9); border: 1px solid rgba(248,113,113,0.4);
+      border-radius: 10px; padding: 8px 18px; font-size: 13px; font-weight: 700;
+      color: #f87171; cursor: pointer; display: none;
+      backdrop-filter: blur(8px); box-shadow: 0 0 20px rgba(248,113,113,0.15);
+      transition: all 0.3s ease;
+    }
+    #logoutBtn:hover {
+      background: rgba(248,113,113,0.2); border-color: #f87171;
+      box-shadow: 0 0 20px rgba(248,113,113,0.4); transform: translateY(-1px);
+    }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 4px; }
+
+    /* ===== 手機滑動修復 ===== */
+    html {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    body {
+      min-height: 100%;
+      overflow-y: auto !important;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      touch-action: manipulation;
+    }
+    #adminMain {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 768px) {
+      body {
+        -webkit-text-size-adjust: 100%;
+      }
+      #logoutBtn {
+        top: 10px;
+        right: 10px;
+        padding: 6px 14px;
+        font-size: 12px;
+      }
+      .max-w-2xl {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-white">
+
+  <!-- ===== 管理員登入遮罩 ===== -->
+  <div id="loginOverlay">
+    <div class="login-box">
+      <div class="lock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <h2>🛡️ 管理員驗證</h2>
+      <div class="sub">ADMIN ACCESS ONLY</div>
+
+      <div class="lockout-msg" id="lockoutMsg"></div>
+
+      <label>帳號</label>
+      <input type="text" id="loginUser" placeholder="請輸入管理員帳號" autocomplete="off">
+      <label>密碼</label>
+      <input type="password" id="loginPass" placeholder="請輸入密碼">
+      <p class="error" id="loginError">⚠ 帳號或密碼錯誤</p>
+      <button type="button" class="login-btn" id="loginBtn" onclick="handleAdminLogin()">管理員登入</button>
+
+      <div class="footer-text">🔒 此頁面僅限管理員使用<br>連續錯誤 5 次將鎖定 5 分鐘</div>
+    </div>
+  </div>
+
+  <!-- ===== 登出按鈕 ===== -->
+  <button id="logoutBtn" onclick="handleLogout()">🚪 登出管理後台</button>
+
+  <!-- ===== 主面板（登入後才顯示） ===== -->
+  <div id="adminMain" style="display:none;">
+    <!-- 頂部標題 -->
+    <header class="pt-10 pb-6 text-center">
+      <h1 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-400 to-red-500 mb-2">
+        🛡️ 管理員控制台
+      </h1>
+      <p class="text-amber-500 text-sm tracking-[0.2em] glow-amber">ADMIN CONTROL PANEL</p>
+      <p class="text-gray-500 text-xs mt-2">序號管理 | 系統控制</p>
+    </header>
+
+    <!-- 序號管理面板 -->
+    <div class="max-w-2xl mx-auto px-4 pb-20">
+      <!-- 統計 -->
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <p class="text-gray-500 text-xs mb-1">總序號數</p>
+          <p id="statTotal" class="text-amber-400 text-2xl font-black">0</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <p class="text-gray-500 text-xs mb-1">有效序號</p>
+          <p id="statValid" class="text-green-400 text-2xl font-black">0</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <p class="text-gray-500 text-xs mb-1">已過期</p>
+          <p id="statExpired" class="text-red-400 text-2xl font-black">0</p>
+        </div>
+      </div>
+
+      <!-- 生成序號按鈕 -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+        <h3 class="text-amber-400 font-bold text-lg mb-4 text-center">📝 生成新序號</h3>
+        <p style="text-align:center;color:#9ca3af;font-size:13px;margin-bottom:12px;">選擇有效期限生成序號</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <button class="gen-btn" style="margin-bottom:0;font-size:14px;background:linear-gradient(135deg,#f59e0b,#ef4444);" onclick="generateNewSerial(30*60*1000)">⏱️ 30 分鐘</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:14px;background:linear-gradient(135deg,#06b6d4,#3b82f6);" onclick="generateNewSerial(3*24*60*60*1000)">📅 3 天</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:14px;background:linear-gradient(135deg,#8b5cf6,#6366f1);" onclick="generateNewSerial(7*24*60*60*1000)">📅 7 天</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:14px;background:linear-gradient(135deg,#10b981,#059669);" onclick="generateNewSerial(30*24*60*60*1000)">📅 30 天</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button class="gen-btn" style="margin-bottom:0;font-size:13px;background:linear-gradient(135deg,#f59e0b,#b45309);" onclick="generateBatchSerials(30*60*1000)">📦 批量5組 30分鐘</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:13px;background:linear-gradient(135deg,#0891b2,#1e40af);" onclick="generateBatchSerials(3*24*60*60*1000)">📦 批量5組 3天</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:13px;background:linear-gradient(135deg,#7c3aed,#4f46e5);" onclick="generateBatchSerials(7*24*60*60*1000)">📦 批量5組 7天</button>
+          <button class="gen-btn" style="margin-bottom:0;font-size:13px;background:linear-gradient(135deg,#059669,#047857);" onclick="generateBatchSerials(30*24*60*60*1000)">📦 批量5組 30天</button>
+        </div>
+      </div>
+
+      <!-- 序號列表 -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-amber-400 font-bold text-lg">📋 已生成序號</h3>
+          <span class="text-gray-500 text-sm">共 <strong id="serialCountText" class="text-amber-400">0</strong> 組</span>
+        </div>
+        <div id="serialList" style="max-height: 500px; overflow-y: auto;">
+          <p style="text-align:center;color:#4b5563;font-size:13px;padding:20px 0;">尚未生成任何序號</p>
+        </div>
+      </div>
+
+      <!-- 危險操作 -->
+      <div class="bg-gray-900 border border-red-900/50 rounded-xl p-6">
+        <h3 class="text-red-400 font-bold text-lg mb-4 text-center">⚠️ 危險操作</h3>
+        <button class="gen-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);font-size:14px;margin-bottom:8px;" onclick="clearExpiredSerials()">🧹 清除已過期序號</button>
+        <button class="gen-btn" style="background:linear-gradient(135deg,#7f1d1d,#450a0a);font-size:14px;margin-bottom:0;" onclick="clearAllSerials()">🗑️ 清空所有序號</button>
+      </div>
+    </div>
+
+    <!-- 底部 -->
+    <footer class="text-center py-8 border-t border-gray-900">
+      <p class="text-gray-600 text-xs">管理員控制台 © 2026 | 請勿將此頁面網址洩漏給他人</p>
+    </footer>
+  </div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<script>
+// ============ Firebase 初始化 ============
+var firebaseConfig = {
+  apiKey: "AIzaSyBPQ9m9uDsInFJiYpadA5LcZhQug6ob5no",
+  authDomain: "sai-bot-e36e8.firebaseapp.com",
+  databaseURL: "https://sai-bot-e36e8-default-rtdb.firebaseio.com",
+  projectId: "sai-bot-e36e8",
+  storageBucket: "sai-bot-e36e8.firebasestorage.app",
+  messagingSenderId: "464722073392",
+  appId: "1:464722073392:web:726915bcee927b588e1af5",
+  measurementId: "G-THDYRX6EGX"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+var serialsRef = db.ref('serials');
+
+// ============ 登入嘗試限制 ============
+var MAX_ATTEMPTS = 5;
+var LOCKOUT_DURATION = 5 * 60 * 1000; // 5 分鐘
+
+function getLoginAttempts() {
+  try {
+    return JSON.parse(localStorage.getItem('admin_login_attempts') || '{"count":0,"lockUntil":0}');
+  } catch(e) { return {count: 0, lockUntil: 0}; }
+}
+
+function saveLoginAttempts(data) {
+  localStorage.setItem('admin_login_attempts', JSON.stringify(data));
+}
+
+function checkLockout() {
+  var data = getLoginAttempts();
+  var now = Date.now();
+  if (data.lockUntil && now < data.lockUntil) {
+    var remaining = Math.ceil((data.lockUntil - now) / 1000);
+    var min = Math.floor(remaining / 60);
+    var sec = remaining % 60;
+    document.getElementById('lockoutMsg').textContent = '🔒 登入已鎖定，請等待 ' + min + ' 分 ' + sec + ' 秒後再試';
+    document.getElementById('lockoutMsg').style.display = 'block';
+    document.getElementById('loginBtn').disabled = true;
+    document.getElementById('loginBtn').style.opacity = '0.5';
+    document.getElementById('loginBtn').style.cursor = 'not-allowed';
+    return true;
+  }
+  // 如果鎖定已過期，重置
+  if (data.lockUntil && now >= data.lockUntil) {
+    saveLoginAttempts({count: 0, lockUntil: 0});
+  }
+  document.getElementById('lockoutMsg').style.display = 'none';
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').style.opacity = '1';
+  document.getElementById('loginBtn').style.cursor = 'pointer';
+  return false;
+}
+
+// 每秒更新鎖定倒數
+setInterval(checkLockout, 1000);
+
+// ============ 管理員登入 ============
+function handleAdminLogin() {
+  if (checkLockout()) return;
+
+  var u = document.getElementById('loginUser').value.trim();
+  var p = document.getElementById('loginPass').value;
+
+  if (u === 'admin' && p === 'admin123') {
+    // 登入成功 - 重置嘗試次數
+    saveLoginAttempts({count: 0, lockUntil: 0});
+    sessionStorage.setItem('admin_loggedIn', 'true');
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('adminMain').style.display = 'block';
+    document.getElementById('logoutBtn').style.display = 'block';
+    renderSerialList();
+    startSerialListAutoRefresh();
+  } else {
+    // 登入失敗 - 記錄嘗試次數
+    var data = getLoginAttempts();
+    data.count++;
+    if (data.count >= MAX_ATTEMPTS) {
+      data.lockUntil = Date.now() + LOCKOUT_DURATION;
+      data.count = 0;
+    }
+    saveLoginAttempts(data);
+
+    document.getElementById('loginError').style.display = 'block';
+    if (data.count > 0) {
+      document.getElementById('loginError').textContent = '⚠ 帳號或密碼錯誤（剩餘 ' + (MAX_ATTEMPTS - data.count) + ' 次機會）';
+    }
+    var box = document.querySelector('.login-box');
+    box.style.borderColor = 'rgba(248,113,113,0.5)';
+    setTimeout(function(){ box.style.borderColor = 'rgba(245,158,11,0.4)'; }, 600);
+
+    checkLockout();
+  }
+}
+
+// ============ 序號系統（Firebase 雲端版）============
+var SERIAL_SECRET = 'SAIT2026XKEY';
+var SERIAL_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+// 本地快取（從 Firebase 即時同步）
+var cachedSerials = [];
+
+function computeCheck(body) {
+  var hash = 0;
+  var str = body + SERIAL_SECRET;
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  var result = '';
+  var h = Math.abs(hash);
+  for (var i = 0; i < 4; i++) {
+    result += SERIAL_CHARS[h % SERIAL_CHARS.length];
+    h = Math.floor(h / SERIAL_CHARS.length);
+  }
+  return result;
+}
+
+function generateSerialCode() {
+  var random = '';
+  for (var i = 0; i < 8; i++) {
+    random += SERIAL_CHARS[Math.floor(Math.random() * SERIAL_CHARS.length)];
+  }
+  var check = computeCheck(random);
+  var body = random + check;
+  return body.substring(0,4) + '-' + body.substring(4,8) + '-' + body.substring(8,12);
+}
+
+// ===== Firebase 讀寫 =====
+function saveSerialsToFirebase(list) {
+  serialsRef.set(list).catch(function(err) {
+    console.error('Firebase 寫入失敗:', err);
+    alert('⚠ 資料儲存失敗，請檢查網路連線！');
+  });
+}
+
+// 監聽 Firebase 即時更新（資料一變動就自動刷新畫面）
+function startFirebaseListener() {
+  serialsRef.on('value', function(snapshot) {
+    var data = snapshot.val();
+    cachedSerials = data ? data : [];
+    renderSerialList();
+  }, function(err) {
+    console.error('Firebase 讀取失敗:', err);
+  });
+}
+
+function getDurationLabel(ms) {
+  if (ms <= 30 * 60 * 1000) return '30 分鐘';
+  if (ms <= 3 * 24 * 60 * 60 * 1000) return '3 天';
+  if (ms <= 7 * 24 * 60 * 60 * 1000) return '7 天';
+  return '30 天';
+}
+
+function formatRemaining(ms) {
+  if (ms <= 0) return '已過期';
+  var seconds = Math.floor(ms / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
+  if (days > 0) return days + ' 天 ' + (hours % 24) + ' 小時';
+  if (hours > 0) return hours + ' 小時 ' + (minutes % 60) + ' 分鐘';
+  return minutes + ' 分鐘 ' + (seconds % 60) + ' 秒';
+}
+
+function generateNewSerial(durationMs) {
+  var serial = generateSerialCode();
+  var now = Date.now();
+  var list = cachedSerials.slice();
+  list.unshift({
+    code: serial,
+    time: new Date().toLocaleString('zh-TW'),
+    createdAt: now,
+    expiresAt: now + durationMs,
+    duration: durationMs,
+    durationLabel: getDurationLabel(durationMs)
+  });
+  saveSerialsToFirebase(list);
+}
+
+function generateBatchSerials(durationMs) {
+  var list = cachedSerials.slice();
+  var now = Date.now();
+  for (var i = 0; i < 5; i++) {
+    var serial = generateSerialCode();
+    list.unshift({
+      code: serial,
+      time: new Date().toLocaleString('zh-TW'),
+      createdAt: now,
+      expiresAt: now + durationMs,
+      duration: durationMs,
+      durationLabel: getDurationLabel(durationMs)
+    });
+  }
+  saveSerialsToFirebase(list);
+}
+
+function clearAllSerials() {
+  if (confirm('確定要清空所有已生成的序號嗎？此操作不可恢復！')) {
+    saveSerialsToFirebase([]);
+  }
+}
+
+function clearExpiredSerials() {
+  var list = cachedSerials.slice();
+  var now = Date.now();
+  var before = list.length;
+  list = list.filter(function(item) {
+    return !item.expiresAt || item.expiresAt > now;
+  });
+  saveSerialsToFirebase(list);
+  var removed = before - list.length;
+  alert('已清除 ' + removed + ' 組過期序號');
+}
+
+function copySerial(code) {
+  navigator.clipboard.writeText(code).then(function() {
+    alert('已複製序號：' + code);
+  }).catch(function() {
+    prompt('請手動複製序號：', code);
+  });
+}
+
+function deleteSerial(index) {
+  if (confirm('確定要刪除此序號嗎？')) {
+    var list = cachedSerials.slice();
+    list.splice(index, 1);
+    saveSerialsToFirebase(list);
+  }
+}
+
+function renderSerialList() {
+  var list = cachedSerials;
+  var container = document.getElementById('serialList');
+  if (!container) return;
+  var now = Date.now();
+
+  // 統計
+  var validCount = 0;
+  var expiredCount = 0;
+  list.forEach(function(item) {
+    if (!item.expiresAt || item.expiresAt > now) {
+      validCount++;
+    } else {
+      expiredCount++;
+    }
+  });
+
+  document.getElementById('statTotal').textContent = list.length;
+  document.getElementById('statValid').textContent = validCount;
+  document.getElementById('statExpired').textContent = expiredCount;
+  document.getElementById('serialCountText').textContent = list.length + (list.length > 0 ? ' (有效: ' + validCount + ')' : '');
+
+  if (list.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#4b5563;font-size:13px;padding:20px 0;">尚未生成任何序號</p>';
+    return;
+  }
+
+  var html = '';
+  list.forEach(function(item, idx) {
+    var isExpired = item.expiresAt && item.expiresAt <= now;
+    var remaining = item.expiresAt ? item.expiresAt - now : 0;
+    var remainText = item.expiresAt ? formatRemaining(remaining) : '無期限';
+    var durationTag = item.durationLabel ? item.durationLabel : '無期限';
+    var expiredStyle = isExpired ? 'opacity:0.5;' : '';
+    var statusColor = isExpired ? '#f87171' : '#4ade80';
+    var statusText = isExpired ? '❌ 已過期' : '✅ ' + remainText;
+
+    html += '<div class="serial-item" style="' + expiredStyle + 'flex-wrap:wrap;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<span style="word-break:break-all;">' + item.code + '</span><br>' +
+        '<span style="font-size:10px;color:#4b5563;">建立：' + item.time + '</span><br>' +
+        '<span style="font-size:10px;color:#facc15;">⏰ 效期：' + durationTag + '</span>' +
+        ' <span style="font-size:10px;color:' + statusColor + ';">| ' + statusText + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-shrink:0;margin-top:4px;">' +
+        '<button class="copy-btn" onclick="copySerial(\'' + item.code + '\')">複製</button>' +
+        '<button class="copy-btn" style="border-color:rgba(248,113,113,0.4);color:#f87171;" onclick="deleteSerial(' + idx + ')">刪除</button>' +
+      '</div>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// Firebase 即時監聽取代了定時刷新，但仍保留定時刷新剩餘時間顯示
+var serialListRefreshTimer = null;
+function startSerialListAutoRefresh() {
+  if (serialListRefreshTimer) clearInterval(serialListRefreshTimer);
+  serialListRefreshTimer = setInterval(function() {
+    renderSerialList();
+  }, 30000);
+}
+
+// ============ 登出 ============
+function handleLogout() {
+  sessionStorage.removeItem('admin_loggedIn');
+  if (serialListRefreshTimer) {
+    clearInterval(serialListRefreshTimer);
+    serialListRefreshTimer = null;
+  }
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('adminMain').style.display = 'none';
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+// ============ 初始化 ============
+window.addEventListener('DOMContentLoaded', function() {
+  // Enter 鍵登入
+  document.getElementById('loginPass').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') handleAdminLogin();
+  });
+  document.getElementById('loginUser').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') handleAdminLogin();
+  });
+
+  // 檢查鎖定狀態
+  checkLockout();
+
+  // 啟動 Firebase 即時監聽（序號資料即時同步）
+  startFirebaseListener();
+
+  // 檢查是否已登入（session 恢復）
+  if (sessionStorage.getItem('admin_loggedIn') === 'true') {
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('adminMain').style.display = 'block';
+    document.getElementById('logoutBtn').style.display = 'block';
+    renderSerialList();
+    startSerialListAutoRefresh();
+  }
+});
+</script>
+
+</body>
+</html>

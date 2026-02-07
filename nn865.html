@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>SETA 數據分析終端</title>
+  <style>
+    :root {
+      --terminal-bg: #0d1117;
+      --terminal-green: #3ddc84;
+      --terminal-blue: #4299e1;
+      --terminal-yellow: #f6e58d;
+      --terminal-red: #ff5f58;
+      --highlight-bg: rgba(61, 220, 132, 0.1);
+      --glow-green: 0 0 5px #3ddc84, 0 0 10px #3ddc8480;
+      --glow-red: 0 0 5px #ff5f58, 0 0 10px #ff5f5880;
+      --scanline: linear-gradient(to bottom, 
+        transparent 50%, 
+        rgba(51, 209, 132, 0.1) 51%, 
+        rgba(51, 209, 132, 0.1) 52%, 
+        transparent 52%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    body {
+      background-color: var(--terminal-bg);
+      color: var(--terminal-green);
+      min-height: 100vh;
+      padding: 20px;
+      line-height: 1.5;
+      background-image: 
+        var(--scanline),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233ddc84' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .terminal {
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1px solid var(--terminal-green);
+      box-shadow: var(--glow-green);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .terminal-header {
+      background-color: #161b22;
+      padding: 8px 15px;
+      border-bottom: 1px solid var(--terminal-green);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .control-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot-red { background-color: #ff5f58; }
+    .dot-yellow { background-color: #ffbd2e; }
+    .dot-green { background-color: #19c37d; }
+
+    .terminal-title {
+      font-size: 14px;
+      flex-grow: 1;
+      text-align: center;
+    }
+
+    .system-info {
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 15px;
+      background-color: #161b22;
+      border-bottom: 1px dashed #30363d;
+    }
+
+    .terminal-content {
+      padding: 20px;
+      height: calc(100% - 80px);
+    }
+
+    .app-title {
+      font-size: 22px;
+      text-align: center;
+      margin-bottom: 25px;
+      text-shadow: var(--glow-green);
+      position: relative;
+      padding-bottom: 10px;
+    }
+
+    .app-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--terminal-green), transparent);
+    }
+
+    .version {
+      font-size: 12px;
+      color: #8b949e;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .input-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: var(--terminal-blue);
+    }
+
+    input {
+      width: 100%;
+      background-color: #161b22;
+      border: 1px solid var(--terminal-green);
+      border-radius: 3px;
+      padding: 10px 12px;
+      color: var(--terminal-green);
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      box-shadow: var(--glow-green);
+      border-color: var(--terminal-green);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 15px;
+      margin: 30px 0;
+    }
+
+    button {
+      background-color: #161b22;
+      border: 1px solid var(--terminal-green);
+      color: var(--terminal-green);
+      padding: 10px 20px;
+      font-size: 15px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+      position: relative;
+      z-index: 10;
+    }
+
+    button:hover {
+      background-color: rgba(61, 220, 132, 0.1);
+      box-shadow: var(--glow-green);
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      background-color: rgba(61, 220, 132, 0.15);
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #161b22;
+      border: 1px solid var(--terminal-green);
+      border-radius: 3px;
+      display: none;
+    }
+
+    .analysis-log {
+      font-size: 14px;
+      color: #8b949e;
+      margin-bottom: 10px;
+    }
+
+    .progress-container {
+      height: 8px;
+      background-color: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background-color: var(--terminal-green);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    #output {
+      margin-top: 15px;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    #output b {
+      color: var(--terminal-yellow);
+    }
+
+    .key-metric {
+      font-size: 18px;
+      padding: 8px 12px;
+      margin: 8px 0;
+      background-color: var(--highlight-bg);
+      border-left: 3px solid var(--terminal-green);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    .key-metric b {
+      color: var(--terminal-green);
+      font-size: 20px;
+      text-shadow: var(--glow-green);
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 5px rgba(61, 220, 132, 0.2); }
+      50% { box-shadow: 0 0 10px rgba(61, 220, 132, 0.4); }
+    }
+
+    .meta-info {
+      font-size: 12px;
+      color: #8b949e;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #30363d;
+    }
+
+    .prompt {
+      color: var(--terminal-yellow);
+    }
+
+    .ticker {
+      margin-top: 25px;
+      padding: 12px 15px;
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      font-size: 14px;
+      height: auto;
+      min-height: 36px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .ticker-content {
+      position: absolute;
+      white-space: nowrap;
+      animation: ticker 20s linear infinite;
+    }
+
+    @keyframes ticker {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #484f58;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background-color: var(--terminal-green);
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .loading-animation {
+      display: inline-flex;
+      gap: 4px;
+      margin-left: 5px;
+    }
+
+    .loading-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--terminal-green);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="control-dot dot-red"></span>
+        <span class="control-dot dot-yellow"></span>
+        <span class="control-dot dot-green"></span>
+      </div>
+      <div class="terminal-title">SETA 數據分析終端 - 運行中</div>
+    </div>
+
+    <div class="system-info">
+      <div id="system-ip">IP: 載入中...</div>
+      <div id="system-time">時間: 載入中...</div>
+    </div>
+
+    <div class="terminal-content" id="main-content">
+      <h1 class="app-title">赛特數據分析系統 v3.0</h1>
+      <div class="version">[系統] 最後更新: 2026/2/1 | 數據庫版本: 3.0</div>
+
+      <form id="analysis-form">
+        <div class="input-group">
+          <label><span class="prompt">>></span> GRAND 數值</label>
+          <input type="number" id="input1" placeholder="輸入數值 (例: 15700)" min="1" required>
+        </div>
+
+        <div class="input-group">
+          <label><span class="prompt">>></span> MAJOR 數值</label>
+          <input type="number" id="input2" placeholder="輸入數值 (例: 8200)" min="1" required>
+        </div>
+
+        <div class="input-group">
+          <label><span class="prompt">>></span> MINOR 數值</label>
+          <input type="number" id="input3" placeholder="輸入數值 (例: 2300)" min="1" required>
+        </div>
+
+        <div class="input-group">
+          <label><span class="prompt">>></span> MINI 數值</label>
+          <input type="number" id="input4" placeholder="輸入數值 (例: 580)" min="1" required>
+        </div>
+
+        <div class="btn-group">
+          <button type="submit" class="primary" id="analyze-btn">
+            <span>🔍</span> 開始分析
+          </button>
+          <button type="button" id="example-btn">
+            <span>📊</span> 載入範例數據
+          </button>
+          <button type="button" id="back-btn" onclick="goBack()">
+            <span>⬅️</span> 返回上一頁
+          </button>
+        </div>
+      </form>
+
+      <div id="result">
+        <div class="analysis-log" id="analysis-log">
+          [分析] 初始化模型... 載入訓練數據... 建立預測矩陣...
+        </div>
+        <div class="progress-container">
+          <div id="progress-bar"></div>
+        </div>
+        <div id="output"></div>
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+          <button id="copy-btn">
+            <span>📋</span> 複製結果
+          </button>
+          <button type="button" onclick="goBack()">
+            <span>⬅️</span> 返回上一頁
+          </button>
+        </div>
+      </div>
+
+      <div class="ticker">
+        <div class="ticker-content" id="ticker-content"></div>
+      </div>
+
+      <div class="footer">
+        <p>SETA-P 算法引擎 | 基於1200+歷史樣本訓練</p>
+        <p>© 2025 AT99 賽特安全系統 | 未經授權禁止複製</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 返回上一頁函數 - 回到填入數值的頁面
+    function goBack() {
+      const resultDiv = document.getElementById('result');
+      // 隱藏分析結果區塊
+      resultDiv.style.display = 'none';
+      // 重置進度條
+      document.getElementById('progress-bar').style.width = '0%';
+      // 清空輸出內容
+      document.getElementById('output').innerHTML = '';
+      // 重置日誌
+      document.getElementById('analysis-log').textContent = '[分析] 初始化模型... 載入訓練數據... 建立預測矩陣...';
+      // 滾動回表單頂部
+      document.querySelector('.app-title').scrollIntoView({ behavior: 'smooth' });
+      // 聚焦到第一個輸入欄位
+      setTimeout(function() {
+        document.getElementById('input1').focus();
+      }, 300);
+    }
+
+    // 全局变量
+    let userIp = "未知";
+
+    // 确保DOM完全加载后执行
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取并显示IP地址
+      fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => {
+          userIp = data.ip;
+          document.getElementById('system-ip').textContent = `IP: ${userIp}`;
+        })
+        .catch(() => {
+          document.getElementById('system-ip').textContent = `IP: 無法獲取`;
+        });
+
+      // 更新当前时间
+      function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleString('zh-TW', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        document.getElementById('system-time').textContent = `時間: ${timeString}`;
+      }
+      
+      updateTime();
+      setInterval(updateTime, 1000);
+
+      // 顯示登錄成功日志
+      setTimeout(() => {
+        updateTickerContent(`[安全] 用戶從 ${userIp} 登錄成功 | 權限等級: 管理員`);
+      }, 1000);
+
+      // 哈希種子生成
+      function hashSeed(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash << 5) - hash + str.charCodeAt(i);
+          hash |= 0;
+        }
+        return Math.abs(hash);
+      }
+
+      // 偽隨機數生成
+      function pseudoRandom(seed) {
+        let x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+      }
+
+      // 分析按鈕點擊處理
+      document.getElementById('analyze-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        runAnalysis();
+      });
+
+      // 表單提交處理
+      document.getElementById('analysis-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        runAnalysis();
+      });
+
+      // 載入範例數據
+      document.getElementById('example-btn').addEventListener('click', function() {
+        document.getElementById('input1').value = 15700;
+        document.getElementById('input2').value = 8200;
+        document.getElementById('input3').value = 2300;
+        document.getElementById('input4').value = 580;
+        
+        const logDiv = document.getElementById('analysis-log');
+        logDiv.textContent = '[系統] 已載入範例數據集...';
+        document.getElementById('result').style.display = 'block';
+        
+        setTimeout(() => {
+          runAnalysis();
+        }, 1000);
+      });
+
+      // 複製結果
+      document.getElementById('copy-btn').addEventListener('click', function() {
+        const text = document.getElementById('output').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          const logDiv = document.getElementById('analysis-log');
+          logDiv.textContent = '[系統] 分析結果已複製到剪貼板';
+        }).catch(err => {
+          const logDiv = document.getElementById('analysis-log');
+          logDiv.textContent = '[錯誤] 複製失敗: ' + err.message;
+        });
+      });
+
+      // 核心分析函數
+      function runAnalysis() {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = '';
+        
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = '0%';
+        
+        const logDiv = document.getElementById('analysis-log');
+        logDiv.textContent = '[分析] 正在初始化模型... 加載訓練參數...';
+
+        const grand = document.getElementById('input1').value;
+        const major = document.getElementById('input2').value;
+        const minor = document.getElementById('input3').value;
+        const mini = document.getElementById('input4').value;
+
+        if (!grand || !major || !minor || !mini) {
+          logDiv.textContent = '[錯誤] 請填寫所有數值欄位';
+          return;
+        }
+
+        const seedInput = `${grand}-${major}-${minor}-${mini}`;
+        const seed = hashSeed(seedInput);
+
+        const 今日得分率 = (80 + pseudoRandom(seed) * 60).toFixed(1);
+        const 近30天平均 = (90 + pseudoRandom(seed + 1) * 20).toFixed(1);
+        const 風險係數 = (30 + pseudoRandom(seed + 2) * 40).toFixed(1);
+        const 預測準確度 = (75 + pseudoRandom(seed + 3) * 20).toFixed(1);
+
+        const 總時間 = 15000 + Math.random() * 5000;
+        let 已用時間 = 0;
+        let 百分比 = 0;
+
+        const logMessages = [
+          '[分析] 正在比對歷史數據...',
+          '[分析] 建立概率模型...',
+          '[分析] 運行波動監測算法...',
+          '[分析] 計算風險係數...',
+          '[分析] 優化預測結果...',
+          '[分析] 生成最終報告...'
+        ];
+
+        function updateProgress() {
+          if (百分比 >= 100) {
+            completeAnalysis();
+            return;
+          }
+
+          let progressIncrement;
+          
+          if (百分比 < 10 || 百分比 > 90) {
+            progressIncrement = 0.1 + Math.random() * 0.8;
+          } else if (百分比 < 30 || 百分比 > 70) {
+            progressIncrement = Math.random() > 0.7 ? 0.2 : (0.8 + Math.random() * 2);
+          } else {
+            progressIncrement = Math.random() > 0.6 ? 0.3 : (1 + Math.random() * 4);
+          }
+
+          百分比 += progressIncrement;
+          if (百分比 > 100) 百分比 = 100;
+          
+          progressBar.style.width = 百分比 + '%';
+
+          const logIndex = Math.floor((百分比 / 100) * logMessages.length);
+          if (logIndex < logMessages.length) {
+            logDiv.textContent = logMessages[logIndex];
+          }
+
+          const nextDelay = 30 + Math.random() * 300;
+          已用時間 += nextDelay;
+          
+          if (已用時間 >= 總時間) {
+            百分比 = 100;
+          }
+
+          setTimeout(updateProgress, nextDelay);
+        }
+
+        // 完成分析
+        function completeAnalysis() {
+          progressBar.style.width = '100%';
+          logDiv.textContent = '[分析] 完成! 結果生成完畢';
+
+          // 根據今日得分率判斷機台狀態
+          let statusStr = "熱機中 ⚠️";
+          let statusColor = "#f6e58d";
+          let adviceStr = "目前機台處於熱機累積階段，波動較不穩定。建議先以小額嘗試或持續觀察，等待信號轉強再進場操作。";
+
+          if (parseFloat(今日得分率) >= 110) {
+            statusStr = "極力推薦 🔥🔥🔥";
+            statusColor = "#ff5f58";
+            adviceStr = "檢測到機台處於高爆發週期！各項指標顯示極佳，得分率遠超基準線，建議把握機會加大操作力度，此為最佳進場時機。";
+          } else if (parseFloat(今日得分率) >= 100) {
+            statusStr = "推薦 ✅";
+            statusColor = "#3ddc84";
+            adviceStr = "數據表現優良，機台狀態穩定上升中，得分率已突破基準線。適合進行穩定操作，獲利機率較高，建議持續關注後續走勢。";
+          }
+          
+          const outputText = `
+            <div><b>指令執行完畢</b> - 分析報告 v3.0</div>
+            <div class="key-metric">今日得分率: <b>${今日得分率}%</b></div>
+            <div class="key-metric">近30天平均得分率: <b>${近30天平均}%</b></div>
+            <div class="key-metric" style="border-left-color: ${statusColor}; background-color: rgba(255, 255, 255, 0.05);">機台狀態: <b style="color: ${statusColor}; text-shadow: 0 0 5px ${statusColor}80;">${statusStr}</b></div>
+            
+            <div style="margin: 15px 0; padding: 12px; border: 1px dashed #4299e1; background: rgba(66, 153, 225, 0.08); border-radius: 4px;">
+                <div style="color: #4299e1; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📋 [AI 智能分析說明]</div>
+                <div style="font-size: 14px; color: #e6edf3; line-height: 1.7;">${adviceStr}</div>
+                <div style="font-size: 12px; color: #8b949e; margin-top: 8px;">※ 以上建議由 SETA-P 算法引擎根據歷史數據自動生成，僅供參考。</div>
+            </div>
+
+            <div>風險係數: <b>${風險係數}%</b></div>
+            <div>預測準確度: <b>${預測準確度}%</b></div>
+            <div>分析時間: <b>${new Date().toLocaleString()}</b></div>
+            <div>來源IP: <b>${userIp}</b></div>
+            <div class="meta-info">
+              [系統] 算法: SETA-P v3.0 | 冷熱分佈模型 + 突波異常監控
+            </div>
+          `;
+          
+          outputDiv.innerHTML = outputText;
+        }
+
+        updateProgress();
+      }
+
+      // 跑馬燈日志
+
+      // 隨機會員帳號生成器
+      function generateRandomAccount() {
+        const prefixes = [
+          'alex','ben','cathy','david','emma','frank','grace','henry','iris','jack',
+          'karen','leo','mia','nick','olivia','peter','queen','ryan','sara','tommy',
+          'uma','vicky','wayne','xena','yuki','zoe','andy','bob','cindy','derek',
+          'eric','fiona','gary','hana','ivan','jenny','kevin','lisa','mark','nana',
+          'oscar','paul','ruby','sam','tina','victor','wendy','xander','yoyo','zack',
+          'ace','sky','max','ray','joy','kai','luna','nova','coco','momo',
+          'kiki','lulu','nini','dodo','bobo','jojo','yaya','lala','mimi','pipi',
+          'AK','BK','CK','DK','EK','FK','GK','HK','JK','KK',
+          'LL','MM','NN','PP','QQ','RR','SS','TT','UU','VV','WW','XX','YY','ZZ'
+        ];
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+
+        // 隨機決定帳號風格
+        const style = Math.floor(Math.random() * 5);
+        let suffix = '';
+        switch(style) {
+          case 0: // 純數字 2~4 位
+            suffix = String(Math.floor(Math.random() * 9000 + 100));
+            break;
+          case 1: // 數字+字母混合
+            suffix = String(Math.floor(Math.random() * 90 + 10)) + String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            break;
+          case 2: // 底線+數字
+            suffix = '_' + String(Math.floor(Math.random() * 900 + 100));
+            break;
+          case 3: // 短數字
+            suffix = String(Math.floor(Math.random() * 90 + 10));
+            break;
+          case 4: // 數字+數字
+            suffix = String(Math.floor(Math.random() * 9000 + 1000));
+            break;
+        }
+
+        // 隨機大小寫變化
+        if (Math.random() > 0.5 && prefix.length > 2) {
+          return prefix.toUpperCase() + suffix;
+        }
+        return prefix + suffix;
+      }
+
+      // 隨機獲利金額
+      function randomProfit() {
+        return '+' + (Math.floor(Math.random() * 15000) + 1500);
+      }
+
+      // 隨機響應時間
+      function randomResponseTime() {
+        return Math.floor(Math.random() * 200 + 50) + 'ms';
+      }
+
+      // 動態生成日誌消息
+      function getRandomLogMessage() {
+        const templates = [
+          () => `[日志] 會員 ${generateRandomAccount()} 分析請求成功處理`,
+          () => `[日志] 模型訓練數據更新完畢: ${Math.floor(Math.random() * 300 + 1100)}+ 樣本`,
+          () => `[日志] 會員 ${generateRandomAccount()} 獲利 ${randomProfit()} 已記錄`,
+          () => `[系統] 數據庫連接正常 | 響應時間: ${randomResponseTime()}`,
+          () => `[日志] 會員 ${generateRandomAccount()} 分析請求成功處理`,
+          () => `[系統] 算法引擎運行穩定 | 版本: v3.0`,
+          () => `[日志] 會員 ${generateRandomAccount()} 獲利 ${randomProfit()} 已記錄`,
+          () => `[系統] 安全校驗通過 | 連接來源: 已授權IP`,
+          () => `[日志] 會員 ${generateRandomAccount()} 已完成數據同步`,
+          () => `[日志] 會員 ${generateRandomAccount()} 新建分析任務`,
+          () => `[系統] 即時監控: 在線用戶 ${Math.floor(Math.random() * 80 + 30)} 人`,
+          () => `[日志] 會員 ${generateRandomAccount()} 獲利 ${randomProfit()} 已記錄`,
+        ];
+        const idx = Math.floor(Math.random() * templates.length);
+        return templates[idx]();
+      }
+
+      function updateTickerContent(text) {
+        document.getElementById('ticker-content').textContent = text;
+      }
+
+      function 隨機更新日志() {
+        updateTickerContent(getRandomLogMessage());
+      }
+
+      隨機更新日志();
+      setInterval(隨機更新日志, 8000);
+    });
+  </script>
+</body>
+</html>

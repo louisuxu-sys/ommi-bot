@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>539 分析系統 | 科技版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'tech-dark': '#0F172A',
+                        'tech-darker': '#0A0F1C',
+                        'tech-blue': '#1E40AF',
+                        'tech-cyan': '#06B6D4',
+                        'tech-purple': '#7C3AED',
+                        'tech-glow': '#22D3EE',
+                        'grid-line': 'rgba(30, 64, 175, 0.3)',
+                    },
+                    fontFamily: {
+                        sans: ['Microsoft JhengHei', 'sans-serif', 'system-ui'],
+                        mono: ['Consolas', 'Monaco', 'monospace'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { 'box-shadow': '0 0 5px rgba(6, 182, 212, 0.5)' },
+                            '100%': { 'box-shadow': '0 0 20px rgba(6, 182, 212, 0.8)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .tech-border {
+                border: 1px solid rgba(6, 182, 212, 0.3);
+            }
+            .grid-bg {
+                background-image: 
+                    linear-gradient(to right, theme('colors.grid-line') 1px, transparent 1px),
+                    linear-gradient(to bottom, theme('colors.grid-line') 1px, transparent 1px);
+                background-size: 20px 20px;
+            }
+            .glass-effect {
+                background: rgba(15, 23, 42, 0.7);
+                backdrop-filter: blur(8px);
+            }
+            .number-glow {
+                box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+            }
+            .text-shadow {
+                text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-tech-darker text-gray-200 min-h-screen font-sans grid-bg">
+    <!-- 顶部导航 -->
+    <header class="glass-effect border-b border-tech-cyan/30 sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-lg bg-gradient-to-br from-tech-blue to-tech-cyan flex items-center justify-center animate-glow">
+                    <i class="fa fa-bar-chart text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white text-shadow">539 分析系統</h1>
+                    <p class="text-xs text-tech-cyan/70">AI 驅動的號碼分析平台</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="hidden md:flex items-center text-sm text-tech-cyan/80">
+                    <i class="fa fa-clock-o mr-1"></i>
+                    <span id="current-date">2023-07-01</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="h-2 w-2 rounded-full bg-tech-glow mr-2 animate-pulse-slow"></span>
+                    <span class="text-xs text-tech-glow">系統在線</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 md:py-8">
+        <!-- 控制面板 -->
+        <div class="glass-effect rounded-xl p-5 tech-border mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+                <div>
+                    <h2 class="text-[clamp(1.25rem,3vw,1.5rem)] font-bold text-white">
+                        <span class="text-tech-cyan">#</span> 539 號碼分析
+                    </h2>
+                    <p class="text-sm text-gray-400">基於深度學習的歷史數據分析</p>
+                </div>
+                
+                <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                    <button id="analyzeBtn" class="flex items-center justify-center gap-2 bg-tech-blue hover:bg-tech-blue/80 text-white px-5 py-2.5 rounded-lg transition-all border border-tech-cyan/50 hover:border-tech-cyan animate-glow">
+                        <i class="fa fa-refresh"></i>
+                        <span>開始分析</span>
+                    </button>
+                    <label for="fileInput" class="flex items-center justify-center gap-2 bg-tech-darker hover:bg-tech-dark text-white px-5 py-2.5 rounded-lg transition-all border border-tech-cyan/30 hover:border-tech-cyan/60 cursor-pointer">
+                        <i class="fa fa-upload"></i>
+                        <span>導入數據</span>
+                    </label>
+                    <input type="file" id="fileInput" accept=".txt" class="hidden">
+                </div>
+            </div>
+            
+            <!-- 进度条 -->
+            <div class="mb-1 flex justify-between items-center">
+                <span id="statusText" class="text-sm text-gray-400">系統就緒</span>
+                <span id="progressPercent" class="text-sm font-medium text-tech-cyan">0%</span>
+            </div>
+            <div class="h-2 bg-tech-darker rounded-full overflow-hidden tech-border">
+                <div id="progressBar" class="h-full bg-gradient-to-r from-tech-blue to-tech-cyan transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <!-- 分析结果区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧：推荐号码 -->
+            <div class="lg:col-span-1">
+                <!-- 高概率号码 -->
+                <div class="glass-effect rounded-xl p-5 tech-border mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg flex items-center text-white">
+                            <i class="fa fa-trophy text-tech-glow mr-2"></i>
+                            高機率推薦號碼
+                        </h3>
+                        <span class="text-xs px-2 py-1 bg-tech-blue/30 text-tech-cyan rounded-full border border-tech-cyan/20">
+                            TOP 10
+                        </span>
+                    </div>
+                    
+                    <div id="numberContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                        <!-- 号码将动态生成 -->
+                        <div class="col-span-full h-16 bg-tech-darker rounded-lg flex items-center justify-center text-gray-500 tech-border">
+                            請啟動分析或導入數據
+                        </div>
+                    </div>
+                    
+                    <div class="text-xs text-gray-400 border-t border-tech-cyan/10 pt-3">
+                        <p><i class="fa fa-info-circle text-tech-cyan mr-1"></i> 機率等級：</p>
+                        <div class="flex items-center gap-3 mt-1 flex-wrap">
+                            <span class="flex items-center"><span class="h-3 w-3 rounded-full bg-tech-glow mr-1"></span> 高機率 (>70%)</span>
+                            <span class="flex items-center"><span class="h-3 w-3 rounded-full bg-tech-cyan mr-1"></span> 中機率 (50-70%)</span>
+                            <span class="flex items-center"><span class="h-3 w-3 rounded-full bg-tech-blue mr-1"></span> 一般機率 (<50%)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分析日志 -->
+                <div class="glass-effect rounded-xl p-5 tech-border">
+                    <h3 class="font-bold text-lg mb-4 flex items-center text-white">
+                        <i class="fa fa-terminal text-tech-cyan mr-2"></i>
+                        分析日誌
+                    </h3>
+                    <div id="logContainer" class="font-mono text-sm h-64 p-3 bg-tech-darker rounded-lg overflow-y-auto text-gray-300 tech-border">
+                        <div class="text-tech-cyan">[系統]</div>
+                        <div>等待分析啟動...</div>
+                        <div class="border-b border-tech-cyan/10 my-1"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：图表 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 概率分布图表 -->
+                <div class="glass-effect rounded-xl p-5 tech-border">
+                    <h3 class="font-bold text-lg mb-4 flex items-center text-white">
+                        <i class="fa fa-bar-chart text-tech-cyan mr-2"></i>
+                        號碼出現機率分布
+                    </h3>
+                    <div class="h-72">
+                        <canvas id="probabilityChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 统计信息 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="glass-effect rounded-xl p-5 tech-border">
+                        <h3 class="font-bold text-lg mb-4 flex items-center text-white">
+                            <i class="fa fa-line-chart text-tech-glow mr-2"></i>
+                            熱門號碼趨勢
+                        </h3>
+                        <div class="h-56">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-effect rounded-xl p-5 tech-border">
+                        <h3 class="font-bold text-lg mb-4 flex items-center text-white">
+                            <i class="fa fa-pie-chart text-tech-cyan mr-2"></i>
+                            號碼區間分布
+                        </h3>
+                        <div class="h-56">
+                            <canvas id="distributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="glass-effect border-t border-tech-cyan/30 mt-10 py-6">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0 text-sm text-gray-400">
+                    © 2023 539 分析系統 | 版本 3.0
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-sm text-gray-400 flex items-center">
+                        <i class="fa fa-line mr-1 text-tech-cyan"></i>
+                        <span>聯繫作者: NN865</span>
+                    </div>
+                    <div class="h-5 w-px bg-tech-cyan/20"></div>
+                    <div class="text-sm text-gray-400 flex items-center">
+                        <i class="fa fa-shield mr-1 text-tech-cyan"></i>
+                        <span>數據加密處理</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DOM元素
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const fileInput = document.getElementById('fileInput');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const statusText = document.getElementById('statusText');
+        const numberContainer = document.getElementById('numberContainer');
+        const logContainer = document.getElementById('logContainer');
+        const currentDateEl = document.getElementById('current-date');
+        
+        // 图表实例
+        let probabilityChart, trendChart, distributionChart;
+        
+        // 初始化日期显示
+        function initDate() {
+            const now = new Date();
+            currentDateEl.textContent = now.toLocaleDateString('zh-TW');
+        }
+        
+        // 初始化图表
+        function initCharts() {
+            // 概率分布图表
+            const probCtx = document.getElementById('probabilityChart').getContext('2d');
+            probabilityChart = new Chart(probCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '出現機率 (%)',
+                        data: [],
+                        backgroundColor: 'rgba(6, 182, 212, 0.7)',
+                        borderColor: 'rgba(6, 182, 212, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barThickness: 12,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            borderColor: 'rgba(6, 182, 212, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return `機率: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(30, 64, 175, 0.2)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+            
+            // 趋势图表
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '熱門度',
+                        data: [],
+                        borderColor: 'rgba(124, 58, 237, 1)',
+                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: 'rgba(124, 58, 237, 1)',
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(30, 64, 175, 0.2)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(30, 64, 175, 0.2)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 分布图表
+            const distCtx = document.getElementById('distributionChart').getContext('2d');
+            distributionChart = new Chart(distCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['1-13', '14-26', '27-39'],
+                    datasets: [{
+                        data: [33, 33, 34],
+                        backgroundColor: [
+                            'rgba(6, 182, 212, 0.7)',
+                            'rgba(30, 64, 175, 0.7)',
+                            'rgba(124, 58, 237, 0.7)'
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                padding: 15,
+                                boxWidth: 10,
+                                boxHeight: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            borderColor: 'rgba(6, 182, 212, 0.3)',
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'mb-1';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'text-tech-cyan/80';
+            timeSpan.textContent = `[${time}] `;
+            
+            const typeSpan = document.createElement('span');
+            switch(type) {
+                case 'system':
+                    typeSpan.className = 'text-tech-glow';
+                    typeSpan.textContent = '[系統] ';
+                    break;
+                case 'success':
+                    typeSpan.className = 'text-green-400';
+                    typeSpan.textContent = '[成功] ';
+                    break;
+                case 'error':
+                    typeSpan.className = 'text-red-400';
+                    typeSpan.textContent = '[錯誤] ';
+                    break;
+                default:
+                    typeSpan.className = 'text-tech-cyan';
+                    typeSpan.textContent = '[資訊] ';
+            }
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            
+            logEntry.appendChild(timeSpan);
+            logEntry.appendChild(typeSpan);
+            logEntry.appendChild(messageSpan);
+            logContainer.appendChild(logEntry);
+            
+            // 添加分隔线
+            const separator = document.createElement('div');
+            separator.className = 'border-b border-tech-cyan/10 my-1';
+            logContainer.appendChild(separator);
+            
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 更新进度
+        function updateProgress(percent, text) {
+            progressBar.style.width = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            statusText.textContent = text;
+        }
+        
+        // 显示号码
+        function displayNumbers(numbers) {
+            numberContainer.innerHTML = '';
+            
+            // 更新号码显示
+            numbers.forEach(item => {
+                const numEl = document.createElement('div');
+                numEl.className = 'h-16 rounded-lg flex flex-col items-center justify-center text-white font-bold number-glow transition-all hover:scale-105';
+                
+                // 根据概率设置颜色
+                if (item.chance > 70) {
+                    numEl.classList.add('bg-tech-glow/20', 'border', 'border-tech-glow/50');
+                } else if (item.chance > 50) {
+                    numEl.classList.add('bg-tech-cyan/20', 'border', 'border-tech-cyan/50');
+                } else {
+                    numEl.classList.add('bg-tech-blue/20', 'border', 'border-tech-blue/50');
+                }
+                
+                numEl.innerHTML = `
+                    <span class="text-xl">${item.num.toString().padStart(2, '0')}</span>
+                    <span class="text-xs opacity-80">${item.chance}%</span>
+                `;
+                numberContainer.appendChild(numEl);
+            });
+            
+            // 更新概率图表（取前15个）
+            const top15 = numbers.slice(0, 15);
+            probabilityChart.data.labels = top15.map(item => item.num);
+            probabilityChart.data.datasets[0].data = top15.map(item => item.chance);
+            probabilityChart.update();
+            
+            // 更新趋势图表
+            trendChart.data.labels = top15.map(item => item.num);
+            trendChart.data.datasets[0].data = top15.map(item => Math.round(item.chance * 0.9));
+            trendChart.update();
+            
+            // 更新分布图表
+            const group1 = numbers.filter(n => n.num <= 13).length;
+            const group2 = numbers.filter(n => n.num > 13 && n.num <= 26).length;
+            const group3 = numbers.filter(n => n.num > 26).length;
+            
+            const total = group1 + group2 + group3;
+            distributionChart.data.datasets[0].data = [
+                Math.round((group1 / total) * 100),
+                Math.round((group2 / total) * 100),
+                Math.round((group3 / total) * 100)
+            ];
+            distributionChart.update();
+        }
+        
+        // 生成随机号码分析结果
+        function generateRandomNumbers() {
+            const numbers = [];
+            const existing = new Set();
+            
+            // 生成10個不重複的1-39之間的數字
+            while (numbers.length < 10) {
+                const num = Math.floor(Math.random() * 39) + 1;
+                if (!existing.has(num)) {
+                    existing.add(num);
+                    // 生成30-90之間的隨機機率
+                    const chance = Math.round((30 + Math.random() * 60) * 10) / 10;
+                    numbers.push({ num, chance });
+                }
+            }
+            
+            // 按機率排序
+            return numbers.sort((a, b) => b.chance - a.chance);
+        }
+        
+        // 模拟分析过程
+        function simulateAnalysis(processData) {
+            // 重置显示
+            updateProgress(0, '準備分析');
+            logContainer.innerHTML = '';
+            addLog('開始分析程序', 'system');
+            
+            const steps = [
+                { percent: 10, text: '載入歷史數據', log: '載入最近100期開獎數據' },
+                { percent: 30, text: '計算頻率', log: '計算各號碼出現頻率' },
+                { percent: 50, text: '分析趨勢', log: '分析熱門號碼趨勢' },
+                { percent: 70, text: '計算機率', log: '計算各號碼出現機率' },
+                { percent: 90, text: '生成推薦', log: '生成高機率號碼推薦' }
+            ];
+            
+            let stepIndex = 0;
+            const interval = setInterval(() => {
+                if (stepIndex < steps.length) {
+                    const step = steps[stepIndex];
+                    updateProgress(step.percent, step.text);
+                    addLog(step.log);
+                    stepIndex++;
+                } else {
+                    clearInterval(interval);
+                    // 處理數據並顯示結果
+                    const results = processData();
+                    displayNumbers(results);
+                    updateProgress(100, '分析完成');
+                    addLog('分析完成，已顯示結果', 'success');
+                }
+            }, 800); // 每步之間的延遲
+        }
+        
+        // 處理文件導入 - 專門針對"數字：機率% 機率開出"格式
+        function handleFileImport(content) {
+            addLog('開始解析導入的數據', 'system');
+            
+            // 解析文件內容
+            const lines = content.split('\n')
+                .map(line => line.trim())
+                .filter(line => line);
+                
+            const numbers = [];
+            const existing = new Set();
+            
+            // 解析每行數據 - 專門針對指定格式
+            lines.forEach((line, index) => {
+                try {
+                    // 分割數字和機率部分（處理全角冒號）
+                    const parts = line.split('：'); // 注意這裡是全角冒號
+                    
+                    if (parts.length >= 2) {
+                        // 提取數字
+                        const num = parseInt(parts[0].trim());
+                        
+                        // 提取機率（從第二部分中提取數字）
+                        const chancePart = parts[1].trim();
+                        const chanceMatch = chancePart.match(/\d+(\.\d+)?/);
+                        
+                        if (chanceMatch) {
+                            const chance = parseFloat(chanceMatch[0]);
+                            
+                            // 驗證號碼是否在1-39之間
+                            if (num >= 1 && num <= 39 && !isNaN(chance) && !existing.has(num)) {
+                                existing.add(num);
+                                numbers.push({ 
+                                    num, 
+                                    chance: Math.min(100, Math.max(0, chance)) // 確保機率在0-100之間
+                                });
+                                addLog(`分析成功 [行${index+1}]: 號碼 ${num} (機率: ${chance}%)`);
+                            } else {
+                                if (num < 1 || num > 39) {
+                                    addLog(`解析警告 [行${index+1}]: 號碼 ${num} 超出1-39範圍，已跳過`, 'error');
+                                } else if (existing.has(num)) {
+                                    addLog(`解析警告 [行${index+1}]: 號碼 ${num} 重複，已跳過`, 'error');
+                                }
+                            }
+                        } else {
+                            addLog(`解析失敗 [行${index+1}]: 無法提取機率值，已跳過`, 'error');
+                        }
+                    } else {
+                        addLog(`解析失敗 [行${index+1}]: 格式錯誤，需要包含「：」分隔符，已跳過`, 'error');
+                    }
+                } catch (error) {
+                    addLog(`解析錯誤 [行${index+1}]: ${error.message}，已跳過`, 'error');
+                }
+            });
+            
+            // 如果不足10個號碼，補充隨機號碼
+            if (numbers.length < 10) {
+                const need = 10 - numbers.length;
+                addLog(`分析 ${numbers.length} 個號碼，二次分析 ${need} 個號碼`, 'info');
+                
+                // 補充隨機號碼（1-39之間，不重複）
+                while (numbers.length < 10) {
+                    const num = Math.floor(Math.random() * 39) + 1;
+                    if (!existing.has(num)) {
+                        existing.add(num);
+                        // 補充的號碼機率在30-60之間，避免超過原有高機率號碼
+                        const chance = Math.round((30 + Math.random() * 30) * 10) / 10;
+                        numbers.push({ num, chance });
+                        addLog(`二次分析號碼: ${num} (機率: ${chance}%)`);
+                    }
+                }
+            }
+            
+            // 按機率排序
+            return numbers.sort((a, b) => b.chance - a.chance);
+        }
+        
+        // 绑定事件
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化日期
+            initDate();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 開始分析按鈕
+            analyzeBtn.addEventListener('click', () => {
+                simulateAnalysis(generateRandomNumbers);
+            });
+            
+            // 文件導入
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                addLog(`開始讀取文件: ${file.name}`, 'system');
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // 模擬分析進度，然後處理導入的數據
+                    simulateAnalysis(() => {
+                        return handleFileImport(event.target.result);
+                    });
+                };
+                reader.onerror = function() {
+                    addLog('文件讀取錯誤，請檢查文件是否損壞', 'error');
+                };
+                reader.readAsText(file, 'utf-8');
+                
+                // 重置文件輸入，允許重複選擇同一文件
+                fileInput.value = '';
+            });
+        });
+    </script>
+</body>
+</html>

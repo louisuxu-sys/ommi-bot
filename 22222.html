@@ -1,0 +1,66 @@
+import React from 'react';
+
+// 模擬從後端或 API 獲取的房間數據
+const roomData = [
+  { id: '2816', rate: 87, signals: '3刃 5蛇 5號 5眼', color: 'border-cyan-500 shadow-cyan-500/50' },
+  { id: '0853', rate: 75, signals: '2甲 1眼 3刃 6蛇', color: 'border-purple-500 shadow-purple-500/50' },
+  { id: '1606', rate: 63, signals: '1刃 2蛇 4號', color: 'border-pink-500 shadow-pink-500/50' },
+  { id: '1042', rate: 51, signals: '5眼 3號 3刃', color: 'border-blue-500 shadow-blue-500/50' },
+];
+
+const SignalCard = ({ room }) => {
+  return (
+    <div className={`bg-gray-900 border-2 ${room.color} shadow-lg rounded-xl p-5 transition-transform hover:scale-105 duration-300`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <p className="text-gray-400 text-xs font-bold mb-1">推薦房號</p>
+          <h3 className="text-white text-3xl font-black tracking-wider">{room.id}</h3>
+        </div>
+        <div className="text-right">
+          <p className="text-gray-400 text-xs font-bold mb-1">預測爆分率</p>
+          <span className="text-green-400 text-2xl font-bold">{room.rate}%</span>
+        </div>
+      </div>
+
+      {/* 動態進度條 */}
+      <div className="w-full bg-gray-800 rounded-full h-2 mb-4">
+        <div 
+          className="bg-gradient-to-r from-cyan-400 to-blue-500 h-2 rounded-full shadow-[0_0_10px_#22d3ee]" 
+          style={{ width: `${room.rate}%` }}
+        ></div>
+      </div>
+
+      <div className="pt-3 border-t border-gray-800">
+        <p className="text-gray-400 text-xs mb-1 font-bold">目前訊號組合：</p>
+        <p className="text-white text-sm tracking-widest">{room.signals}</p>
+      </div>
+    </div>
+  );
+};
+
+export default function Dashboard() {
+  return (
+    <div className="min-h-screen bg-black p-8 font-sans">
+      {/* 標題區域 */}
+      <div className="max-w-6xl mx-auto mb-10 text-center">
+        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-2">
+          戰神賽特專屬數據分析
+        </h1>
+        <p className="text-cyan-500 text-sm tracking-[0.2em]">REAL-TIME SIGNAL MONITORING</p>
+      </div>
+
+      {/* 網格系統 */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {roomData.map((room) => (
+          <SignalCard key={room.id} room={room} />
+        ))}
+      </div>
+      
+      <div className="mt-12 text-center">
+        <button className="bg-transparent border border-cyan-500 text-cyan-500 px-8 py-2 rounded-full hover:bg-cyan-500 hover:text-black transition-all font-bold">
+          更新實時數據
+        </button>
+      </div>
+    </div>
+  );
+}
