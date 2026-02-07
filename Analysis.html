@@ -2154,13 +2154,9 @@
                     <option value="wg">WG真人</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>房間/桌號選擇</label>
-                <select id="room-select" disabled>
-                    <option>請先選擇平台</option>
-                </select>
-            </div>
-            <div class="current-room-display" id="current-room-display">未選擇房間</div>
+            <!-- 房間/桌號選擇已移除 -->
+            <select id="room-select" style="display:none;" disabled><option>請先選擇平台</option></select>
+            <div class="current-room-display" id="current-room-display" style="display:none;">未選擇房間</div>
             
             <div class="form-group">
                 <label>模型算法</label>
@@ -2230,49 +2226,7 @@
             </div>
 
             <div class="row">
-                <div class="column">
-                    <div class="section-header">
-                        <h3><i class="fas fa-brain"></i> 預測分析</h3>
-                    </div>
-                    
-                    <div class="loading" id="prediction-loading" style="display: none;">
-                        <div class="spinner"></div>
-                    </div>
-                    
-                    <div id="prediction-placeholder" style="text-align: center; padding: 30px 0; color: var(--text-secondary);">
-                        <i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p>添加至少5條賽局記錄以啟動分析</p>
-                    </div>
-                    
-                    <div class="prediction-result" id="prediction-result">
-                        <div class="probability-item">
-                            <span>閒</span>
-                            <div class="probability-bar">
-                                <div class="probability-fill blue" id="prob-blue" style="width: 0%"></div>
-                            </div>
-                            <span id="val-blue">0%</span>
-                        </div>
-                        <div class="probability-item">
-                            <span>莊</span>
-                            <div class="probability-bar">
-                                <div class="probability-fill red" id="prob-red" style="width: 0%"></div>
-                            </div>
-                            <span id="val-red">0%</span>
-                        </div>
-                        <div class="probability-item">
-                            <span>和</span>
-                            <div class="probability-bar">
-                                <div class="probability-fill green" id="prob-green" style="width: 0%"></div>
-                            </div>
-                            <span id="val-green">0%</span>
-                        </div>
-                    </div>
-                    
-                    <button class="start-btn" id="start-analysis">
-                        <i class="fas fa-play"></i> 開始分析
-                    </button>
-                </div>
-
+                <!-- 下注管理（原第二欄，現移至第一欄） -->
                 <div class="column">
                     <div class="section-header">
                         <h3><i class="fas fa-trophy"></i> 下注管理</h3>
@@ -2299,6 +2253,58 @@
                     <div class="result-buttons">
                         <button class="btn green" data-type="green">和</button>
                     </div>
+
+                    <!-- 備註（當局紀錄） -->
+                    <div class="form-group" style="margin-top: 18px;">
+                        <label><i class="fas fa-sticky-note" style="margin-right:4px;"></i> 備註（當局紀錄）</label>
+                        <textarea id="round-memo" placeholder="輸入本局備註，例如：第3局跟莊連開..." style="width:100%; min-height:70px; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background-color:rgba(15,23,42,0.6); color:var(--text-primary); font-size:13px; font-weight:500; resize:vertical; font-family:'Inter','Segoe UI',sans-serif; transition:all 0.25s ease;"></textarea>
+                    </div>
+                </div>
+
+                <!-- 預測分析（原第一欄，現移至第二欄） -->
+                <div class="column">
+                    <div class="section-header">
+                        <h3><i class="fas fa-brain"></i> 預測分析</h3>
+                    </div>
+                    
+                    <div class="loading" id="prediction-loading" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                    
+                    <div id="prediction-placeholder" style="text-align: center; padding: 30px 0; color: var(--text-secondary);">
+                        <i class="fas fa-chart-line" style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;"></i>
+                        <p>添加至少5條賽局記錄以啟動分析</p>
+                    </div>
+                    
+                    <div class="prediction-result" id="prediction-result">
+                        <!-- 建議下注顯示 -->
+                        <div id="recommendation-display" style="text-align:center; padding:12px; margin-bottom:12px; border-radius:8px; font-size:18px; font-weight:700; letter-spacing:2px; display:none;"></div>
+                        <div class="probability-item">
+                            <span>閒</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill blue" id="prob-blue" style="width: 0%"></div>
+                            </div>
+                            <span id="val-blue">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>莊</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill red" id="prob-red" style="width: 0%"></div>
+                            </div>
+                            <span id="val-red">0%</span>
+                        </div>
+                        <div class="probability-item">
+                            <span>和</span>
+                            <div class="probability-bar">
+                                <div class="probability-fill green" id="prob-green" style="width: 0%"></div>
+                            </div>
+                            <span id="val-green">0%</span>
+                        </div>
+                    </div>
+                    
+                    <button class="start-btn" id="start-analysis">
+                        <i class="fas fa-play"></i> 開始分析
+                    </button>
                 </div>
             </div>
         </div>
@@ -2491,6 +2497,8 @@
                 });
                 roomSelect.disabled = false;
                 connectBtn.disabled = false;
+                // 房間選擇已隱藏，自動設定第一個房間
+                currentRoom = roomsByPlatform[selectedPlatform][0];
             } else {
                 const option = document.createElement('option');
                 option.textContent = '請先選擇平台';
@@ -3200,6 +3208,32 @@
             document.getElementById('pred-red-rate').value = redRate + '%';
             document.getElementById('pred-green-rate').value = greenRate + '%';
             
+            // ★ 建議下注判斷：顯示機率最高的結果
+            var recEl = document.getElementById('recommendation-display');
+            if (recEl) {
+                var recText = '';
+                var recColor = '';
+                var recBg = '';
+                if (blueRate > redRate && blueRate > greenRate) {
+                    recText = '⬇ 建議下注：閒';
+                    recColor = '#0ea5e9';
+                    recBg = 'rgba(14,165,233,0.12)';
+                } else if (redRate > blueRate && redRate > greenRate) {
+                    recText = '⬇ 建議下注：莊';
+                    recColor = '#ef4444';
+                    recBg = 'rgba(239,68,68,0.12)';
+                } else {
+                    recText = '⬇ 建議下注：閒/莊 持平';
+                    recColor = '#a78bfa';
+                    recBg = 'rgba(167,139,250,0.12)';
+                }
+                recEl.textContent = recText;
+                recEl.style.color = recColor;
+                recEl.style.background = recBg;
+                recEl.style.border = '1px solid ' + recColor;
+                recEl.style.display = 'block';
+            }
+            
             // 確保預測結果區域可見
             predictionLoading.style.display = 'none';
             predictionPlaceholder.style.display = 'none';
@@ -3219,11 +3253,11 @@
             }
             // ★★★ 臨時除錯：確認分析是否真的執行完成 ★★★
             console.log('[分析完成] 閒:' + blueRate + '% 莊:' + redRate + '% visible=' + predictionResult.classList.contains('visible') + ' display=' + predictionResult.style.display);
+            // 手機不自動滑動到預測分析
             if (window.innerWidth <= 1200 || document.body.classList.contains('force-mobile-layout')) {
                 setTimeout(function() {
                     if (predictionResult) {
                         predictionResult.style.display = 'block';
-                        predictionResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 }, 200);
             }
