@@ -2242,10 +2242,10 @@
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Inter', sans-serif;
-                            display: none;
+                            display: inline-block;
                             cursor: default;
                             transition: all 0.3s ease;
-                        " title=""></span>
+                        " title="">📝 無備註</span>
                     </div>
                     
                     <div class="form-group">
@@ -3482,10 +3482,10 @@
                 // 重置输入
                 betInput.value = '0';
                 
-                // ★ 下注後清空備註和預覽
+                // ★ 下注後清空備註和預覽（恢復預設文字）
                 if (memoTextarea) memoTextarea.value = '';
                 var memoPreviewEl = document.getElementById('memo-preview');
-                if (memoPreviewEl) { memoPreviewEl.textContent = ''; memoPreviewEl.title = ''; memoPreviewEl.style.display = 'none'; }
+                if (memoPreviewEl) { memoPreviewEl.textContent = '📝 無備註'; memoPreviewEl.title = ''; memoPreviewEl.style.display = 'inline-block'; }
                 
                 // 显示通知
                 showNotification(
@@ -3567,9 +3567,9 @@
                         memoPreview.title = text; // hover 時顯示完整內容
                         memoPreview.style.display = 'inline-block';
                     } else {
-                        memoPreview.textContent = '';
+                        memoPreview.textContent = '📝 無備註';
                         memoPreview.title = '';
-                        memoPreview.style.display = 'none';
+                        memoPreview.style.display = 'inline-block';
                     }
                 });
             }
