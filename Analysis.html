@@ -2173,7 +2173,6 @@
                     <option value="light">輕量級 (快速)</option>
                     <option value="medium" selected>標準級</option>
                     <option value="deep">深度分析 (精確)</option>
-                    <option value="ultra">超級計算 (耗時)</option>
                 </select>
             </div>
             <div class="form-group">
@@ -2904,36 +2903,6 @@
                 longPatternLen: 5,
                 longPatternWeight: 10
             },
-            ultra: {
-                label: '超級計算',
-                delay: 5500,
-                recentWindow: 20,
-                trendWeight: 35,
-                dragonWeight: 1.6,
-                altLookback: 16,
-                altThreshold: 0.6,
-                altBonus: 22,
-                pairEnabled: true,
-                pairLookback: 16,
-                pairBonus: 15,
-                subseqEnabled: true,
-                subseqLen: 5,
-                subseqWeight: 25,
-                noiseRange: 2,
-                minGap: 12,
-                maxRate: 80,
-                minRate: 15,
-                sumCap: 93,
-                momentumEnabled: true,
-                momentumWindow: 10,
-                momentumWeight: 18,
-                varianceEnabled: true,
-                varianceWindow: 15,
-                varianceWeight: 10,
-                longPatternEnabled: true,
-                longPatternLen: 6,
-                longPatternWeight: 15
-            }
         };
 
         // ====== 純計算函數（同步，無動畫，手機自動分析用）======
@@ -3345,8 +3314,7 @@
                 var depthLabels = {
                     light: '輕量級分析完成（3項指標）',
                     medium: '標準級分析完成（6項指標）',
-                    deep: '深度分析完成（9項指標）',
-                    ultra: '超級計算完成（全部指標 + 變異數分析）'
+                    deep: '深度分析完成（9項指標）'
                 };
                 var algoTag = algoFullName[algorithmKey] ? '[' + algoFullName[algorithmKey] + '] ' : '';
                 showNotification(algoTag + (depthLabels[depthLevel] || '分析完成'), '成功', 'success');
