@@ -2366,6 +2366,7 @@
                         <th>時間</th>
                         <th>結果</th>
                         <th>金額</th>
+                        <th>備註</th>
                     </tr>
                 </thead>
                 <tbody id="bet-history">
@@ -3458,11 +3459,16 @@
                     'green': '和'
                 };
                 
+                // ★ 讀取備註內容
+                const memoTextarea = document.getElementById('round-memo');
+                const memoText = memoTextarea ? memoTextarea.value.trim() : '';
+
                 betRecords.unshift({
                     time: timeStr,
                     result: resultTextMap[result],
                     amount: amount,
-                    profit: profit
+                    profit: profit,
+                    memo: memoText
                 });
                 
                 // 保持记录不超过5条
@@ -3475,6 +3481,11 @@
                 
                 // 重置输入
                 betInput.value = '0';
+                
+                // ★ 下注後清空備註和預覽
+                if (memoTextarea) memoTextarea.value = '';
+                var memoPreviewEl = document.getElementById('memo-preview');
+                if (memoPreviewEl) { memoPreviewEl.textContent = ''; memoPreviewEl.title = ''; memoPreviewEl.style.display = 'none'; }
                 
                 // 显示通知
                 showNotification(
@@ -3497,7 +3508,7 @@
             if (betRecords.length === 0) {
                 betHistoryElement.innerHTML = `
                     <tr>
-                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">無記錄</td>
+                        <td colspan="4" style="text-align: center; color: var(--text-secondary);">無記錄</td>
                     </tr>
                 `;
                 return;
@@ -3506,11 +3517,14 @@
             betRecords.forEach(record => {
                 const row = document.createElement('tr');
                 const profitClass = record.profit >= 0 ? 'color: var(--green);' : 'color: var(--red);';
+                const memoDisplay = record.memo ? (record.memo.length > 6 ? record.memo.substring(0, 6) + '…' : record.memo) : '-';
+                const memoTitle = record.memo || '';
                 
                 row.innerHTML = `
                     <td>${record.time}</td>
                     <td>${record.result}</td>
                     <td style="${profitClass}">${record.profit >= 0 ? '+' : ''}${record.profit}</td>
+                    <td style="color: var(--text-secondary); font-size: 11px; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${memoTitle}">${memoDisplay}</td>
                 `;
                 
                 betHistoryElement.appendChild(row);
