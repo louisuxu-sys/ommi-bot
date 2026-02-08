@@ -235,19 +235,17 @@ function parseScoresFromLiveHTML(html) {
       if (hq) quarterScores.home.push(parseInt(hq[1]));
     }
 
-    // 判斷狀態：有比分就是已結束或進行中
-    if (awayScore !== null && homeScore !== null) {
-      // 檢查 game_state 區塊中的狀態文字
-      const stateRegex = new RegExp(`id="${gameId}_timeout_big"[\\s\\S]{0,500}`);
-      const stateChunk = html.match(stateRegex);
-      const stateText = stateChunk ? stateChunk[0] : '';
+    // 判斷狀態：用 gamebox class 區分已結束 vs 進行中
+    // 找到此 gamebox 的 HTML 範圍
+    const gbLiveStart = html.indexOf(`id="outer-gamebox-${gameId}"`);
+    const gbLiveEnd = html.indexOf('<!--outer-gamebox-->', gbLiveStart);
+    const gbLiveHtml = (gbLiveStart > -1 && gbLiveEnd > -1) ? html.substring(gbLiveStart, gbLiveEnd) : '';
 
-      // 檢查是否有 "終場" / "Final" 等文字
-      if (stateText.includes('終場') || stateText.includes('Final') || stateText.includes('FT')) {
-        status = 'live'; // 仍在顯示終場畫面，但比賽結束
-      }
-      // 預設有比分就是 finished（靜態 HTML 中有比分代表比賽已結束）
+    if (gbLiveHtml.includes('gamebox-end') && !gbLiveHtml.includes('gamebox-notend')) {
       status = 'finished';
+    } else if (awayScore !== null && homeScore !== null) {
+      // 有比分但不是 gamebox-end → 進行中
+      status = 'live';
     }
 
     scoreData[gameId] = {
@@ -414,32 +412,26 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
       status = 'postponed';
     }
 
-    // 1. 檢查 gamebox-end class（已結束）
-    if (status !== 'postponed' && gbHtml.includes('gamebox-end')) {
-      status = 'finished';
-    }
-
-    // 2. 檢查 game_result 區塊（有結果 = 已結束）
-    if (status !== 'postponed') {
-      const resultMatch = gbHtml.match(/class="game_result"[^>]*>[\s\S]*?<span[^>]*>([^<]*)<\/span>/);
-      if (resultMatch && resultMatch[1].trim()) {
-        status = 'finished';
-      }
-    }
-
-    // 3. 從 onBox 嘗試取得比分（注意：playsport.cc 比分是 WebSocket 即時推送的，
-    //    靜態 HTML 中的 score 元素通常是空的，所以這裡可能抓不到比分）
-    // 使用更嚴格的匹配：只匹配 <span id="xxx_asr">數字</span> 格式
-    const scoreAMatch = gbHtml.match(new RegExp(`id="${gameId}_asr"[^>]*>(\\d{2,3})</span>`));
-    const scoreHMatch = gbHtml.match(new RegExp(`id="${gameId}_hsr"[^>]*>(\\d{2,3})</span>`));
-
+    // 1. 取得比分（允許 1~3 位數，適用 NBA / SBL 等各聯賽）
+    const scoreAMatch = gbHtml.match(new RegExp(`id="${gameId}_asr"[^>]*>(\\d{1,3})</span>`));
+    const scoreHMatch = gbHtml.match(new RegExp(`id="${gameId}_hsr"[^>]*>(\\d{1,3})</span>`));
     if (scoreAMatch) awayScore = parseInt(scoreAMatch[1]);
     if (scoreHMatch) homeScore = parseInt(scoreHMatch[1]);
 
-    // 5. 用比賽時間判斷（台灣時間 UTC+8）
+    // 2. 用 playsport.cc 的 class 判斷狀態
+    //    gamebox-end = 已結束（含 "gamebox-end" class）
+    //    gamebox-notend = 尚未結束（可能進行中或未開始）
+    if (status !== 'postponed') {
+      if (gbHtml.includes('gamebox-end') && !gbHtml.includes('gamebox-notend')) {
+        status = 'finished';
+      } else if (gbHtml.includes('gamebox-notend') && (homeScore !== null || awayScore !== null)) {
+        status = 'live'; // 有 notend + 有比分 = 進行中
+      }
+    }
+
+    // 3. 備援：用比賽時間判斷（當 class 無法判定時）
     if (status === 'upcoming' && time) {
       const now = new Date();
-      // gamedate 格式 20260208，time 格式 04:00
       const year = gamedate.substring(0, 4);
       const month = gamedate.substring(4, 6);
       const day = gamedate.substring(6, 8);
@@ -447,11 +439,10 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
       // playsport.cc 時間是台灣時間 (UTC+8)
       const gameTime = new Date(`${year}-${month}-${day}T${String(hh).padStart(2,'0')}:${String(mm||0).padStart(2,'0')}:00+08:00`);
       const diffMs = now - gameTime;
-      // NBA 一場約 2.5~3 小時
-      if (diffMs > 3 * 60 * 60 * 1000) {
-        status = 'finished'; // 超過 3 小時 → 已結束
+      if (diffMs > 3.5 * 60 * 60 * 1000) {
+        status = 'finished'; // 超過 3.5 小時 → 已結束
       } else if (diffMs > 0) {
-        status = 'live'; // 已開始但未超過 3 小時 → 進行中
+        status = 'live'; // 已開始但未超過 3.5 小時 → 進行中
       }
     }
 
