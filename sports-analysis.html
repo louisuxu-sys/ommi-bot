@@ -140,7 +140,7 @@ const TSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 // Proxy Server 設定
 // 本地開發：自動偵測 localhost:3939
 // 部署後：改為你的 Render 網址，例如 'https://sportiq-proxy.onrender.com'
-const RENDER_PROXY = 'https://sportiq-proxy.onrender.com'; // ← 部署後改成你的 Render 網址
+const RENDER_PROXY = 'https://ommi-bot.onrender.com'; // Render 部署網址
 const LOCAL_PROXY = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? (window.location.port === '3939' ? '' : 'http://localhost:3939')
   : RENDER_PROXY;
