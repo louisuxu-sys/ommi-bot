@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPORTIQ | 體育即時比分 · AI 分析</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes slideIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse-glow { 0%,100%{box-shadow:0 0 6px rgba(16,185,129,.15)} 50%{box-shadow:0 0 16px rgba(16,185,129,.4)} }
+    @keyframes liveDot { 0%,100%{opacity:1} 50%{opacity:.25} }
+    .anim-slide { animation:slideIn .2s ease-out }
+    .anim-glow { animation:pulse-glow 2s infinite }
+    .live-dot { animation:liveDot 1s infinite }
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#0d1117} ::-webkit-scrollbar-thumb{background:#2a2f38;border-radius:4px}
+    body{margin:0;background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sport-btn{padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;border:none;border-bottom:3px solid transparent;background:transparent;color:#6b7280;transition:all .15s}
+    .sport-btn:hover{color:#d1d5db;background:rgba(255,255,255,.03)}
+    .sport-btn.active{color:#fff;border-bottom-color:#3b82f6;background:rgba(59,130,246,.06)}
+    .league-btn{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
+    .league-btn:hover{border-color:#30363d;color:#c9d1d9}
+    .league-btn.active{background:#1f6feb22;border-color:#1f6feb;color:#58a6ff}
+    .date-btn{padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
+    .date-btn:hover{border-color:#30363d;color:#c9d1d9}
+    .date-btn.active{background:#238636;border-color:#238636;color:#fff}
+    .match-row{background:#161b22;border:1px solid #21262d;border-radius:10px;transition:all .15s;cursor:pointer}
+    .match-row:hover{border-color:#30363d;background:#1c2333}
+    .match-row.expanded{border-color:#1f6feb55;background:#131a27}
+    .q-score{min-width:28px;text-align:center;font-size:12px;padding:2px 4px;border-radius:4px}
+    .filter-chip{padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
+    .filter-chip:hover{border-color:#30363d;color:#c9d1d9}
+    .filter-chip.active{background:#1f6feb22;border-color:#1f6feb;color:#58a6ff}
+  </style>
+</head>
+<body>
+
+<div class="min-h-screen flex flex-col">
+
+  <!-- ===== 頂部導航 ===== -->
+  <header style="background:#010409;border-bottom:1px solid #21262d" class="flex items-center justify-between px-5 h-12 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">🏆</span>
+        <span class="text-sm font-black text-white tracking-wider">SPORTIQ</span>
+        <span class="text-[9px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">LIVE</span>
+      </div>
+      <span class="text-[10px] text-gray-600 ml-2">體育即時比分 · AI 智能分析</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-[10px] text-gray-600" id="current-time"></span>
+      <span class="text-[10px] text-gray-600">自動更新 <span id="refresh-countdown" class="text-emerald-500 font-bold">30</span>s</span>
+      <button onclick="fetchAllData()" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-md transition-all">
+        <i data-lucide="refresh-cw" class="w-3 h-3"></i> 更新
+      </button>
+      <a href="https://www.playsport.cc/livescore/3" target="_blank" class="flex items-center gap-1 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[11px] font-bold rounded-md border border-blue-800/40 transition-all">
+        <i data-lucide="external-link" class="w-3 h-3"></i> 玩運彩
+      </a>
+    </div>
+  </header>
+
+  <!-- ===== 運動分類 ===== -->
+  <div style="background:#0d1117;border-bottom:1px solid #21262d" class="flex items-center px-5 flex-shrink-0">
+    <button onclick="switchSport('basketball')" id="tab-basketball" class="sport-btn active">🏀 籃球</button>
+    <button onclick="switchSport('baseball')" id="tab-baseball" class="sport-btn">⚾ 棒球</button>
+    <button onclick="switchSport('soccer')" id="tab-soccer" class="sport-btn">⚽ 足球</button>
+    <button onclick="switchSport('hockey')" id="tab-hockey" class="sport-btn">🏒 冰球</button>
+    <button onclick="switchSport('tennis')" id="tab-tennis" class="sport-btn">🎾 網球</button>
+  </div>
+
+  <!-- ===== 子聯賽 + 日期 + 篩選 ===== -->
+  <div style="background:#0d1117;border-bottom:1px solid #21262d" class="px-5 py-2.5 flex flex-col gap-2 flex-shrink-0">
+    <!-- 子聯賽 -->
+    <div id="league-tabs" class="flex items-center gap-2 flex-wrap"></div>
+    <!-- 日期 + 篩選 -->
+    <div class="flex items-center justify-between">
+      <div id="date-tabs" class="flex items-center gap-2"></div>
+      <div class="flex items-center gap-2">
+        <button onclick="setFilter('all')" id="f-all" class="filter-chip active">全部</button>
+        <button onclick="setFilter('live')" id="f-live" class="filter-chip">🔴 進行中</button>
+        <button onclick="setFilter('upcoming')" id="f-upcoming" class="filter-chip">即將開始</button>
+        <button onclick="setFilter('finished')" id="f-finished" class="filter-chip">已結束</button>
+        <button onclick="setFilter('postponed')" id="f-postponed" class="filter-chip">⚠ 延期</button>
+        <span class="text-[10px] text-gray-600 ml-2"><span id="match-count">0</span> 場</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 主內容 ===== -->
+  <div class="flex-1 overflow-y-auto px-5 py-4">
+    <!-- 表頭 -->
+    <div class="flex items-center text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-2 px-4">
+      <div class="w-16">狀態</div>
+      <div class="w-14 text-center">時間</div>
+      <div class="flex-1 pl-4">對戰</div>
+      <div class="w-16 text-center">比分</div>
+      <div class="w-[200px] text-center">節比分</div>
+      <div class="w-20 text-center">AI 推薦</div>
+      <div class="w-10"></div>
+    </div>
+
+    <!-- 賽事列表 -->
+    <div id="match-list" class="space-y-2">
+      <div class="flex items-center justify-center py-16">
+        <div class="text-center text-gray-600">
+          <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p class="text-sm">正在載入賽事資料...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AI 分析彈窗 ===== -->
+<div id="ai-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeModal()">
+  <div class="bg-[#161b22] border border-gray-700 rounded-2xl w-[680px] max-h-[85vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+    <div class="sticky top-0 bg-[#161b22] border-b border-gray-800 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+      <h2 class="text-sm font-black text-white flex items-center gap-2"><span class="text-emerald-400">⚡</span> AI 智能分析</h2>
+      <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div id="ai-modal-body" class="p-6 space-y-5"></div>
+  </div>
+</div>
+
+<script>
+/* ========== 全域狀態 ========== */
+let currentSport = 'basketball';
+let currentLeague = 'all';
+let currentFilter = 'all';
+// 使用本地時間（非 UTC）
+let currentDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+let allMatches = [];
+let expandedId = null;
+let refreshTimer = null;
+let countdown = 60;
+
+/* ========== API 設定 ========== */
+const TSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
+
+// Proxy Server 設定
+// 本地開發：自動偵測 localhost:3939
+// 部署後：改為你的 Render 網址，例如 'https://sportiq-proxy.onrender.com'
+const RENDER_PROXY = 'https://sportiq-proxy.onrender.com'; // ← 部署後改成你的 Render 網址
+const LOCAL_PROXY = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? (window.location.port === '3939' ? '' : 'http://localhost:3939')
+  : RENDER_PROXY;
+
+// CORS Proxies 備援（當本地 proxy 不可用時）
+const CORS_PROXIES = [
+  { prefix: 'https://api.codetabs.com/v1/proxy?quest=', encode: false },
+  { prefix: 'https://api.allorigins.win/raw?url=', encode: true },
+];
+let activeProxy = 0;
+let useLocalProxy = true; // 優先使用本地 proxy
+
+// playsport.cc 聯賽 ID 對照
+const PS_LEAGUES = {
+  basketball: [
+    { psId: '3', name: 'NBA' },
+    { psId: '8', name: '歐洲職籃' },
+    { psId: '89', name: 'SBL' },
+    { psId: '92', name: '韓國職籃' },
+    { psId: '97', name: '日本職籃' },
+  ],
+  baseball: [
+    { psId: '1', name: 'MLB' },
+    { psId: '2', name: '日本職棒' },
+    { psId: '6', name: '中華職棒' },
+    { psId: '9', name: '韓國職棒' },
+  ],
+  soccer: [
+    { psId: '4', name: '足球' },
+  ],
+  hockey: [
+    { psId: '91', name: 'NHL冰球' },
+  ],
+  tennis: [
+    { psId: '21', name: '網球' },
+  ]
+};
+
+// TheSportsDB 備援
+const TSDB_LEAGUES = {
+  basketball: [{ id: '4387', name: 'NBA' }, { id: '4431', name: '歐洲職籃' }],
+  baseball: [{ id: '4424', name: 'MLB' }, { id: '4422', name: 'NPB 日職' }],
+  soccer: [{ id: '4328', name: '英超' }, { id: '4335', name: '西甲' }, { id: '4331', name: '德甲' }, { id: '4332', name: '義甲' }, { id: '4334', name: '法甲' }, { id: '4480', name: '歐冠' }],
+  hockey: [{ id: '4380', name: 'NHL' }],
+  tennis: [{ id: '4464', name: 'ATP' }, { id: '4467', name: 'WTA' }],
+};
+
+// 合併用（給 UI league tabs 用）
+const SPORT_LEAGUES = PS_LEAGUES;
+
+/* ========== 隊名中文對照表 ========== */
+const TEAM_NAME_MAP = {
+  // ===== 英超 EPL =====
+  'Arsenal': '兵工廠', 'Aston Villa': '阿斯頓維拉', 'Bournemouth': '伯恩茅斯',
+  'Brentford': '布倫特福德', 'Brighton': '布萊頓', 'Brighton and Hove Albion': '布萊頓',
+  'Burnley': '伯恩利', 'Chelsea': '切爾西', 'Crystal Palace': '水晶宮',
+  'Everton': '艾佛頓', 'Fulham': '富勒姆', 'Ipswich': '伊普斯維奇',
+  'Ipswich Town': '伊普斯維奇', 'Leicester': '萊斯特城', 'Leicester City': '萊斯特城',
+  'Liverpool': '利物浦', 'Luton': '盧頓', 'Luton Town': '盧頓',
+  'Man City': '曼城', 'Manchester City': '曼城', 'Man United': '曼聯',
+  'Manchester United': '曼聯', 'Manchester Utd': '曼聯',
+  'Newcastle': '紐卡索', 'Newcastle United': '紐卡索',
+  'Nott\'m Forest': '諾丁漢森林', 'Nottingham Forest': '諾丁漢森林',
+  'Sheffield United': '謝菲爾德聯', 'Sheffield Utd': '謝菲爾德聯',
+  'Southampton': '南安普頓', 'Tottenham': '熱刺', 'Tottenham Hotspur': '熱刺',
+  'West Ham': '西漢姆聯', 'West Ham United': '西漢姆聯',
+  'Wolverhampton Wanderers': '狼隊', 'Wolves': '狼隊', 'Wolverhampton': '狼隊',
+
+  // ===== 西甲 La Liga =====
+  'Real Madrid': '皇家馬德里', 'Barcelona': '巴塞隆納', 'Atletico Madrid': '馬德里競技',
+  'Atlético Madrid': '馬德里競技', 'Sevilla': '塞維利亞', 'Real Sociedad': '皇家社會',
+  'Real Betis': '皇家貝蒂斯', 'Villarreal': '比利亞雷亞爾', 'Athletic Bilbao': '畢爾包',
+  'Athletic Club': '畢爾包', 'Valencia': '瓦倫西亞', 'Osasuna': '奧薩蘇納',
+  'Getafe': '赫塔費', 'Celta Vigo': '塞爾塔', 'Mallorca': '馬略卡',
+  'Cadiz': '加的斯', 'Alaves': '阿拉維斯', 'Las Palmas': '拉斯帕爾馬斯',
+  'Granada': '格拉納達', 'Almeria': '阿爾梅里亞', 'Girona': '赫羅納',
+  'Rayo Vallecano': '巴列卡諾', 'Espanyol': '西班牙人', 'Leganes': '萊加內斯',
+  'Real Valladolid': '巴利亞多利德',
+
+  // ===== 德甲 Bundesliga =====
+  'Bayern Munich': '拜仁慕尼黑', 'Bayern': '拜仁慕尼黑', 'FC Bayern Munich': '拜仁慕尼黑',
+  'Borussia Dortmund': '多特蒙德', 'Dortmund': '多特蒙德',
+  'RB Leipzig': '萊比錫', 'Bayer Leverkusen': '勒沃庫森', 'Leverkusen': '勒沃庫森',
+  'Eintracht Frankfurt': '法蘭克福', 'Frankfurt': '法蘭克福',
+  'VfB Stuttgart': '斯圖加特', 'Stuttgart': '斯圖加特',
+  'Borussia Monchengladbach': '門興格拉德巴赫', 'Monchengladbach': '門興格拉德巴赫',
+  'Wolfsburg': '沃爾夫斯堡', 'VfL Wolfsburg': '沃爾夫斯堡',
+  'SC Freiburg': '弗萊堡', 'Freiburg': '弗萊堡',
+  'TSG Hoffenheim': '霍芬海姆', 'Hoffenheim': '霍芬海姆',
+  'FC Augsburg': '奧格斯堡', 'Augsburg': '奧格斯堡',
+  'Werder Bremen': '不來梅', 'Bremen': '不來梅',
+  'Union Berlin': '柏林聯合', '1. FC Union Berlin': '柏林聯合',
+  'FC Koln': '科隆', 'Koln': '科隆', '1. FC Köln': '科隆',
+  'Mainz': '美因茨', 'Mainz 05': '美因茨',
+  'Heidenheim': '海登海姆', '1. FC Heidenheim': '海登海姆',
+  'SV Darmstadt 98': '達姆施塔特', 'Darmstadt': '達姆施塔特',
+  'FC St. Pauli': '聖保利', 'Holstein Kiel': '基爾',
+
+  // ===== 義甲 Serie A =====
+  'Inter Milan': '國際米蘭', 'Inter': '國際米蘭', 'Internazionale': '國際米蘭',
+  'AC Milan': 'AC米蘭', 'Milan': 'AC米蘭',
+  'Juventus': '尤文圖斯', 'Napoli': '拿坡里', 'SSC Napoli': '拿坡里',
+  'AS Roma': '羅馬', 'Roma': '羅馬', 'Lazio': '拉齊奧', 'SS Lazio': '拉齊奧',
+  'Atalanta': '亞特蘭大', 'Fiorentina': '佛羅倫斯', 'ACF Fiorentina': '佛羅倫斯',
+  'Bologna': '波隆那', 'Torino': '都靈', 'Monza': '蒙扎',
+  'Genoa': '熱那亞', 'Cagliari': '卡利亞里', 'Empoli': '恩波利',
+  'Frosinone': '弗羅西諾內', 'Lecce': '萊切', 'Sassuolo': '薩索羅',
+  'Salernitana': '薩勒尼塔納', 'Udinese': '烏迪內斯', 'Verona': '維羅納',
+  'Hellas Verona': '維羅納', 'Parma': '帕爾馬', 'Venezia': '威尼斯',
+  'Como': '科莫',
+
+  // ===== 法甲 Ligue 1 =====
+  'Paris Saint-Germain': '巴黎聖日耳曼', 'Paris SG': '巴黎聖日耳曼', 'PSG': '巴黎聖日耳曼',
+  'Marseille': '馬賽', 'Olympique Marseille': '馬賽', 'Olympique de Marseille': '馬賽',
+  'Monaco': '摩納哥', 'AS Monaco': '摩納哥',
+  'Lyon': '里昂', 'Olympique Lyonnais': '里昂', 'Olympique Lyon': '里昂',
+  'Lille': '里爾', 'LOSC Lille': '里爾',
+  'Nice': '尼斯', 'OGC Nice': '尼斯',
+  'Lens': '朗斯', 'RC Lens': '朗斯',
+  'Rennes': '雷恩', 'Stade Rennais': '雷恩',
+  'Strasbourg': '史特拉斯堡', 'RC Strasbourg': '史特拉斯堡',
+  'Toulouse': '圖盧茲', 'Nantes': '南特', 'FC Nantes': '南特',
+  'Montpellier': '蒙彼利埃', 'Reims': '蘭斯', 'Stade de Reims': '蘭斯',
+  'Brest': '布雷斯特', 'Stade Brestois 29': '布雷斯特',
+  'Le Havre': '勒阿弗爾', 'Lorient': '洛里昂', 'Clermont': '克萊蒙',
+  'Clermont Foot': '克萊蒙', 'Metz': '梅斯', 'Angers': '昂熱',
+  'Saint-Etienne': '聖艾蒂安', 'AS Saint-Étienne': '聖艾蒂安',
+  'Auxerre': '歐塞爾',
+
+  // ===== 歐冠 UCL 額外 =====
+  'Benfica': '本菲卡', 'Porto': '波爾圖', 'FC Porto': '波爾圖',
+  'Sporting CP': '里斯本競技', 'Sporting Lisbon': '里斯本競技',
+  'Ajax': '阿賈克斯', 'PSV Eindhoven': 'PSV恩荷芬', 'PSV': 'PSV恩荷芬',
+  'Feyenoord': '飛燕諾', 'Celtic': '塞爾提克', 'Rangers': '流浪者',
+  'Galatasaray': '加拉塔薩雷', 'Fenerbahce': '費內巴切',
+  'Red Star Belgrade': '貝爾格萊德紅星', 'Shakhtar Donetsk': '頓涅茨克礦工',
+  'Dinamo Zagreb': '薩格勒布迪納摩', 'Young Boys': '年輕人',
+  'FC Salzburg': '薩爾茨堡紅牛', 'Red Bull Salzburg': '薩爾茨堡紅牛',
+  'Club Brugge': '布魯日', 'Antwerp': '安特衛普',
+
+  // ===== NBA =====
+  'Atlanta Hawks': '亞特蘭大老鷹', 'Boston Celtics': '波士頓塞爾提克',
+  'Brooklyn Nets': '布魯克林籃網', 'Charlotte Hornets': '夏洛特黃蜂',
+  'Chicago Bulls': '芝加哥公牛', 'Cleveland Cavaliers': '克里夫蘭騎士',
+  'Dallas Mavericks': '達拉斯獨行俠', 'Denver Nuggets': '丹佛金塊',
+  'Detroit Pistons': '底特律活塞', 'Golden State Warriors': '金州勇士',
+  'Houston Rockets': '休士頓火箭', 'Indiana Pacers': '印第安納溜馬',
+  'LA Clippers': '洛杉磯快艇', 'Los Angeles Clippers': '洛杉磯快艇',
+  'Los Angeles Lakers': '洛杉磯湖人', 'LA Lakers': '洛杉磯湖人',
+  'Memphis Grizzlies': '曼菲斯灰熊', 'Miami Heat': '邁阿密熱火',
+  'Milwaukee Bucks': '密爾瓦基公鹿', 'Minnesota Timberwolves': '明尼蘇達灰狼',
+  'New Orleans Pelicans': '紐奧良鵜鶘', 'New York Knicks': '紐約尼克',
+  'Oklahoma City Thunder': '奧克拉荷馬雷霆', 'Orlando Magic': '奧蘭多魔術',
+  'Philadelphia 76ers': '費城76人', 'Phoenix Suns': '鳳凰城太陽',
+  'Portland Trail Blazers': '波特蘭拓荒者', 'Sacramento Kings': '沙加緬度國王',
+  'San Antonio Spurs': '聖安東尼奧馬刺', 'Toronto Raptors': '多倫多暴龍',
+  'Utah Jazz': '猶他爵士', 'Washington Wizards': '華盛頓巫師',
+
+  // ===== MLB =====
+  'New York Yankees': '紐約洋基', 'Los Angeles Dodgers': '洛杉磯道奇',
+  'Boston Red Sox': '波士頓紅襪', 'Chicago Cubs': '芝加哥小熊',
+  'Houston Astros': '休士頓太空人', 'Atlanta Braves': '亞特蘭大勇士',
+  'San Francisco Giants': '舊金山巨人', 'St. Louis Cardinals': '聖路易紅雀',
+  'Philadelphia Phillies': '費城費城人', 'San Diego Padres': '聖地牙哥教士',
+  'Texas Rangers': '德州遊騎兵', 'Seattle Mariners': '西雅圖水手',
+  'Toronto Blue Jays': '多倫多藍鳥', 'New York Mets': '紐約大都會',
+  'Minnesota Twins': '明尼蘇達雙城', 'Tampa Bay Rays': '坦帕灣光芒',
+  'Baltimore Orioles': '巴爾的摩金鶯', 'Cleveland Guardians': '克里夫蘭乘衛者',
+  'Milwaukee Brewers': '密爾瓦基釀酒人', 'Arizona Diamondbacks': '亞利桑那響尾蛇',
+  'Detroit Tigers': '底特律老虎', 'Kansas City Royals': '堪薩斯城皇家',
+  'Cincinnati Reds': '辛辛那提紅人', 'Pittsburgh Pirates': '匹茲堡海盜',
+  'Los Angeles Angels': '洛杉磯天使', 'Chicago White Sox': '芝加哥白襪',
+  'Colorado Rockies': '科羅拉多落磯', 'Miami Marlins': '邁阿密馬林魚',
+  'Washington Nationals': '華盛頓國民', 'Oakland Athletics': '奧克蘭運動家',
+
+  // ===== NPB 日職 =====
+  'Yomiuri Giants': '讀賣巨人', 'Hanshin Tigers': '阪神虎',
+  'Hiroshima Toyo Carp': '廣島東洋鯉魚', 'Yokohama DeNA BayStars': '橫濱DeNA海灣之星',
+  'Tokyo Yakult Swallows': '東京養樂多燕子', 'Chunichi Dragons': '中日龍',
+  'Orix Buffaloes': '歐力士野牛', 'Fukuoka SoftBank Hawks': '福岡軟銀鷹',
+  'Saitama Seibu Lions': '埼玉西武獅', 'Tohoku Rakuten Golden Eagles': '東北樂天金鷲',
+  'Hokkaido Nippon-Ham Fighters': '北海道日本火腿鬥士', 'Chiba Lotte Marines': '千葉羅德海洋',
+};
+
+function t(name) {
+  if (!name) return '—';
+  if (TEAM_NAME_MAP[name]) return TEAM_NAME_MAP[name];
+  const cleaned = name.replace(/^(FC|CF|SC|AC|SS|AS|RC|SD|CD|CA|SE|CR|AD|UD)\s+/i, '').trim();
+  if (TEAM_NAME_MAP[cleaned]) return TEAM_NAME_MAP[cleaned];
+  for (const [en, zh] of Object.entries(TEAM_NAME_MAP)) {
+    if (name.includes(en) || en.includes(name)) return zh;
+  }
+  return name;
+}
+
+/* ========== 工具函數 ========== */
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash |= 0; }
+  return Math.abs(hash);
+}
+
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+function fmtDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  return `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${WEEKDAYS[dt.getDay()]}`;
+}
+
+/* ========== 時鐘 ========== */
+function updateClock() {
+  const now = new Date();
+  document.getElementById('current-time').textContent =
+    now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+let isFirstLoad = true;
+
+function startCountdown() {
+  clearInterval(refreshTimer); countdown = 60;
+  document.getElementById('refresh-countdown').textContent = countdown;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    document.getElementById('refresh-countdown').textContent = countdown;
+    if (countdown <= 0) { silentRefresh(); countdown = 60; }
+  }, 1000);
+}
+
+// 靜默刷新：不顯示 loading spinner，不閃爍
+async function silentRefresh() {
+  const leagues = SPORT_LEAGUES[currentSport] || [];
+  let psMatches = [];
+  try {
+    for (const l of leagues) {
+      try {
+        const result = await fetchFromPlaysport(l.psId, currentDate);
+        psMatches = psMatches.concat(result);
+      } catch(e) {}
+    }
+  } catch(e) {}
+
+  if (psMatches.length > 0) {
+    allMatches = psMatches;
+    dataSource = 'playsport';
+  }
+  const statusOrder = { live: 0, upcoming: 1, postponed: 2, finished: 3 };
+  allMatches.sort((a, b) => {
+    const sa = statusOrder[a.status] ?? 9, sb = statusOrder[b.status] ?? 9;
+    if (sa !== sb) return sa - sb;
+    const da = new Date(a.date + 'T' + (a.time || '00:00'));
+    const db = new Date(b.date + 'T' + (b.time || '00:00'));
+    return a.status === 'finished' ? db - da : da - db;
+  });
+  renderMatchList();
+  console.log(`[SPORTIQ] 靜默刷新完成，${allMatches.length} 場賽事`);
+}
+
+/* ========== 渲染日期 Tab ========== */
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// 日期可用性快取 { '2026-02-08': 10, '2026-02-10': 0 }
+let dateAvailCache = {};
+
+async function checkDateAvailability() {
+  const now = new Date();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+  const dates = [localDateStr(yesterday), localDateStr(now), localDateStr(tomorrow)];
+  const gdList = dates.map(d => d.replace(/-/g, ''));
+
+  // 用當前運動的第一個聯賽來檢查
+  const leagues = SPORT_LEAGUES[currentSport] || [];
+  if (leagues.length === 0) return;
+
+  try {
+    const resp = await fetch(`${LOCAL_PROXY}/check-dates?allianceid=${leagues[0].psId}&dates=${gdList.join(',')}`, { signal: AbortSignal.timeout(12000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.success && data.dates) {
+        for (const [gd, count] of Object.entries(data.dates)) {
+          const ds = `${gd.substring(0,4)}-${gd.substring(4,6)}-${gd.substring(6,8)}`;
+          dateAvailCache[ds] = count;
+        }
+        renderDateTabs(); // 重新渲染日期按鈕
+      }
+    }
+  } catch(e) { console.warn('[DateCheck] failed:', e.message); }
+}
+
+function renderDateTabs() {
+  const now = new Date();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+
+  const yesterdayStr = localDateStr(yesterday);
+  const todayStr = localDateStr(now);
+  const tomorrowStr = localDateStr(tomorrow);
+
+  const container = document.getElementById('date-tabs');
+  let html = '';
+  html += `<span class="text-[11px] text-gray-500 font-bold mr-1">時間</span>`;
+
+  const dateBtns = [
+    { date: yesterdayStr, label: fmtDate(yesterdayStr) },
+    { date: todayStr, label: `今天 ${fmtDate(todayStr)}` },
+    { date: tomorrowStr, label: fmtDate(tomorrowStr) },
+  ];
+  for (const btn of dateBtns) {
+    const avail = dateAvailCache[btn.date];
+    const noGames = avail === 0;
+    const isActive = currentDate === btn.date;
+    if (noGames && !isActive) {
+      html += `<button class="date-btn opacity-40 cursor-not-allowed" disabled title="該日無賽事">${btn.label}</button>`;
+    } else {
+      html += `<button onclick="setDate('${btn.date}')" class="date-btn ${isActive ? 'active' : ''}">${btn.label}</button>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+/* ========== 渲染聯賽 Tab ========== */
+function renderLeagueTabs() {
+  const leagues = SPORT_LEAGUES[currentSport] || [];
+  const container = document.getElementById('league-tabs');
+  container.innerHTML = `<button onclick="setLeague('all')" class="league-btn ${currentLeague === 'all' ? 'active' : ''}">全部聯賽</button>` +
+    leagues.map(l => `<button onclick="setLeague('${l.psId}')" class="league-btn ${currentLeague === l.psId ? 'active' : ''}">${l.name}</button>`).join('');
+}
+
+/* ========== 從 playsport.cc 爬取資料 ========== */
+async function fetchFromPlaysport(psId, dateStr) {
+  const gd = dateStr.replace(/-/g, '');
+  const leagueName = getLeagueName(psId);
+
+  // 優先使用本地 proxy（回傳已解析的 JSON）
+  if (useLocalProxy) {
+    try {
+      const resp = await fetch(`${LOCAL_PROXY}/parse?allianceid=${psId}&gamedate=${gd}`, { signal: AbortSignal.timeout(18000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.games && data.games.length > 0) {
+          return data.games.map(g => ({
+            id: g.id,
+            league: leagueName, leagueId: psId,
+            home: g.home || '—', away: g.away || '—',
+            homeScore: g.homeScore, awayScore: g.awayScore,
+            date: dateStr, time: g.time || '',
+            status: g.status || 'upcoming',
+            venue: '—', round: '',
+            homeBadge: '', awayBadge: '',
+            quarterScores: g.quarterScores || null,
+            record: g.record || {}, odds: g.odds || {},
+            teamCodes: g.teamCodes || '',
+            raw: null, type: 'playsport', source: 'playsport'
+          }));
+        }
+      }
+    } catch(e) {
+      console.warn('[LocalProxy] failed:', e.message);
+      useLocalProxy = false; // 下次不再嘗試
+    }
+  }
+
+  // 備援：CORS proxy + 前端 HTML 解析
+  const url = `https://www.playsport.cc/livescore/${psId}?gamedate=${gd}&mode=2`;
+  let html = null;
+  for (let i = 0; i < CORS_PROXIES.length; i++) {
+    const idx = (activeProxy + i) % CORS_PROXIES.length;
+    const proxy = CORS_PROXIES[idx];
+    const fullUrl = proxy.prefix + (proxy.encode ? encodeURIComponent(url) : url);
+    try {
+      const resp = await fetch(fullUrl, { signal: AbortSignal.timeout(15000) });
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text && text.length > 1000) { activeProxy = idx; html = text; break; }
+      }
+    } catch(e) { console.warn(`[CORSProxy ${idx}] failed:`, e.message); }
+  }
+  if (!html) return [];
+
+  // 前端解析 HTML
+  return parsePlaySportHTML(html, psId, gd, dateStr, leagueName);
+}
+
+/* ========== 前端 HTML 解析（備援用） ========== */
+function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
+  const matches = [];
+
+  // 從 select#gamebattle 取得賽事清單
+  const optionRegex = /<option[^>]*value="([^"]*)"[^>]*>([^<]*)<\/option>/gi;
+  const selectGames = [];
+  let rm;
+  while ((rm = optionRegex.exec(html)) !== null) {
+    const val = rm[1], text = rm[2].trim();
+    if (!val || val === '0' || !text.includes('vs')) continue;
+    const parts = text.split(/\s*vs\s*/);
+    if (parts.length === 2) {
+      selectGames.push({ value: val, away: parts[0].trim(), home: parts[1].trim() });
+    }
+  }
+
+  // 從 outer-gamebox 取得詳細資料
+  const boxRegex = /id="outer-gamebox-(\d+)"[^>]*data-oid="([^"]*)"/g;
+  const boxes = [];
+  while ((rm = boxRegex.exec(html)) !== null) {
+    boxes.push({ id: rm[1], oid: rm[2] });
+  }
+
+  for (const box of boxes) {
+    let away = '', home = '', time = '';
+    let record = {}, odds = {};
+    const teamCodes = (box.oid.split('_')[2]) || '';
+
+    // 從 previewBox 取得隊名和時間
+    const previewStart = html.indexOf(`id="gamebox-preview-${box.id}"`);
+    if (previewStart > -1) {
+      const previewEnd = html.indexOf('開打前的gamebox END', previewStart);
+      const ph = previewEnd > -1 ? html.substring(previewStart, previewEnd) : html.substring(previewStart, previewStart + 15000);
+
+      const leftMatch = ph.match(/team_left[^>]*>[\s\S]*?<a[^>]*>\s*([\s\S]*?)\s*<\/a>/);
+      const rightMatch = ph.match(/team_right[^>]*>[\s\S]*?<a[^>]*>\s*([\s\S]*?)\s*<\/a>/);
+      const centerMatch = ph.match(/team_cinter[^>]*>\s*([^<]+)/);
+      if (leftMatch) away = leftMatch[1].trim();
+      if (rightMatch) home = rightMatch[1].trim();
+      if (centerMatch) time = centerMatch[1].trim();
+
+      // 戰績
+      const extractStat = (label) => {
+        const re = new RegExp(`datd_c[^>]*>\\s*${label}[\\s\\S]*?datd_l[^>]*>([\\s\\S]*?)<\\/td>[\\s\\S]*?datd_r[^>]*>([\\s\\S]*?)<\\/td>`);
+        const m = ph.match(re);
+        return m ? { left: m[1].replace(/<[^>]+>/g,'').replace(/詳細比分/g,'').trim(), right: m[2].replace(/<[^>]+>/g,'').replace(/詳細比分/g,'').trim() } : null;
+      };
+      const rec = extractStat('戰績'); if (rec) { record.awayRecord = rec.left; record.homeRecord = rec.right; }
+      const recent = extractStat('近十場'); if (recent) { record.awayRecent = recent.left; record.homeRecent = recent.right; }
+      const h2h = extractStat('對戰紀錄'); if (h2h) { record.awayH2H = h2h.left; record.homeH2H = h2h.right; }
+      const avg = extractStat('平均得 \\/ 失分'); if (avg) { record.awayAvg = avg.left; record.homeAvg = avg.right; }
+      const ha = extractStat('主 \\/ 客戰績'); if (ha) { record.awayHomeAway = ha.left; record.homeHomeAway = ha.right; }
+    }
+
+    // 讓分盤口
+    const spreadMatch = html.match(new RegExp(`id="gamebox-[^"]*"[^>]*data-[^>]*outer-gamebox-${box.id}[\\s\\S]{0,2000}data-aheadprice="([^"]*)"[^>]*data-aheadodds="([^"]*)"`));
+    // 更簡單：直接在 outer-gamebox 範圍內找
+    const boxStart = html.indexOf(`id="outer-gamebox-${box.id}"`);
+    const boxEnd = html.indexOf('</div><!--outer-gamebox-->', boxStart);
+    if (boxStart > -1 && boxEnd > -1) {
+      const boxHtml = html.substring(boxStart, boxEnd);
+      const sp = boxHtml.match(/data-aheadprice="([^"]*)"/);
+      const so = boxHtml.match(/data-aheadodds="([^"]*)"/);
+      if (sp) odds.spread = sp[1];
+      if (so) odds.spreadOdds = so[1];
+
+      // 從 onBox 取得隊名（備援）
+      if (!away || !home) {
+        const nh = boxHtml.match(/data-nameh="([^"]*)"/);
+        const na = boxHtml.match(/data-namea="([^"]*)"/);
+        if (!home && nh) home = nh[1];
+        if (!away && na) away = na[1];
+      }
+      // 時間備援
+      if (!time) {
+        const tm = boxHtml.match(/比賽時間[^]*?(\d{1,2}:\d{2})/);
+        if (tm) time = tm[1];
+      }
+    }
+
+    // 從 select 備援
+    if (!away || !home) {
+      const sg = selectGames.find(g => g.value === box.oid);
+      if (sg) { away = away || sg.away; home = home || sg.home; }
+    }
+
+    if (away || home) {
+      matches.push({
+        id: `ps_${psId}_${gd}_${box.id}`,
+        league: leagueName, leagueId: psId,
+        home: home || '—', away: away || '—',
+        homeScore: null, awayScore: null,
+        date: dateStr, time,
+        status: 'upcoming', venue: '—', round: '',
+        homeBadge: '', awayBadge: '',
+        quarterScores: null, record, odds, teamCodes,
+        raw: null, type: 'playsport', source: 'playsport'
+      });
+    }
+  }
+
+  // 如果 gamebox 解析失敗，用 select 備援
+  if (matches.length === 0) {
+    selectGames.forEach((g, idx) => {
+      matches.push({
+        id: `ps_${psId}_${gd}_sel_${idx}`,
+        league: leagueName, leagueId: psId,
+        home: g.home, away: g.away,
+        homeScore: null, awayScore: null,
+        date: dateStr, time: '',
+        status: 'upcoming', venue: '—', round: '',
+        homeBadge: '', awayBadge: '',
+        quarterScores: null, record: {}, odds: {},
+        teamCodes: g.value.split('_')[2] || '',
+        raw: null, type: 'playsport', source: 'playsport'
+      });
+    });
+  }
+
+  return matches;
+}
+
+function getLeagueName(psId) {
+  for (const sport of Object.values(PS_LEAGUES)) {
+    for (const l of sport) { if (l.psId === psId) return l.name; }
+  }
+  return '未知聯賽';
+}
+
+/* ========== TheSportsDB 備援 ========== */
+async function fetchFromTSDB() {
+  const leagues = TSDB_LEAGUES[currentSport] || [];
+  const results = [];
+  const fetches = [];
+  for (const league of leagues) {
+    fetches.push(
+      fetch(`${TSDB_BASE}/eventspastleague.php?id=${league.id}`)
+        .then(r => r.json()).then(data => ({ league, events: data.events || [], type: 'past' }))
+        .catch(() => ({ league, events: [], type: 'past' }))
+    );
+    fetches.push(
+      fetch(`${TSDB_BASE}/eventsnextleague.php?id=${league.id}`)
+        .then(r => r.json()).then(data => ({ league, events: data.events || [], type: 'next' }))
+        .catch(() => ({ league, events: [], type: 'next' }))
+    );
+  }
+  const raw = await Promise.all(fetches);
+  const seen = new Set();
+  for (const result of raw) {
+    for (const ev of result.events) {
+      if (seen.has(ev.idEvent)) continue;
+      seen.add(ev.idEvent);
+      results.push({
+        id: ev.idEvent, league: result.league.name, leagueId: result.league.id,
+        home: ev.strHomeTeam || '—', away: ev.strAwayTeam || '—',
+        homeScore: ev.intHomeScore, awayScore: ev.intAwayScore,
+        date: ev.dateEvent || '', time: ev.strTime || '',
+        status: getMatchStatusTSDB(ev, result.type),
+        venue: ev.strVenue || '—', round: ev.intRound || '',
+        homeBadge: ev.strHomeTeamBadge || '', awayBadge: ev.strAwayTeamBadge || '',
+        quarterScores: null, raw: ev, type: result.type, source: 'tsdb'
+      });
+    }
+  }
+  return results;
+}
+
+function getMatchStatusTSDB(ev, type) {
+  if (ev.strStatus === 'Match Finished' || ev.strStatus === 'FT' || type === 'past') return 'finished';
+  if (ev.strStatus === 'Not Started' || ev.strStatus === 'NS' || type === 'next') return 'upcoming';
+  if (ev.intHomeScore !== null && ev.intAwayScore !== null && ev.strStatus && ev.strStatus !== 'Match Finished') return 'live';
+  return type === 'past' ? 'finished' : 'upcoming';
+}
+
+/* ========== 主要資料爬取 ========== */
+let dataSource = ''; // 'playsport' or 'tsdb'
+
+async function fetchAllData(showLoading = true) {
+  const leagues = SPORT_LEAGUES[currentSport] || [];
+  allMatches = [];
+
+  if (showLoading) {
+    document.getElementById('match-list').innerHTML = `
+      <div class="flex items-center justify-center py-12">
+        <div class="text-center text-gray-600">
+          <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p class="text-xs" id="fetch-status">正在從 playsport.cc 爬取 ${leagues[0]?.name || ''} 資料...</p>
+        </div>
+      </div>`;
+  }
+
+  renderLeagueTabs();
+  renderDateTabs();
+
+  // 嘗試從 playsport.cc 爬取（逐一爬取，避免同時太多請求）
+  let psMatches = [];
+  try {
+    for (let i = 0; i < leagues.length; i++) {
+      const el = document.getElementById('fetch-status');
+      if (el) el.textContent = `正在爬取 ${leagues[i].name}（${i+1}/${leagues.length}）...`;
+      try {
+        const result = await fetchFromPlaysport(leagues[i].psId, currentDate);
+        psMatches = psMatches.concat(result);
+        console.log(`[SPORTIQ] ${leagues[i].name}: ${result.length} 場賽事`);
+      } catch(e) { console.warn(`[${leagues[i].name}] fetch error:`, e); }
+    }
+  } catch(e) { console.warn('playsport fetch error:', e); }
+
+  if (psMatches.length > 0) {
+    allMatches = psMatches;
+    dataSource = 'playsport';
+  } else {
+    // 備援：TheSportsDB
+    const el = document.getElementById('fetch-status');
+    if (el) el.textContent = 'playsport.cc 無法連線，改用 TheSportsDB...';
+    try {
+      allMatches = await fetchFromTSDB();
+      dataSource = 'tsdb';
+    } catch(e) {
+      console.warn('TSDB fetch error:', e);
+      dataSource = 'none';
+    }
+  }
+
+  // 排序
+  const statusOrder = { live: 0, upcoming: 1, postponed: 2, finished: 3 };
+  allMatches.sort((a, b) => {
+    const sa = statusOrder[a.status] ?? 9, sb = statusOrder[b.status] ?? 9;
+    if (sa !== sb) return sa - sb;
+    const da = new Date(a.date + 'T' + (a.time || '00:00'));
+    const db = new Date(b.date + 'T' + (b.time || '00:00'));
+    return a.status === 'finished' ? db - da : da - db;
+  });
+
+  renderMatchList();
+  startCountdown();
+
+  // 顯示資料來源
+  console.log(`[SPORTIQ] 資料來源: ${dataSource}, 共 ${allMatches.length} 場賽事`);
+}
+
+/* ========== 節比分 ========== */
+function genQuarterScores(m) {
+  // 如果有真實節比分資料（來自 playsport.cc proxy）
+  if (m.quarterScores) {
+    try {
+      const qs = m.quarterScores;
+      // 新格式：{ away: [28, 30, ...], home: [25, 33, ...] }
+      if (qs.home && qs.away && qs.home.length > 0) {
+        return { hq: qs.home, aq: qs.away, periods: qs.home.length };
+      }
+      // 舊格式：陣列
+      if (Array.isArray(qs) && qs.length > 0) {
+        const hq = qs.map(q => q.home ?? q[0] ?? 0);
+        const aq = qs.map(q => q.away ?? q[1] ?? 0);
+        return { hq, aq, periods: qs.length };
+      }
+    } catch(e) { /* fallback to simulated */ }
+  }
+
+  if (m.homeScore === null || m.homeScore === undefined) return null;
+  const hs = parseInt(m.homeScore), as = parseInt(m.awayScore);
+  if (isNaN(hs) || isNaN(as)) return null;
+  const seed = hashCode(m.id || m.home + m.away);
+  const isBball = currentSport === 'basketball';
+  const isSoccer = currentSport === 'soccer';
+  const periods = isBball ? 4 : isSoccer ? 2 : 9;
+  const hq = [], aq = [];
+  let hRemain = hs, aRemain = as;
+  for (let i = 0; i < periods - 1; i++) {
+    const hVal = isBball
+      ? Math.min(hRemain, Math.max(15, 20 + ((seed >> (i*3)) % 16) - 8))
+      : Math.min(hRemain, (seed >> (i*2)) % (isSoccer ? 3 : 4));
+    const aVal = isBball
+      ? Math.min(aRemain, Math.max(15, 20 + ((seed >> (i*3+1)) % 16) - 8))
+      : Math.min(aRemain, (seed >> (i*2+1)) % (isSoccer ? 3 : 4));
+    hq.push(Math.min(hVal, hRemain));
+    aq.push(Math.min(aVal, aRemain));
+    hRemain -= hq[i]; aRemain -= aq[i];
+  }
+  hq.push(Math.max(0, hRemain)); aq.push(Math.max(0, aRemain));
+  return { hq, aq, periods };
+}
+
+/* ========== AI 快速推薦（基於讓分盤口） ========== */
+function getAITip(m) {
+  const odds = m.odds || {};
+  const spread = parseFloat(odds.spread);
+  const hasSpread = !isNaN(spread) && spread !== 0;
+  const homeName = t(m.home), awayName = t(m.away);
+
+  if (m.status === 'finished') {
+    const hs = parseInt(m.homeScore), as = parseInt(m.awayScore);
+    const hasScore = !isNaN(hs) && !isNaN(as);
+    if (!hasScore) return { label: '已結束', color: 'text-gray-500', bg: 'bg-gray-800/30' };
+
+    const diff = hs - as; // 正=主勝, 負=客勝
+    const winTeam = diff > 0 ? homeName : diff < 0 ? awayName : '平局';
+    const winMargin = Math.abs(diff);
+
+    if (hasSpread) {
+      // spread > 0：主隊讓分（主隊被看好）; spread < 0：客隊讓分
+      const favTeam = spread > 0 ? homeName : awayName;
+      const absSpread = Math.abs(spread);
+      // 讓分後差距
+      const adjustedDiff = diff - spread; // 正=主贏盤, 負=客贏盤 (扣掉讓分)
+      const spreadCover = spread > 0 ? (diff > spread) : (diff < spread);
+      const isCorrect = (spread > 0 && diff > 0) || (spread < 0 && diff < 0);
+      return {
+        label: `${winTeam} 勝`,
+        prediction: `預測 ${favTeam} 讓${absSpread}分`,
+        result: `${winTeam}贏${winMargin}分`,
+        correct: isCorrect,
+        spreadCover: spreadCover,
+        color: isCorrect ? 'text-emerald-400' : 'text-red-400',
+        bg: isCorrect ? 'bg-emerald-900/20' : 'bg-red-900/20'
+      };
+    }
+    return {
+      label: `${winTeam} 勝`,
+      result: `贏${winMargin}分`,
+      color: diff > 0 ? 'text-emerald-400' : 'text-blue-400',
+      bg: diff > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20'
+    };
+  }
+
+  // 未開始/進行中：基於讓分盤口預測
+  if (hasSpread) {
+    const favTeam = spread > 0 ? homeName : awayName;
+    const absSpread = Math.abs(spread);
+    return { label: `${favTeam} 讓${absSpread}`, color: spread > 0 ? 'text-emerald-400' : 'text-blue-400', bg: spread > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20' };
+  }
+  return { label: '待定', color: 'text-gray-500', bg: 'bg-gray-800/30' };
+}
+
+/* ========== 渲染賽事列表 ========== */
+function renderMatchList() {
+  const container = document.getElementById('match-list');
+  let filtered = allMatches;
+
+  // 聯賽篩選
+  if (currentLeague !== 'all') {
+    filtered = filtered.filter(m => m.leagueId === currentLeague);
+  }
+  // 狀態篩選
+  if (currentFilter !== 'all') {
+    filtered = filtered.filter(m => m.status === currentFilter);
+  }
+  // 日期篩選（playsport 資料已經是當天的，TSDB 需要篩選）
+  if (dataSource === 'tsdb') {
+    filtered = filtered.filter(m => m.date === currentDate);
+  }
+
+  document.getElementById('match-count').textContent = filtered.length;
+
+  // 資料來源標示
+  const srcLabel = dataSource === 'playsport'
+    ? `<span class="text-emerald-400">playsport.cc</span>`
+    : dataSource === 'tsdb'
+      ? `<span class="text-yellow-400">TheSportsDB (備援)</span>`
+      : `<span class="text-red-400">無資料來源</span>`;
+  const srcHtml = `<div class="text-[10px] text-gray-600 text-right mb-2 px-2">資料來源：${srcLabel}</div>`;
+
+  if (filtered.length === 0) {
+    // 如果當天沒資料，顯示所有資料
+    let allFiltered = allMatches;
+    if (currentLeague !== 'all') allFiltered = allFiltered.filter(m => m.leagueId === currentLeague);
+    if (currentFilter !== 'all') allFiltered = allFiltered.filter(m => m.status === currentFilter);
+
+    if (allFiltered.length === 0) {
+      container.innerHTML = srcHtml + `<div class="flex items-center justify-center py-16 text-center text-gray-600">
+        <div><p class="text-sm font-bold mb-1">目前沒有賽事資料</p><p class="text-xs text-gray-700">嘗試切換運動類型或聯賽</p></div>
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = srcHtml + `<div class="text-center text-gray-600 text-xs py-3 mb-2">
+      ${fmtDate(currentDate)} 無賽事，以下顯示近期所有賽事
+    </div>` + renderRows(allFiltered);
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = srcHtml + renderRows(filtered);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function renderRows(list) {
+  // 按聯賽分組
+  const groups = {};
+  list.forEach(m => {
+    if (!groups[m.league]) groups[m.league] = [];
+    groups[m.league].push(m);
+  });
+
+  let html = '';
+  for (const [league, matches] of Object.entries(groups)) {
+    html += `<div class="mb-1 mt-3 first:mt-0 flex items-center gap-2 px-2">
+      <span class="text-[11px] font-bold text-blue-400">${league}</span>
+      <span class="flex-1 border-t border-gray-800/60"></span>
+      <span class="text-[10px] text-gray-600">${matches.length} 場</span>
+    </div>`;
+
+    for (const m of matches) {
+      const isExpanded = expandedId === m.id;
+      const tip = getAITip(m);
+      const qs = genQuarterScores(m);
+
+      // 狀態
+      let statusHtml;
+      if (m.status === 'postponed') {
+        statusHtml = `<span class="text-[10px] font-bold text-yellow-500">⚠ 延期</span>`;
+      } else if (m.status === 'live') {
+        statusHtml = `<span class="flex items-center gap-1 text-[10px] font-bold text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></span>進行中</span>`;
+      } else if (m.status === 'upcoming') {
+        statusHtml = `<span class="text-[10px] font-bold text-blue-400">未開始</span>`;
+      } else {
+        statusHtml = `<span class="text-[10px] font-bold text-gray-500">已結束</span>`;
+      }
+
+      // 比分
+      const hasScore = m.homeScore !== null && m.homeScore !== undefined;
+      const scoreColor = m.status === 'live' ? 'text-red-400' : 'text-white';
+      const scoreHtml = hasScore
+        ? `<span class="text-base font-black ${scoreColor}">${m.homeScore} : ${m.awayScore}</span>`
+        : `<span class="text-xs text-gray-500 font-bold">VS</span>`;
+
+      // 節比分
+      let qHtml = '<span class="text-[10px] text-gray-600">—</span>';
+      if (qs) {
+        const periodLabel = currentSport === 'basketball' ? 'Q' : currentSport === 'soccer' ? 'H' : '';
+        qHtml = `<div class="flex gap-0.5">` +
+          qs.hq.map((h, i) => `<div class="text-center"><div class="text-[9px] text-gray-600 mb-0.5">${periodLabel}${i+1}</div><div class="q-score bg-gray-800/60 text-gray-300">${h}</div><div class="q-score bg-gray-800/40 text-gray-400">${qs.aq[i]}</div></div>`).join('') +
+          `</div>`;
+      }
+
+      // 隊伍 badge
+      const hBadge = m.homeBadge ? `<img src="${m.homeBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
+      const aBadge = m.awayBadge ? `<img src="${m.awayBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
+
+      html += `
+        <div class="match-row ${isExpanded ? 'expanded' : ''} anim-slide mb-1.5">
+          <div class="flex items-center px-4 py-3" onclick="toggleExpand('${m.id}')">
+            <div class="w-16 flex-shrink-0">${statusHtml}</div>
+            <div class="w-14 text-center flex-shrink-0 text-[11px] text-gray-500">${m.time ? m.time.slice(0,5) : '—'}</div>
+            <div class="flex-1 pl-2 min-w-0">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                ${hBadge}
+                <span class="text-[13px] font-bold truncate ${hasScore && parseInt(m.homeScore) > parseInt(m.awayScore) ? 'text-white' : 'text-gray-300'}">${t(m.home)}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                ${aBadge}
+                <span class="text-[13px] font-bold truncate ${hasScore && parseInt(m.awayScore) > parseInt(m.homeScore) ? 'text-white' : 'text-gray-300'}">${t(m.away)}</span>
+              </div>
+            </div>
+            <div class="w-16 text-center flex-shrink-0">${scoreHtml}</div>
+            <div class="w-[200px] flex-shrink-0 flex justify-center">${qHtml}</div>
+            <div class="w-28 text-center flex-shrink-0">
+              ${m.status === 'finished' && tip.prediction
+                ? `<div class="flex flex-col items-center gap-0.5">
+                    <span class="text-[9px] text-gray-500 leading-tight">${tip.prediction}</span>
+                    <span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label} ${tip.correct ? '✓' : '✗'}</span>
+                  </div>`
+                : m.status === 'finished' && tip.result
+                  ? `<div class="flex flex-col items-center gap-0.5">
+                      <span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>
+                      <span class="text-[9px] text-gray-500">${tip.result}</span>
+                    </div>`
+                  : `<span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
+              }
+            </div>
+            <div class="w-10 text-center flex-shrink-0">
+              <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-gray-600 inline-block"></i>
+            </div>
+          </div>
+          ${isExpanded ? renderExpandedPanel(m) : ''}
+        </div>`;
+    }
+  }
+  return html;
+}
+
+/* ========== 展開面板 ========== */
+function renderExpandedPanel(m) {
+  const analysis = generateAnalysis(m);
+  const homeForm = generateForm(m.home);
+  const awayForm = generateForm(m.away);
+  const rec = m.record || {};
+  const odds = m.odds || {};
+  const hasRealData = m.source === 'playsport' && (rec.homeRecord || rec.awayRecord);
+
+  // playsport.cc 連結
+  const psLeagues = PS_LEAGUES[currentSport] || [];
+  const psId = psLeagues.length > 0 ? psLeagues[0].psId : '3';
+  const gd = currentDate.replace(/-/g, '');
+  const psLink = `https://www.playsport.cc/livescore/${psId}?gamedate=${gd}`;
+
+  return `
+    <div class="border-t border-gray-800/60 px-4 py-4 space-y-4 anim-slide">
+      <!-- 快速資訊列 -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-[10px] text-gray-500">� ${m.date} ${m.time || ''}</span>
+        ${odds.spread ? `<span class="text-[10px] px-2 py-0.5 bg-amber-900/20 text-amber-400 rounded border border-amber-800/30">讓分 ${odds.spread}</span>` : ''}
+        ${m.teamCodes ? `<span class="text-[10px] text-gray-600">${m.teamCodes}</span>` : ''}
+        <button onclick="event.stopPropagation();openAIModal('${m.id}')" class="ml-auto flex items-center gap-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[11px] font-bold rounded-lg border border-emerald-800/40 transition-all">
+          <i data-lucide="sparkles" class="w-3 h-3"></i> 詳細 AI 分析
+        </button>
+        <a href="${psLink}" target="_blank" onclick="event.stopPropagation()" class="flex items-center gap-1 px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-[11px] font-bold rounded-lg border border-blue-800/30 transition-all">
+          <i data-lucide="external-link" class="w-3 h-3"></i> 玩運彩
+        </a>
+      </div>
+
+      ${hasRealData ? `
+      <!-- 真實戰績資料（來自 playsport.cc） -->
+      <div class="bg-[#0d1117] rounded-lg border border-gray-800/40 overflow-hidden">
+        <table class="w-full text-[11px]">
+          <thead>
+            <tr class="border-b border-gray-800/40">
+              <th class="py-1.5 px-2 text-left text-gray-500 font-normal">${t(m.away)}</th>
+              <th class="py-1.5 px-2 text-center text-gray-500 font-normal">數據</th>
+              <th class="py-1.5 px-2 text-right text-gray-500 font-normal">${t(m.home)}</th>
+            </tr>
+          </thead>
+          <tbody class="text-gray-300">
+            ${rec.awayRecord || rec.homeRecord ? `<tr class="border-b border-gray-800/20"><td class="py-1 px-2">${rec.awayRecord || '—'}</td><td class="py-1 px-2 text-center text-gray-500">戰績</td><td class="py-1 px-2 text-right">${rec.homeRecord || '—'}</td></tr>` : ''}
+            ${rec.awayRecent || rec.homeRecent ? `<tr class="border-b border-gray-800/20"><td class="py-1 px-2">${rec.awayRecent || '—'}</td><td class="py-1 px-2 text-center text-gray-500">近十場</td><td class="py-1 px-2 text-right">${rec.homeRecent || '—'}</td></tr>` : ''}
+            ${rec.awayH2H || rec.homeH2H ? `<tr class="border-b border-gray-800/20"><td class="py-1 px-2">${rec.awayH2H || '—'}</td><td class="py-1 px-2 text-center text-gray-500">對戰紀錄</td><td class="py-1 px-2 text-right">${rec.homeH2H || '—'}</td></tr>` : ''}
+            ${rec.awayAvg || rec.homeAvg ? `<tr><td class="py-1 px-2">${rec.awayAvg || '—'}</td><td class="py-1 px-2 text-center text-gray-500">平均得/失分</td><td class="py-1 px-2 text-right">${rec.homeAvg || '—'}</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
+      <!-- AI 勝率 -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="bg-[#0d1117] rounded-lg p-3 text-center border border-gray-800/40">
+          <p class="text-[10px] text-gray-500">主勝</p>
+          <p class="text-lg font-black ${analysis.homeWin > 45 ? 'text-emerald-400' : 'text-gray-400'}">${analysis.homeWin}%</p>
+          <div class="mt-1 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-emerald-500/60 rounded-full" style="width:${analysis.homeWin}%"></div></div>
+        </div>
+        <div class="bg-[#0d1117] rounded-lg p-3 text-center border border-gray-800/40">
+          <p class="text-[10px] text-gray-500">${currentSport === 'basketball' ? '—' : '平局'}</p>
+          <p class="text-lg font-black text-yellow-400">${analysis.draw}%</p>
+          <div class="mt-1 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-yellow-500/60 rounded-full" style="width:${analysis.draw}%"></div></div>
+        </div>
+        <div class="bg-[#0d1117] rounded-lg p-3 text-center border border-gray-800/40">
+          <p class="text-[10px] text-gray-500">客勝</p>
+          <p class="text-lg font-black ${analysis.awayWin > 45 ? 'text-blue-400' : 'text-gray-400'}">${analysis.awayWin}%</p>
+          <div class="mt-1 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500/60 rounded-full" style="width:${analysis.awayWin}%"></div></div>
+        </div>
+      </div>
+
+      <!-- 近期戰績 -->
+      <div class="flex gap-6">
+        <div>
+          <p class="text-[10px] text-gray-500 mb-1.5">${t(m.home)} 近 5 場</p>
+          <div class="flex gap-1">${homeForm.map(f => formBadge(f)).join('')}</div>
+        </div>
+        <div>
+          <p class="text-[10px] text-gray-500 mb-1.5">${t(m.away)} 近 5 場</p>
+          <div class="flex gap-1">${awayForm.map(f => formBadge(f)).join('')}</div>
+        </div>
+      </div>
+
+      <!-- 分析建議 -->
+      <div class="bg-[#0d1117] rounded-lg p-3 border border-emerald-900/20">
+        <p class="text-[10px] text-emerald-400 font-bold mb-2">📊 AI 賽前分析</p>
+        <div class="text-xs text-gray-300 leading-relaxed space-y-1.5">${analysis.suggestion.split('\n').map(line =>
+          line.startsWith('【') ? `<p class="text-emerald-500/80 font-bold mt-2">${line}</p>`
+          : line.startsWith('📌') ? `<p class="text-amber-400 font-bold mt-2 pt-2 border-t border-gray-800/40">${line}</p>`
+          : `<p>${line}</p>`
+        ).join('')}</div>
+      </div>
+    </div>`;
+}
+
+function toggleExpand(id) {
+  expandedId = expandedId === id ? null : id;
+  renderMatchList();
+}
+
+/* ========== AI 分析彈窗 ========== */
+function openAIModal(id) {
+  const m = allMatches.find(x => x.id === id);
+  if (!m) return;
+  const analysis = generateAnalysis(m);
+  const homeForm = generateForm(m.home);
+  const awayForm = generateForm(m.away);
+  const seed = hashCode(m.home + m.away + 'h2h');
+  const h2h = [];
+  for (let i = 0; i < 5; i++) {
+    const hs = (seed >> (i*4)) % (currentSport === 'basketball' ? 30 : 4) + (currentSport === 'basketball' ? 90 : 0);
+    const as = (seed >> (i*4+2)) % (currentSport === 'basketball' ? 30 : 4) + (currentSport === 'basketball' ? 90 : 0);
+    h2h.push({ hs, as, date: `${2025-i}-${String(1+(seed>>i)%12).padStart(2,'0')}-${String(1+(seed>>(i+1))%28).padStart(2,'0')}` });
+  }
+
+  document.getElementById('ai-modal-body').innerHTML = `
+    <!-- 對戰標題 -->
+    <div class="flex items-center justify-around text-center py-2">
+      <div class="space-y-1">
+        ${m.homeBadge ? `<img src="${m.homeBadge}" class="w-10 h-10 mx-auto object-contain" onerror="this.style.display='none'"/>` : ''}
+        <p class="text-sm font-black text-white">${t(m.home)}</p>
+      </div>
+      <div>
+        ${m.homeScore !== null ? `<p class="text-2xl font-black ${m.status==='live'?'text-red-400':'text-white'}">${m.homeScore} : ${m.awayScore}</p>` : '<p class="text-lg text-gray-500 font-bold">VS</p>'}
+        <p class="text-[10px] text-gray-600">${m.date} ${m.time?m.time.slice(0,5):''}</p>
+      </div>
+      <div class="space-y-1">
+        ${m.awayBadge ? `<img src="${m.awayBadge}" class="w-10 h-10 mx-auto object-contain" onerror="this.style.display='none'"/>` : ''}
+        <p class="text-sm font-black text-white">${t(m.away)}</p>
+      </div>
+    </div>
+
+    <!-- 勝率 -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">主勝</p><p class="text-2xl font-black ${analysis.homeWin>45?'text-emerald-400':'text-gray-400'}">${analysis.homeWin}%</p></div>
+      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">${currentSport==='basketball'?'—':'平局'}</p><p class="text-2xl font-black text-yellow-400">${analysis.draw}%</p></div>
+      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">客勝</p><p class="text-2xl font-black ${analysis.awayWin>45?'text-blue-400':'text-gray-400'}">${analysis.awayWin}%</p></div>
+    </div>
+
+    <!-- 信心 + 分析 -->
+    <div class="bg-[#0d1117] rounded-lg p-4 border border-gray-800/40">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="text-center flex-shrink-0"><p class="text-[10px] text-gray-500">信心指數</p><p class="text-xl font-black ${analysis.confidence>=70?'text-emerald-400':analysis.confidence>=50?'text-yellow-400':'text-orange-400'}">${analysis.confidence}%</p></div>
+        <div class="h-10 w-px bg-gray-700/50"></div>
+        <p class="text-[10px] text-emerald-400 font-bold">📊 AI 賽前分析</p>
+      </div>
+      <div class="text-xs text-gray-300 leading-relaxed space-y-1.5">${analysis.suggestion.split('\n').map(line =>
+        line.startsWith('【') ? `<p class="text-emerald-500/80 font-bold mt-2">${line}</p>`
+        : line.startsWith('📌') ? `<p class="text-amber-400 font-bold mt-2 pt-2 border-t border-gray-800/40">${line}</p>`
+        : `<p>${line}</p>`
+      ).join('')}</div>
+    </div>
+
+    <!-- 近期戰績 -->
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-[10px] text-gray-500 mb-2">${t(m.home)} 近 5 場</p><div class="flex gap-1.5">${homeForm.map(f=>formBadge(f)).join('')}</div></div>
+      <div><p class="text-[10px] text-gray-500 mb-2">${t(m.away)} 近 5 場</p><div class="flex gap-1.5">${awayForm.map(f=>formBadge(f)).join('')}</div></div>
+    </div>
+
+    <!-- 交鋒記錄 -->
+    <div>
+      <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">歷史交鋒 (近 5 場)</p>
+      <div class="space-y-1.5">
+        ${h2h.map(r => `<div class="flex items-center justify-between bg-[#0d1117] rounded-lg px-3 py-2">
+          <span class="text-[10px] text-gray-600 w-20">${r.date}</span>
+          <span class="text-xs font-bold ${r.hs>r.as?'text-emerald-400':'text-gray-400'}">${t(m.home)}</span>
+          <span class="text-sm font-black text-white">${r.hs} : ${r.as}</span>
+          <span class="text-xs font-bold ${r.as>r.hs?'text-blue-400':'text-gray-400'}">${t(m.away)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
+  const modal = document.getElementById('ai-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeModal() {
+  const modal = document.getElementById('ai-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+/* ========== AI 分析引擎 ========== */
+function parseRecord(str) {
+  // 解析多種格式："30勝25敗" / "33 - 19" / "客12 - 13" / "1-1" / "8 - 2 , 5連勝"
+  if (!str) return null;
+  // 格式1: X勝Y敗
+  let m = str.match(/(\d+)\s*勝\s*(\d+)\s*敗/);
+  if (m) { const w=parseInt(m[1]),l=parseInt(m[2]); return { w, l, total:w+l, pct:(w/(w+l)*100).toFixed(1) }; }
+  // 格式2: X - Y（可能前面有「主」「客」等字）
+  m = str.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (m) { const w=parseInt(m[1]),l=parseInt(m[2]); return { w, l, total:w+l, pct: (w+l)>0?(w/(w+l)*100).toFixed(1):'0' }; }
+  return null;
+}
+
+function parseAvgScore(str) {
+  // 解析 "113.5 / 108.2" 格式（得分/失分）
+  if (!str) return null;
+  const m = str.match(/([\d.]+)\s*\/\s*([\d.]+)/);
+  if (m) return { scored: parseFloat(m[1]), allowed: parseFloat(m[2]) };
+  return null;
+}
+
+function generateAnalysis(m) {
+  const isBball = currentSport === 'basketball';
+  let homeWin = 45, draw = isBball ? 0 : 25, awayWin = isBball ? 55 : 30;
+  let confidence = 50, totalGoals = '2-3';
+  const rec = m.record || {};
+  const odds = m.odds || {};
+  const spread = parseFloat(odds.spread);
+  const hasSpread = !isNaN(spread) && spread !== 0;
+  const homeName = t(m.home), awayName = t(m.away);
+
+  // 解析戰績數據
+  const homeRec = parseRecord(rec.homeRecord);
+  const awayRec = parseRecord(rec.awayRecord);
+  const homeRecent = parseRecord(rec.homeRecent);
+  const awayRecent = parseRecord(rec.awayRecent);
+  const homeAvg = parseAvgScore(rec.homeAvg);
+  const awayAvg = parseAvgScore(rec.awayAvg);
+  const homeHA = parseRecord(rec.homeHomeAway);
+  const awayHA = parseRecord(rec.awayHomeAway);
+
+  // ===== 已結束 =====
+  if (m.status === 'finished' && m.homeScore !== null && m.awayScore !== null) {
+    const hs = parseInt(m.homeScore), as = parseInt(m.awayScore);
+    const diff = hs - as;
+    const winner = diff > 0 ? homeName : awayName;
+    const loser = diff > 0 ? awayName : homeName;
+    const margin = Math.abs(diff);
+
+    let lines = [];
+    lines.push(`本場比賽由 ${winner} 以 ${Math.max(hs,as)}:${Math.min(hs,as)} 擊敗 ${loser}，${margin >= 15 ? '大幅領先取得壓倒性勝利' : margin >= 8 ? '穩定發揮拉開差距' : '雙方纏鬥至終場'}。`);
+
+    if (hasSpread) {
+      const favTeam = spread > 0 ? homeName : awayName;
+      const absSpread = Math.abs(spread);
+      const covered = spread > 0 ? (diff > spread) : (diff < spread);
+      lines.push(`盤口方面，${favTeam} 讓 ${absSpread} 分，${covered ? '成功過盤' : '未能過盤'}。`);
+    }
+
+    homeWin = diff > 0 ? 70 : 25;
+    awayWin = isBball ? (100 - homeWin) : (diff < 0 ? 60 : 20);
+    draw = isBball ? 0 : (100 - homeWin - awayWin);
+    confidence = 90;
+    const total = homeWin + draw + awayWin;
+    homeWin = Math.round(homeWin/total*100); awayWin = Math.round(awayWin/total*100); draw = 100-homeWin-awayWin;
+    return { homeWin, draw, awayWin, suggestion: lines.join(''), totalGoals, confidence };
+  }
+
+  // ===== 進行中 =====
+  if (m.status === 'live') {
+    const hs = parseInt(m.homeScore||0), as = parseInt(m.awayScore||0);
+    const diff = hs - as;
+    let lines = [];
+    if (diff > 0) lines.push(`比賽進行中，${homeName} 以 ${hs}:${as} 領先 ${Math.abs(diff)} 分，掌握場上主動權。`);
+    else if (diff < 0) lines.push(`比賽進行中，${awayName} 以 ${as}:${hs} 領先 ${Math.abs(diff)} 分，客場表現強勢。`);
+    else lines.push(`比賽進行中，雙方 ${hs}:${as} 戰成平手，比賽膠著。`);
+    homeWin = diff > 0 ? 62 : diff < 0 ? 35 : 48;
+    awayWin = isBball ? (100 - homeWin) : (diff < 0 ? 55 : 30);
+    draw = isBball ? 0 : (100 - homeWin - awayWin);
+    confidence = 55;
+    const total = homeWin + draw + awayWin;
+    homeWin = Math.round(homeWin/total*100); awayWin = Math.round(awayWin/total*100); draw = 100-homeWin-awayWin;
+    return { homeWin, draw, awayWin, suggestion: lines.join(''), totalGoals, confidence };
+  }
+
+  // ===== 賽前分析（核心） =====
+  let lines = [];
+  let homeAdj = 0, awayAdj = 0;
+
+  // 1. 整體戰績分析
+  if (homeRec && awayRec) {
+    const hPct = parseFloat(homeRec.pct), aPct = parseFloat(awayRec.pct);
+    lines.push(`【整體戰績】${homeName}（${homeRec.w}勝${homeRec.l}敗，勝率 ${hPct}%）vs ${awayName}（${awayRec.w}勝${awayRec.l}敗，勝率 ${aPct}%）。`);
+    if (hPct - aPct > 15) { lines.push(`${homeName} 整體戰績明顯優於對手，具備較強的陣容深度與穩定性。`); homeAdj += 8; }
+    else if (aPct - hPct > 15) { lines.push(`${awayName} 本季表現更為出色，整體實力佔優。`); awayAdj += 8; }
+    else { lines.push(`兩隊本季戰績相近，實力在伯仲之間。`); }
+  }
+
+  // 2. 近況分析
+  if (homeRecent && awayRecent) {
+    const hR = parseInt(homeRecent.w), aR = parseInt(awayRecent.w);
+    lines.push(`【近期狀態】${homeName} 近十場 ${homeRecent.w}勝${homeRecent.l}敗；${awayName} 近十場 ${awayRecent.w}勝${awayRecent.l}敗。`);
+    if (hR >= 7) { lines.push(`${homeName} 近期手感火燙，處於連勝節奏中。`); homeAdj += 5; }
+    else if (hR <= 3) { lines.push(`${homeName} 近況低迷，需留意狀態調整。`); awayAdj += 3; }
+    if (aR >= 7) { lines.push(`${awayName} 近期狀態極佳，客場作戰信心充足。`); awayAdj += 5; }
+    else if (aR <= 3) { lines.push(`${awayName} 近期表現不穩，客場挑戰難度加大。`); homeAdj += 3; }
+  }
+
+  // 3. 主客場戰績
+  if (homeHA && awayHA) {
+    lines.push(`【主客場】${homeName} 主場 ${homeHA.w}勝${homeHA.l}敗；${awayName} 客場 ${awayHA.w}勝${awayHA.l}敗。`);
+    const hHA = parseFloat(homeHA.pct), aHA = parseFloat(awayHA.pct);
+    if (hHA > 60) { lines.push(`${homeName} 主場勝率突出，主場龍優勢不容忽視。`); homeAdj += 4; }
+    if (aHA < 40) { lines.push(`${awayName} 客場戰績不佳，客場蟲劣勢明顯。`); homeAdj += 3; }
+    else if (aHA > 55) { lines.push(`${awayName} 客場表現穩健，具備客場搶分能力。`); awayAdj += 3; }
+  }
+
+  // 4. 得失分分析
+  if (homeAvg && awayAvg) {
+    lines.push(`【攻防數據】${homeName} 場均得 ${homeAvg.scored} 失 ${homeAvg.allowed} 分；${awayName} 場均得 ${awayAvg.scored} 失 ${awayAvg.allowed} 分。`);
+    const hNet = homeAvg.scored - homeAvg.allowed;
+    const aNet = awayAvg.scored - awayAvg.allowed;
+    if (hNet > 5 && aNet < -3) lines.push(`${homeName} 攻守兩端均佔優勢，淨勝分差距顯著。`);
+    else if (aNet > 5 && hNet < -3) lines.push(`${awayName} 攻防效率更高，數據面具有明顯優勢。`);
+    else if (homeAvg.scored > awayAvg.scored + 5) lines.push(`${homeName} 進攻火力更強，場均得分領先對手。`);
+    else if (awayAvg.scored > homeAvg.scored + 5) lines.push(`${awayName} 進攻端更具威脅，得分能力佔優。`);
+
+    if (isBball) {
+      const expectedTotal = (homeAvg.scored + awayAvg.scored + homeAvg.allowed + awayAvg.allowed) / 2;
+      if (expectedTotal > 225) lines.push(`預計本場節奏偏快，大分機率較高（預估總分 ${expectedTotal.toFixed(0)} 分上下）。`);
+      else if (expectedTotal < 210) lines.push(`雙方防守強度較高，小分值得關注（預估總分 ${expectedTotal.toFixed(0)} 分上下）。`);
+    }
+  }
+
+  // 5. 盤口分析
+  if (hasSpread) {
+    const favTeam = spread > 0 ? homeName : awayName;
+    const dogTeam = spread > 0 ? awayName : homeName;
+    const absSpread = Math.abs(spread);
+    lines.push(`【盤口解讀】本場開出 ${favTeam} 讓 ${absSpread} 分，`);
+    if (absSpread >= 10) lines[lines.length-1] += `讓分幅度較大，盤口看好 ${favTeam} 大勝。建議留意 ${dogTeam} 是否具備爆冷實力。`;
+    else if (absSpread >= 5) lines[lines.length-1] += `屬於中等讓分，${favTeam} 被看好但需穩定發揮方能過盤。`;
+    else lines[lines.length-1] += `讓分較小，反映兩隊實力差距不大，比賽懸念較高。`;
+
+    if (spread > 0) homeAdj += Math.min(10, absSpread);
+    else awayAdj += Math.min(10, absSpread);
+  }
+
+  // 6. 對戰紀錄
+  if (rec.homeH2H || rec.awayH2H) {
+    const h2hHome = parseRecord(rec.homeH2H);
+    const h2hAway = parseRecord(rec.awayH2H);
+    if (h2hHome && h2hAway) {
+      lines.push(`【歷史交鋒】${homeName} ${h2hHome.w}勝${h2hHome.l}敗 vs ${awayName} ${h2hAway.w}勝${h2hAway.l}敗。`);
+      if (h2hHome.w > h2hAway.w + 2) { lines.push(`${homeName} 在歷史對戰中佔據心理優勢。`); homeAdj += 3; }
+      else if (h2hAway.w > h2hHome.w + 2) { lines.push(`${awayName} 在交手紀錄中更勝一籌。`); awayAdj += 3; }
+    }
+  }
+
+  // 如果沒有任何真實數據，給出基本分析
+  if (lines.length === 0) {
+    const seed = hashCode(m.home + m.away + m.date);
+    const adj = (seed % 20) - 10;
+    homeAdj += adj > 0 ? adj : 0;
+    awayAdj += adj < 0 ? -adj : 0;
+    lines.push(`本場比賽 ${homeName}（主）迎戰 ${awayName}（客），主隊擁有主場優勢。`);
+    lines.push(`建議關注兩隊近期傷病動態與輪休情況，作為投注參考依據。`);
+  }
+
+  // 7. 總結建議
+  const totalAdj = homeAdj - awayAdj;
+  if (totalAdj > 10) lines.push(`📌 綜合評估：${homeName} 各項數據全面佔優，本場值得看好主勝方向。`);
+  else if (totalAdj > 4) lines.push(`📌 綜合評估：${homeName} 略佔優勢，可適度關注主勝，但需注意客隊反撲能力。`);
+  else if (totalAdj < -10) lines.push(`📌 綜合評估：${awayName} 綜合實力更強，客勝方向值得重點關注。`);
+  else if (totalAdj < -4) lines.push(`📌 綜合評估：${awayName} 稍佔上風，客場搶分機會較大。`);
+  else lines.push(`📌 綜合評估：兩隊勢均力敵，比賽充滿變數，建議謹慎操作或觀望。`);
+
+  // 計算勝率
+  homeWin = 45 + homeAdj - awayAdj / 2;
+  awayWin = 45 + awayAdj - homeAdj / 2;
+  homeWin = Math.max(15, Math.min(80, homeWin));
+  awayWin = Math.max(15, Math.min(80, awayWin));
+  if (isBball) { draw = 0; const t2 = homeWin + awayWin; homeWin = Math.round(homeWin/t2*100); awayWin = 100 - homeWin; }
+  else { draw = Math.max(5, 100 - homeWin - awayWin); const t2 = homeWin + draw + awayWin; homeWin = Math.round(homeWin/t2*100); awayWin = Math.round(awayWin/t2*100); draw = 100-homeWin-awayWin; }
+  confidence = Math.min(85, Math.max(40, 50 + Math.abs(totalAdj) * 2));
+
+  return { homeWin, draw, awayWin, suggestion: lines.join('\n'), totalGoals, confidence };
+}
+
+function generateForm(teamName) {
+  const seed = hashCode(teamName);
+  return Array.from({length:5}, (_,i) => { const v = (seed >> (i*3)) % 3; return v===0?'W':v===1?'D':'L'; });
+}
+
+function formBadge(f) {
+  if (f==='W') return '<span class="w-6 h-6 rounded bg-emerald-600/30 text-emerald-400 flex items-center justify-center text-[10px] font-black border border-emerald-700/40">W</span>';
+  if (f==='D') return '<span class="w-6 h-6 rounded bg-yellow-600/20 text-yellow-400 flex items-center justify-center text-[10px] font-black border border-yellow-700/30">D</span>';
+  return '<span class="w-6 h-6 rounded bg-red-600/20 text-red-400 flex items-center justify-center text-[10px] font-black border border-red-700/30">L</span>';
+}
+
+/* ========== 切換 ========== */
+function switchSport(sport) {
+  currentSport = sport;
+  currentLeague = 'all';
+  expandedId = null;
+  dateAvailCache = {}; // 切換運動時清除日期快取
+  ['basketball','baseball','soccer','hockey','tennis'].forEach(s => {
+    const el = document.getElementById('tab-'+s);
+    if (el) { el.classList.toggle('active', s===sport); }
+  });
+  fetchAllData();
+  checkDateAvailability(); // 重新檢查日期可用性
+}
+
+function setLeague(id) {
+  currentLeague = id;
+  renderLeagueTabs();
+  renderMatchList();
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  ['all','live','upcoming','finished','postponed'].forEach(f => {
+    const el = document.getElementById('f-'+f);
+    if (el) el.classList.toggle('active', f===filter);
+  });
+  renderMatchList();
+}
+
+function setDate(d) {
+  currentDate = d;
+  renderDateTabs();
+  // playsport 資料是按日期爬取的，切換日期需要重新爬取
+  fetchAllData();
+}
+
+/* ========== 初始化 ========== */
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.lucide) window.lucide.createIcons();
+  renderDateTabs();
+  fetchAllData();
+  checkDateAvailability(); // 檢查昨天/今天/明天是否有賽事
+});
+</script>
+</body>
+</html>

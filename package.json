@@ -1,0 +1,12 @@
+{
+  "name": "sportiq-proxy",
+  "version": "1.0.0",
+  "description": "SPORTIQ Proxy Server - 體育即時比分爬取代理",
+  "main": "proxy-server.js",
+  "scripts": {
+    "start": "node proxy-server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
