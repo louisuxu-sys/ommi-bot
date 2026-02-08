@@ -228,9 +228,12 @@ function parseScoresFromLiveHTML(html) {
     }
 
     // 取得節比分（Q1~Q4 + OT）
+    // playsport.cc 有兩種 ID 格式：_as1/_hs1 或 _a1/_h1
     for (let q = 1; q <= 8; q++) {
-      const aq = html.match(new RegExp(`id="${gameId}_a${q}"[^>]*>(\\d+)<`));
-      const hq = html.match(new RegExp(`id="${gameId}_h${q}"[^>]*>(\\d+)<`));
+      const aq = html.match(new RegExp(`id="${gameId}_as${q}"[^>]*>(\\d+)<`))
+              || html.match(new RegExp(`id="${gameId}_a${q}"[^>]*>(\\d+)<`));
+      const hq = html.match(new RegExp(`id="${gameId}_hs${q}"[^>]*>(\\d+)<`))
+              || html.match(new RegExp(`id="${gameId}_h${q}"[^>]*>(\\d+)<`));
       if (aq) quarterScores.away.push(parseInt(aq[1]));
       if (hq) quarterScores.home.push(parseInt(hq[1]));
     }
