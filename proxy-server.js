@@ -241,11 +241,14 @@ function parseScoresFromLiveHTML(html) {
     const gbLiveEnd = html.indexOf('<!--outer-gamebox-->', gbLiveStart);
     const gbLiveHtml = (gbLiveStart > -1 && gbLiveEnd > -1) ? html.substring(gbLiveStart, gbLiveEnd) : '';
 
-    if (gbLiveHtml.includes('gamebox-end') && !gbLiveHtml.includes('gamebox-notend')) {
-      status = 'finished';
-    } else if (awayScore !== null && homeScore !== null) {
-      // 有比分但不是 gamebox-end → 進行中
-      status = 'live';
+    if (awayScore !== null && homeScore !== null) {
+      if (gbLiveHtml.includes('gamebox-notend')) {
+        // gamebox-notend + 有比分 = 比賽進行中
+        status = 'live';
+      } else {
+        // 有比分但沒有 gamebox-notend = 已結束
+        status = 'finished';
+      }
     }
 
     scoreData[gameId] = {
