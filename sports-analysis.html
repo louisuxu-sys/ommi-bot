@@ -1270,10 +1270,12 @@ function renderRows(list) {
             <div class="w-14 text-center flex-shrink-0 text-[11px] text-gray-500 col-time">${m.time ? m.time.slice(0,5) : '—'}</div>
             <div class="flex-1 pl-2 min-w-0">
               <div class="flex items-center gap-1.5 mb-0.5">
+                <span class="text-[9px] font-bold text-red-400 bg-red-900/20 px-1 py-0.5 rounded leading-none flex-shrink-0">主</span>
                 ${hBadge}
                 <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.homeScore) > parseInt(m.awayScore) ? 'text-white' : 'text-gray-300'}">${t(m.home)}</span>
               </div>
               <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-bold text-blue-400 bg-blue-900/20 px-1 py-0.5 rounded leading-none flex-shrink-0">客</span>
                 ${aBadge}
                 <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.awayScore) > parseInt(m.homeScore) ? 'text-white' : 'text-gray-300'}">${t(m.away)}</span>
               </div>
