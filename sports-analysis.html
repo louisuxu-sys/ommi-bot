@@ -138,8 +138,8 @@
   <header style="background:#010409;border-bottom:1px solid #21262d" class="flex items-center justify-between px-5 h-12 flex-shrink-0">
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-2">
-        <span class="text-lg">🏆</span>
-        <span class="text-sm font-black text-white tracking-wider">SPORTIQ</span>
+        <span class="text-2xl">🏆</span>
+        <span class="text-lg font-black text-white tracking-wider">SPORTIQ</span>
         <span class="text-[9px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">LIVE</span>
       </div>
       <span class="text-[10px] text-gray-600 ml-2 header-subtitle">體育即時比分 · AI 智能分析</span>
@@ -1092,7 +1092,18 @@ function getAITip(m) {
     const absSpread = Math.abs(spread);
     return { label: `${favTeam} 讓${absSpread}`, color: spread > 0 ? 'text-emerald-400' : 'text-blue-400', bg: spread > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20' };
   }
-  return { label: '待定', color: 'text-gray-500', bg: 'bg-gray-800/30' };
+
+  // 沒有盤口資料時，用 AI 分析引擎做基本預測
+  try {
+    const analysis = generateAnalysis(m);
+    if (analysis.homeWin > analysis.awayWin + 10) {
+      return { label: `看好 ${homeName}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
+    } else if (analysis.awayWin > analysis.homeWin + 10) {
+      return { label: `看好 ${awayName}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
+    }
+    return { label: '勢均力敵', color: 'text-yellow-400', bg: 'bg-yellow-900/20' };
+  } catch(e) {}
+  return { label: '分析中', color: 'text-gray-500', bg: 'bg-gray-800/30' };
 }
 
 /* ========== 渲染賽事列表 ========== */
