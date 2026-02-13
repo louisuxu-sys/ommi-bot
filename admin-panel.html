@@ -29,7 +29,7 @@
       .pw-modal-box { width: 92vw !important; max-width: 92vw !important; margin: 8px; }
     }
     @media (max-width: 480px) {
-      .stat-grid { grid-template-columns: 1fr 1fr 1fr !important; gap: 6px !important; }
+      .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
       .stat-grid .text-2xl { font-size: 18px !important; }
       .user-info .text-sm { font-size: 12px !important; }
       .user-info .flex.items-center.gap-2 { flex-wrap: wrap; gap: 4px !important; }
@@ -60,10 +60,14 @@
   <!-- 主內容 -->
   <div class="main-content flex-1 overflow-y-auto px-5 py-6 max-w-4xl mx-auto w-full">
     <!-- 統計卡片 -->
-    <div class="stat-grid grid grid-cols-3 gap-4 mb-6">
+    <div class="stat-grid grid grid-cols-4 gap-4 mb-6">
       <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
         <p class="text-[10px] text-gray-500 mb-1">總用戶</p>
         <p class="text-2xl font-black text-white" id="stat-total">0</p>
+      </div>
+      <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
+        <p class="text-[10px] text-gray-500 mb-1">待審核</p>
+        <p class="text-2xl font-black text-amber-400" id="stat-pending">0</p>
       </div>
       <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
         <p class="text-[10px] text-gray-500 mb-1">已開通</p>
@@ -186,17 +190,44 @@ async function loadUsers() {
 function renderUsers(users) {
   const container = document.getElementById('user-list');
   // 統計
+  const pending = users.filter(u => !u.active && u.note && u.note.includes('自助註冊'));
+  const activeUsers = users.filter(u => u.active);
+  const inactive = users.filter(u => !u.active && !(u.note && u.note.includes('自助註冊')));
   document.getElementById('stat-total').textContent = users.length;
-  document.getElementById('stat-active').textContent = users.filter(u => u.active).length;
-  document.getElementById('stat-inactive').textContent = users.filter(u => !u.active).length;
+  document.getElementById('stat-pending').textContent = pending.length;
+  document.getElementById('stat-active').textContent = activeUsers.length;
+  document.getElementById('stat-inactive').textContent = inactive.length;
 
   if (users.length === 0) {
     container.innerHTML = '<div class="p-8 text-center text-gray-600 text-sm">沒有用戶</div>';
     return;
   }
 
-  container.innerHTML = users.map(u => `
-    <div class="user-row flex items-center gap-4 px-5 py-3 hover:bg-[#1c2333] transition-colors">
+  // 排序：待審核 > 已開通 > admin > 已停用
+  const sorted = [...users].sort((a, b) => {
+    const isPendingA = !a.active && a.note && a.note.includes('自助註冊') ? 0 : 1;
+    const isPendingB = !b.active && b.note && b.note.includes('自助註冊') ? 0 : 1;
+    if (isPendingA !== isPendingB) return isPendingA - isPendingB;
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    if (a.role === 'admin') return -1;
+    if (b.role === 'admin') return 1;
+    return 0;
+  });
+
+  container.innerHTML = sorted.map(u => {
+    const isPending = !u.active && u.note && u.note.includes('自助註冊');
+    const statusBadge = u.active
+      ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-600/20 text-emerald-400 border border-emerald-700/30">✓ 已開通</span>'
+      : isPending
+        ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-600/20 text-amber-400 border border-amber-700/30 animate-pulse">⏳ 待審核</span>'
+        : '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-red-600/20 text-red-400 border border-red-700/30">✗ 已停用</span>';
+    const rowBorder = isPending ? 'border-l-2 border-l-amber-500' : '';
+    const toggleLabel = u.active ? '停用' : isPending ? '✓ 審核通過' : '開通';
+    const toggleClass = u.active
+      ? 'bg-red-600/10 text-red-400 border border-red-800/30 hover:bg-red-600/20'
+      : 'bg-emerald-600/10 text-emerald-400 border border-emerald-800/30 hover:bg-emerald-600/20';
+    return `
+    <div class="user-row flex items-center gap-4 px-5 py-3 hover:bg-[#1c2333] transition-colors ${rowBorder}">
       <div class="user-avatar w-8 h-8 rounded-full flex items-center justify-center text-sm font-black
         ${u.role === 'admin' ? 'bg-purple-600/20 text-purple-400 border border-purple-700/40' : 'bg-blue-600/20 text-blue-400 border border-blue-700/40'}">
         ${u.username.charAt(0).toUpperCase()}
@@ -208,10 +239,7 @@ function renderUsers(users) {
             ${u.role === 'admin' ? 'bg-purple-600/20 text-purple-400 border border-purple-700/30' : 'bg-gray-700/40 text-gray-400 border border-gray-700/30'}">
             ${u.role === 'admin' ? '管理員' : '用戶'}
           </span>
-          <span class="text-[9px] px-1.5 py-0.5 rounded font-bold
-            ${u.active ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-700/30' : 'bg-red-600/20 text-red-400 border border-red-700/30'}">
-            ${u.active ? '✓ 已開通' : '✗ 已停用'}
-          </span>
+          ${statusBadge}
         </div>
         <div class="text-[10px] text-gray-600 mt-0.5">
           建立：${u.createdAt || '—'}${u.note ? ` · ${u.note}` : ''}
@@ -219,9 +247,8 @@ function renderUsers(users) {
       </div>
       <div class="user-actions flex items-center gap-2 flex-shrink-0">
         ${u.username !== 'admin' ? `
-          <button onclick="toggleUser('${u.username}')" class="btn text-[10px] px-3 py-1.5
-            ${u.active ? 'bg-red-600/10 text-red-400 border border-red-800/30 hover:bg-red-600/20' : 'bg-emerald-600/10 text-emerald-400 border border-emerald-800/30 hover:bg-emerald-600/20'}">
-            ${u.active ? '停用' : '開通'}
+          <button onclick="toggleUser('${u.username}')" class="btn text-[10px] px-3 py-1.5 ${toggleClass}">
+            ${toggleLabel}
           </button>
         ` : ''}
         <button onclick="openPwModal('${u.username}')" class="btn text-[10px] px-3 py-1.5 bg-amber-600/10 text-amber-400 border border-amber-800/30 hover:bg-amber-600/20">
@@ -233,8 +260,8 @@ function renderUsers(users) {
           </button>
         ` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   if (window.lucide) window.lucide.createIcons();
 }

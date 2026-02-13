@@ -59,6 +59,44 @@ const server = http.createServer(async (req, res) => {
     return parsed.query.token || null;
   };
 
+  // POST /api/register — 用戶自助註冊（預設待審核）
+  if (parsed.pathname === '/api/register' && req.method === 'POST') {
+    const body = await readBody();
+    if (!body.username || !body.password) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '請填寫帳號和密碼' }));
+    }
+    if (body.username.length < 2 || body.username.length > 20) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號長度需 2-20 個字元' }));
+    }
+    if (body.password.length < 4) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '密碼至少 4 個字元' }));
+    }
+    if (!/^[a-zA-Z0-9_\u4e00-\u9fff]+$/.test(body.username)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號只能包含英文、數字、底線或中文' }));
+    }
+    const users = loadUsers();
+    if (users[body.username]) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已被使用' }));
+    }
+    users[body.username] = {
+      username: body.username,
+      password: body.password,
+      role: 'user',
+      active: false,
+      createdAt: new Date().toISOString().slice(0, 10),
+      note: body.note || '自助註冊',
+    };
+    saveUsers(users);
+    console.log(`[AUTH] 新用戶註冊：${body.username}（待審核）`);
+    res.writeHead(201, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, message: '註冊成功！請等待管理員審核開通。' }));
+  }
+
   // POST /api/login
   if (parsed.pathname === '/api/login' && req.method === 'POST') {
     const body = await readBody();

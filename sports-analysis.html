@@ -90,13 +90,18 @@
 </head>
 <body>
 
-<!-- ===== 登入頁面 ===== -->
+<!-- ===== 登入/註冊頁面 ===== -->
 <div id="login-overlay" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%)">
   <div class="w-full max-w-sm mx-4">
     <div class="text-center mb-8">
       <span class="text-4xl">🏆</span>
       <h1 class="text-2xl font-black text-white mt-3 tracking-wider">SPORTIQ</h1>
       <p class="text-xs text-gray-500 mt-1">體育即時比分 · AI 智能分析</p>
+    </div>
+    <!-- 登入/註冊切換 -->
+    <div class="flex mb-4 bg-[#161b22] rounded-lg border border-gray-800/60 p-1">
+      <button onclick="switchAuthMode('login')" id="auth-tab-login" class="flex-1 py-2 text-xs font-bold rounded-md transition-all bg-emerald-600 text-white">登入</button>
+      <button onclick="switchAuthMode('register')" id="auth-tab-register" class="flex-1 py-2 text-xs font-bold rounded-md transition-all text-gray-500 hover:text-gray-300">註冊</button>
     </div>
     <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-6 space-y-4">
       <div>
@@ -108,15 +113,22 @@
         <label class="text-xs text-gray-500 font-bold mb-1.5 block">密碼</label>
         <input id="login-password" type="password" placeholder="請輸入密碼"
           class="w-full px-3 py-2.5 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 transition-colors"
-          onkeydown="if(event.key==='Enter')doLogin()" />
+          onkeydown="if(event.key==='Enter') authMode==='login' ? doLogin() : doRegister()" />
       </div>
-      <div id="login-error" class="text-xs text-red-400 font-bold hidden"></div>
-      <button onclick="doLogin()" id="login-btn"
+      <!-- 註冊額外欄位 -->
+      <div id="register-fields" style="display:none">
+        <label class="text-xs text-gray-500 font-bold mb-1.5 block">確認密碼</label>
+        <input id="register-confirm" type="password" placeholder="再次輸入密碼"
+          class="w-full px-3 py-2.5 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 transition-colors"
+          onkeydown="if(event.key==='Enter')doRegister()" />
+      </div>
+      <div id="login-error" class="text-xs font-bold hidden"></div>
+      <button onclick="authMode==='login'?doLogin():doRegister()" id="login-btn"
         class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-all">
         登入
       </button>
     </div>
-    <p class="text-[10px] text-gray-700 text-center mt-4">需要帳號？請聯繫管理員開通</p>
+    <p id="auth-hint" class="text-[10px] text-gray-700 text-center mt-4">還沒有帳號？點上方「註冊」</p>
   </div>
 </div>
 
@@ -221,6 +233,67 @@ const AUTH_API = (() => {
 })();
 
 let currentUser = null;
+let authMode = 'login'; // 'login' | 'register'
+
+function switchAuthMode(mode) {
+  authMode = mode;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.add('hidden');
+  const btn = document.getElementById('login-btn');
+  const regFields = document.getElementById('register-fields');
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabReg = document.getElementById('auth-tab-register');
+  const hint = document.getElementById('auth-hint');
+  if (mode === 'register') {
+    regFields.style.display = 'block';
+    btn.textContent = '註冊';
+    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-md transition-all text-gray-500 hover:text-gray-300';
+    tabReg.className = 'flex-1 py-2 text-xs font-bold rounded-md transition-all bg-blue-600 text-white';
+    hint.textContent = '已有帳號？點上方「登入」';
+  } else {
+    regFields.style.display = 'none';
+    btn.textContent = '登入';
+    tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-md transition-all bg-emerald-600 text-white';
+    tabReg.className = 'flex-1 py-2 text-xs font-bold rounded-md transition-all text-gray-500 hover:text-gray-300';
+    hint.textContent = '還沒有帳號？點上方「註冊」';
+  }
+  btn.disabled = false;
+}
+
+async function doRegister() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const confirm = document.getElementById('register-confirm').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  errEl.className = 'text-xs font-bold text-red-400';
+  if (!username || !password) { errEl.textContent = '請填寫帳號和密碼'; errEl.classList.remove('hidden'); return; }
+  if (password !== confirm) { errEl.textContent = '兩次密碼不一致'; errEl.classList.remove('hidden'); return; }
+  if (password.length < 4) { errEl.textContent = '密碼至少 4 個字元'; errEl.classList.remove('hidden'); return; }
+  btn.textContent = '註冊中...'; btn.disabled = true;
+  try {
+    const r = await fetch(`${AUTH_API}/api/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.error || '註冊失敗'; errEl.className = 'text-xs font-bold text-red-400'; errEl.classList.remove('hidden'); btn.textContent = '註冊'; btn.disabled = false; return; }
+    // 註冊成功
+    errEl.textContent = '✓ ' + data.message;
+    errEl.className = 'text-xs font-bold text-emerald-400';
+    errEl.classList.remove('hidden');
+    btn.textContent = '註冊成功'; btn.disabled = true;
+    // 2 秒後切回登入
+    setTimeout(() => {
+      switchAuthMode('login');
+      document.getElementById('login-username').value = username;
+      document.getElementById('login-password').value = '';
+    }, 2000);
+  } catch(e) {
+    errEl.textContent = '伺服器連線失敗，請稍後再試'; errEl.className = 'text-xs font-bold text-red-400'; errEl.classList.remove('hidden');
+    btn.textContent = '註冊'; btn.disabled = false;
+  }
+}
 
 async function checkAuth() {
   const token = localStorage.getItem('sportiq_token');
@@ -270,10 +343,7 @@ function doLogout() {
 function showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('main-app').style.display = 'none';
-  const errEl = document.getElementById('login-error');
-  errEl.classList.add('hidden');
-  const btn = document.getElementById('login-btn');
-  btn.textContent = '登入'; btn.disabled = false;
+  switchAuthMode('login');
 }
 
 function showApp() {
