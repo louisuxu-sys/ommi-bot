@@ -455,9 +455,34 @@ const server = http.createServer(async (req, res) => {
       }).on('error', reject);
     });
 
+    // allianceid 對應的運動關鍵字（用來驗證 playsport 回傳的頁面是否正確）
+    const ALLIANCE_SPORT = {
+      '1':'棒球','2':'棒球','6':'棒球','9':'棒球','83':'棒球','114':'棒球',
+      '3':'籃球','7':'籃球','8':'籃球','12':'籃球','16':'籃球','18':'籃球',
+      '89':'籃球','92':'籃球','94':'籃球','97':'籃球','110':'籃球','121':'籃球',
+      '4':'足球',
+      '91':'冰球','87':'冰球',
+      '21':'網球',
+      '93':'美式足球',
+    };
+
     Promise.all([fetchPage(liveUrl), fetchPage(preUrl)])
       .then(([liveHtml, preHtml]) => {
         try {
+          // 驗證 playsport 回傳的頁面是否為正確的運動
+          const expectedSport = ALLIANCE_SPORT[aid];
+          if (expectedSport) {
+            const titleMatch = liveHtml.match(/<title[^>]*>([^<]*)<\/title>/i);
+            const pageTitle = titleMatch ? titleMatch[1] : '';
+            if (pageTitle && !pageTitle.includes(expectedSport)) {
+              console.log(`[PARSE] ⚠ 頁面不匹配：請求 ${expectedSport}(aid=${aid})，收到「${pageTitle.trim()}」→ 返回空結果`);
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.writeHead(200);
+              res.end(JSON.stringify({ success: true, count: 0, games: [], source: 'playsport.cc', date: gd, note: 'sport_mismatch' }));
+              return;
+            }
+          }
+
           // 從 mode=2 取得賽前資料（隊名、戰績、盤口）
           const games = parsePlaySportHTML(preHtml, aid, gd);
           // 從預設模式取得比分和狀態
