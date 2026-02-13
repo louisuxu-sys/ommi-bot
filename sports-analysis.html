@@ -189,13 +189,13 @@
   <!-- ===== 主內容 ===== -->
   <div class="flex-1 overflow-y-auto px-5 py-4 main-content">
     <!-- 表頭 -->
-    <div class="flex items-center text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-2 px-4">
+    <div class="flex items-center text-xs text-gray-600 font-bold uppercase tracking-wider mb-2 px-4">
       <div class="w-16 col-status">狀態</div>
       <div class="w-14 text-center col-time">時間</div>
       <div class="flex-1 pl-4">對戰</div>
       <div class="w-16 text-center col-score">比分</div>
       <div class="w-[200px] text-center col-quarter">節比分</div>
-      <div class="w-20 text-center col-ai">AI 推薦</div>
+      <div class="w-36 text-center col-ai">AI 推薦</div>
       <div class="w-10 col-arrow"></div>
     </div>
 
@@ -1130,9 +1130,9 @@ function getAITip(m) {
     } catch(e) {}
 
     if (pickSpread) {
-      return { label: `讓分 ${favTeam}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
+      return { label: `${favTeam} 讓${absSpread}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
     } else {
-      return { label: `受讓 ${dogTeam}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
+      return { label: `${dogTeam} 受讓${absSpread}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
     }
   }
 
@@ -1160,9 +1160,9 @@ function getAITip(m) {
       const isBball = currentSport === 'basketball';
       const threshold = isBball ? 215 : 2.5;
       if (expectedTotal > threshold * 1.05) {
-        tipLabel += ' · 大分';
+        tipLabel += ` · 大${expectedTotal.toFixed(0)}`;
       } else if (expectedTotal < threshold * 0.95) {
-        tipLabel += ' · 小分';
+        tipLabel += ` · 小${expectedTotal.toFixed(0)}`;
       }
     }
 
@@ -1191,17 +1191,9 @@ function renderMatchList() {
 
   document.getElementById('match-count').textContent = filtered.length;
 
-  // 資料來源標示
-  const srcLabel = dataSource === 'playsport'
-    ? `<span class="text-emerald-400">playsport.cc</span>`
-    : dataSource === 'tsdb'
-      ? `<span class="text-yellow-400">TheSportsDB (備援)</span>`
-      : `<span class="text-red-400">無資料來源</span>`;
-  const srcHtml = `<div class="text-[10px] text-gray-600 text-right mb-2 px-2">資料來源：${srcLabel}</div>`;
-
   if (filtered.length === 0) {
     const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
-    container.innerHTML = srcHtml + `<div class="flex items-center justify-center py-16 text-center">
+    container.innerHTML = `<div class="flex items-center justify-center py-16 text-center">
       <div>
         <p class="text-2xl mb-3">📭</p>
         <p class="text-sm font-bold text-gray-500 mb-1">${fmtDate(currentDate)} ${sportName} 今日無賽事</p>
@@ -1211,7 +1203,7 @@ function renderMatchList() {
     return;
   }
 
-  container.innerHTML = srcHtml + renderRows(filtered);
+  container.innerHTML = renderRows(filtered);
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -1285,18 +1277,18 @@ function renderRows(list) {
             </div>
             <div class="w-16 text-center flex-shrink-0 col-score">${scoreHtml}</div>
             <div class="w-[200px] flex-shrink-0 flex justify-center col-quarter">${qHtml}</div>
-            <div class="w-28 text-center flex-shrink-0 col-ai">
+            <div class="w-36 text-center flex-shrink-0 col-ai">
               ${m.status === 'finished' && tip.prediction
                 ? `<div class="flex flex-col items-center gap-0.5">
-                    <span class="text-[9px] text-gray-500 leading-tight">${tip.prediction}</span>
-                    <span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label} ${tip.correct ? '✓' : '✗'}</span>
+                    <span class="text-[10px] text-gray-500 leading-tight">${tip.prediction}</span>
+                    <span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label} ${tip.correct ? '✓' : '✗'}</span>
                   </div>`
                 : m.status === 'finished' && tip.result
                   ? `<div class="flex flex-col items-center gap-0.5">
-                      <span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>
-                      <span class="text-[9px] text-gray-500">${tip.result}</span>
+                      <span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>
+                      <span class="text-[10px] text-gray-500">${tip.result}</span>
                     </div>`
-                  : `<span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
+                  : `<span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
               }
             </div>
             <div class="w-10 text-center flex-shrink-0 col-arrow">
