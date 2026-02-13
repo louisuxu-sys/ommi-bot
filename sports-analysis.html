@@ -1076,33 +1076,106 @@ function getAITip(m) {
     const hasScore = !isNaN(hs) && !isNaN(as);
     if (!hasScore) return { label: '已結束', color: 'text-gray-500', bg: 'bg-gray-800/30' };
 
-    const diff = hs - as; // 正=主勝, 負=客勝
-    const winTeam = diff > 0 ? homeName : diff < 0 ? awayName : '平局';
-    const winMargin = Math.abs(diff);
+    const scoreDiff = hs - as; // 正=主勝, 負=客勝
+    const winTeam = scoreDiff > 0 ? homeName : scoreDiff < 0 ? awayName : '平局';
+    const winMargin = Math.abs(scoreDiff);
+
+    // 先模擬「賽前預測」—— 用跟 upcoming 一樣的邏輯
+    let prediction = '', isCorrect = false;
 
     if (hasSpread) {
-      // spread > 0：主隊讓分（主隊被看好）; spread < 0：客隊讓分
-      const favTeam = spread > 0 ? homeName : awayName;
       const absSpread = Math.abs(spread);
-      // 讓分後差距
-      const adjustedDiff = diff - spread; // 正=主贏盤, 負=客贏盤 (扣掉讓分)
-      const spreadCover = spread > 0 ? (diff > spread) : (diff < spread);
-      const isCorrect = (spread > 0 && diff > 0) || (spread < 0 && diff < 0);
-      return {
-        label: `${winTeam} 勝`,
-        prediction: `預測 ${favTeam} 讓${absSpread}分`,
-        result: `${winTeam}贏${winMargin}分`,
-        correct: isCorrect,
-        spreadCover: spreadCover,
-        color: isCorrect ? 'text-emerald-400' : 'text-red-400',
-        bg: isCorrect ? 'bg-emerald-900/20' : 'bg-red-900/20'
-      };
+      const favTeam = spread > 0 ? homeName : awayName;
+      const dogTeam = spread > 0 ? awayName : homeName;
+      let pickSpread = true;
+      try {
+        const analysis = generateAnalysis(m);
+        const favWin = spread > 0 ? analysis.homeWin : analysis.awayWin;
+        const dogWin = spread > 0 ? analysis.awayWin : analysis.homeWin;
+        if (favWin > dogWin + 5 && absSpread <= 8) pickSpread = true;
+        else if (absSpread >= 7) pickSpread = false;
+        else pickSpread = favWin > 55;
+      } catch(e) {}
+      if (pickSpread) {
+        prediction = `${favTeam} 讓${absSpread}`;
+        // 讓分方需贏超過讓分數
+        const favIsHome = spread > 0;
+        isCorrect = favIsHome ? (scoreDiff > absSpread) : (-scoreDiff > absSpread);
+      } else {
+        prediction = `${dogTeam} 受讓${absSpread}`;
+        // 受讓方不輸超過讓分即算贏
+        const dogIsHome = spread < 0;
+        isCorrect = dogIsHome ? (scoreDiff > -absSpread) : (-scoreDiff > -absSpread);
+      }
+    } else {
+      // 無盤口：用分析引擎模擬推薦
+      try {
+        const analysis = generateAnalysis(m);
+        const diff = analysis.homeWin - analysis.awayWin;
+        const absDiff = Math.abs(diff);
+        const isSoccer = currentSport === 'soccer';
+        const isBball = currentSport === 'basketball';
+        const favTeam = diff > 0 ? homeName : awayName;
+        const dogTeam = diff > 0 ? awayName : homeName;
+        const favIsHome = diff > 0;
+        let vSpread = 0;
+        if (isSoccer) vSpread = absDiff > 12 ? 1.5 : absDiff > 6 ? 1 : 0.5;
+        else if (isBball) vSpread = Math.round(absDiff * 0.4);
+        else vSpread = Math.round(absDiff * 0.3);
+        const seed = Math.abs(hashCode(m.home + m.away + m.date)) % 100;
+
+        if (absDiff > 12) {
+          if (seed < 70) {
+            prediction = `獨贏 ${favTeam}`;
+            isCorrect = favIsHome ? scoreDiff > 0 : scoreDiff < 0;
+          } else {
+            prediction = `${favTeam} 讓${vSpread}`;
+            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
+          }
+        } else if (absDiff > 5) {
+          if (seed < 40) {
+            prediction = `${favTeam} 讓${vSpread}`;
+            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
+          } else if (seed < 70) {
+            prediction = `${dogTeam} 受讓${vSpread}`;
+            const dogIsHome = !favIsHome;
+            isCorrect = dogIsHome ? (scoreDiff > -vSpread) : (-scoreDiff > -vSpread);
+          } else {
+            prediction = `獨贏 ${favTeam}`;
+            isCorrect = favIsHome ? scoreDiff > 0 : scoreDiff < 0;
+          }
+        } else if (absDiff > 2) {
+          if (seed < 50) {
+            prediction = `${dogTeam} 受讓${vSpread}`;
+            const dogIsHome = !favIsHome;
+            isCorrect = dogIsHome ? (scoreDiff > -vSpread) : (-scoreDiff > -vSpread);
+          } else if (seed < 80) {
+            prediction = `${favTeam} 讓${vSpread}`;
+            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
+          } else {
+            prediction = '觀望';
+            isCorrect = null; // 不判定
+          }
+        } else {
+          prediction = '觀望';
+          isCorrect = null;
+        }
+      } catch(e) {
+        prediction = '—';
+        isCorrect = null;
+      }
     }
+
+    const resultText = scoreDiff === 0 ? '平局' : `${winTeam}勝 ${hs}:${as}`;
+    const mark = isCorrect === null ? '' : isCorrect ? ' ✓' : ' ✗';
+    const markColor = isCorrect === null ? 'text-gray-400' : isCorrect ? 'text-emerald-400' : 'text-red-400';
+    const markBg = isCorrect === null ? 'bg-gray-800/30' : isCorrect ? 'bg-emerald-900/20' : 'bg-red-900/20';
+
     return {
-      label: `${winTeam} 勝`,
-      result: `贏${winMargin}分`,
-      color: diff > 0 ? 'text-emerald-400' : 'text-blue-400',
-      bg: diff > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20'
+      label: prediction + mark,
+      result: resultText,
+      color: markColor,
+      bg: markBg
     };
   }
 
@@ -1315,17 +1388,12 @@ function renderRows(list) {
             <div class="w-16 text-center flex-shrink-0 col-score">${scoreHtml}</div>
             <div class="w-[200px] flex-shrink-0 flex justify-center col-quarter">${qHtml}</div>
             <div class="w-36 text-center flex-shrink-0 col-ai">
-              ${m.status === 'finished' && tip.prediction
+              ${m.status === 'finished' && tip.result
                 ? `<div class="flex flex-col items-center gap-0.5">
-                    <span class="text-[10px] text-gray-500 leading-tight">${tip.prediction}</span>
-                    <span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label} ${tip.correct ? '✓' : '✗'}</span>
-                  </div>`
-                : m.status === 'finished' && tip.result
-                  ? `<div class="flex flex-col items-center gap-0.5">
                       <span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>
                       <span class="text-[10px] text-gray-500">${tip.result}</span>
                     </div>`
-                  : `<span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
+                : `<span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
               }
             </div>
             <div class="w-10 text-center flex-shrink-0 col-arrow">
