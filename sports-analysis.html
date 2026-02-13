@@ -1136,34 +1136,37 @@ function getAITip(m) {
     }
   }
 
-  // 無讓分盤口：用分析引擎判斷獨贏 + 大小分
+  // 無讓分盤口：用分析引擎判斷獨贏
   try {
     const analysis = generateAnalysis(m);
     let tipLabel = '';
     let tipColor = 'text-emerald-400', tipBg = 'bg-emerald-900/20';
 
-    // 獨贏推薦
-    if (analysis.homeWin > analysis.awayWin + 4) {
+    // 獨贏推薦（需有明顯差距才推薦）
+    const diff = analysis.homeWin - analysis.awayWin;
+    if (diff > 8) {
       tipLabel = `獨贏 ${homeName}`;
       tipColor = 'text-emerald-400'; tipBg = 'bg-emerald-900/20';
-    } else if (analysis.awayWin > analysis.homeWin + 4) {
+    } else if (diff < -8) {
       tipLabel = `獨贏 ${awayName}`;
       tipColor = 'text-blue-400'; tipBg = 'bg-blue-900/20';
-    } else {
+    } else if (diff > 3) {
       tipLabel = `獨贏 ${homeName}`;
       tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
-    }
-
-    // 如果有得失分數據，加上大小分判斷
-    if (homeAvg && awayAvg) {
-      const expectedTotal = (homeAvg.scored + awayAvg.scored + homeAvg.allowed + awayAvg.allowed) / 2;
-      const isBball = currentSport === 'basketball';
-      const threshold = isBball ? 215 : 2.5;
-      if (expectedTotal > threshold * 1.05) {
-        tipLabel += ` · 大${expectedTotal.toFixed(0)}`;
-      } else if (expectedTotal < threshold * 0.95) {
-        tipLabel += ` · 小${expectedTotal.toFixed(0)}`;
+    } else if (diff < -3) {
+      tipLabel = `獨贏 ${awayName}`;
+      tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
+    } else {
+      // 真正接近時顯示預估總分或觀望
+      if (homeAvg && awayAvg) {
+        const expectedTotal = Math.round((homeAvg.scored + awayAvg.scored + homeAvg.allowed + awayAvg.allowed) / 2);
+        tipLabel = `預估總分 ${expectedTotal}`;
+        tipColor = 'text-cyan-400'; tipBg = 'bg-cyan-900/20';
+      } else {
+        tipLabel = '觀望';
+        tipColor = 'text-gray-400'; tipBg = 'bg-gray-800/30';
       }
+      return { label: tipLabel, color: tipColor, bg: tipBg };
     }
 
     return { label: tipLabel, color: tipColor, bg: tipBg };
