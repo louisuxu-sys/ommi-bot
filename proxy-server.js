@@ -4,6 +4,77 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
+// ===== Firebase Admin SDK =====
+const admin = require('firebase-admin');
+
+if (process.env.FIREBASE_CREDENTIALS) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  console.log('[Firebase] ✓ 已連接 Firestore');
+} else {
+  console.warn('[Firebase] ✗ 未設定 FIREBASE_CREDENTIALS，用戶資料將使用本地 JSON 檔案');
+}
+
+const db = admin.apps.length ? admin.firestore() : null;
+const USERS_COLLECTION = 'users';
+
+// Firestore 用戶操作
+const getUser = async (username) => {
+  if (!db) return getLocalUser(username);
+  const doc = await db.collection(USERS_COLLECTION).doc(username).get();
+  return doc.exists ? doc.data() : null;
+};
+const getAllUsers = async () => {
+  if (!db) return getLocalAllUsers();
+  const snapshot = await db.collection(USERS_COLLECTION).get();
+  const users = {};
+  snapshot.forEach(doc => { users[doc.id] = doc.data(); });
+  return users;
+};
+const setUser = async (username, data) => {
+  if (!db) return setLocalUser(username, data);
+  await db.collection(USERS_COLLECTION).doc(username).set(data, { merge: true });
+};
+const deleteUserDoc = async (username) => {
+  if (!db) return deleteLocalUser(username);
+  await db.collection(USERS_COLLECTION).doc(username).delete();
+};
+
+// 本地 JSON fallback（開發用）
+const USERS_FILE = path.join(__dirname, 'users.json');
+const getLocalUser = (username) => {
+  try { const u = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); return u[username] || null; } catch(e) { return null; }
+};
+const getLocalAllUsers = () => {
+  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { return {}; }
+};
+const setLocalUser = (username, data) => {
+  const users = getLocalAllUsers();
+  users[username] = { ...users[username], ...data };
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+};
+const deleteLocalUser = (username) => {
+  const users = getLocalAllUsers();
+  delete users[username];
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+};
+
+// 啟動時確保 admin 帳號存在
+(async () => {
+  try {
+    const adminUser = await getUser('admin');
+    if (!adminUser) {
+      await setUser('admin', {
+        username: 'admin', password: 'admin', role: 'admin',
+        active: true, createdAt: new Date().toISOString().slice(0, 10), note: '系統管理員'
+      });
+      console.log('[Firebase] 已建立預設 admin 帳號');
+    }
+  } catch(e) { console.error('[Firebase] 初始化 admin 帳號失敗:', e.message); }
+})();
+
 const PORT = process.env.PORT || 3939;
 const STATIC_DIR = __dirname;
 
@@ -30,15 +101,6 @@ const server = http.createServer(async (req, res) => {
       try { resolve(JSON.parse(body)); } catch(e) { resolve({}); }
     });
   });
-
-  // 載入用戶資料
-  const USERS_FILE = path.join(__dirname, 'users.json');
-  const loadUsers = () => {
-    try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { return {}; }
-  };
-  const saveUsers = (users) => {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
-  };
 
   // Token 驗證（簡易 base64 token）
   const generateToken = (username, role) => {
@@ -78,20 +140,19 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號只能包含英文、數字、底線或中文' }));
     }
-    const users = loadUsers();
-    if (users[body.username]) {
+    const existing = await getUser(body.username);
+    if (existing) {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號已被使用' }));
     }
-    users[body.username] = {
+    await setUser(body.username, {
       username: body.username,
       password: body.password,
       role: 'user',
       active: false,
       createdAt: new Date().toISOString().slice(0, 10),
       note: body.note || '自助註冊',
-    };
-    saveUsers(users);
+    });
     console.log(`[AUTH] 新用戶註冊：${body.username}（待審核）`);
     res.writeHead(201, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: '註冊成功！請等待管理員審核開通。' }));
@@ -100,8 +161,7 @@ const server = http.createServer(async (req, res) => {
   // POST /api/login
   if (parsed.pathname === '/api/login' && req.method === 'POST') {
     const body = await readBody();
-    const users = loadUsers();
-    const user = users[body.username];
+    const user = await getUser(body.username);
     if (!user) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號不存在' }));
@@ -128,8 +188,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Token 無效或已過期' }));
     }
-    const users = loadUsers();
-    const user = users[payload.u];
+    const user = await getUser(payload.u);
     if (!user || !user.active) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號已停用' }));
@@ -146,7 +205,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '需要管理員權限' }));
     }
-    const users = loadUsers();
+    const users = await getAllUsers();
     // 不回傳密碼
     const list = Object.values(users).map(u => ({
       username: u.username, role: u.role, active: u.active,
@@ -169,20 +228,19 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '請提供帳號和密碼' }));
     }
-    const users = loadUsers();
-    if (users[body.username]) {
+    const existingUser = await getUser(body.username);
+    if (existingUser) {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號已存在' }));
     }
-    users[body.username] = {
+    await setUser(body.username, {
       username: body.username,
       password: body.password,
       role: body.role || 'user',
       active: body.active !== false,
       createdAt: new Date().toISOString().slice(0, 10),
       note: body.note || '',
-    };
-    saveUsers(users);
+    });
     console.log(`[AUTH] 管理員 ${payload.u} 新增用戶 ${body.username}`);
     res.writeHead(201, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 已建立` }));
@@ -197,8 +255,8 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: '需要管理員權限' }));
     }
     const body = await readBody();
-    const users = loadUsers();
-    if (!users[body.username]) {
+    const toggleUser = await getUser(body.username);
+    if (!toggleUser) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '用戶不存在' }));
     }
@@ -206,12 +264,12 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '不能停用管理員帳號' }));
     }
-    users[body.username].active = !users[body.username].active;
-    saveUsers(users);
-    const status = users[body.username].active ? '開通' : '停用';
+    const newActive = !toggleUser.active;
+    await setUser(body.username, { active: newActive });
+    const status = newActive ? '開通' : '停用';
     console.log(`[AUTH] 管理員 ${payload.u} ${status}用戶 ${body.username}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, active: users[body.username].active, message: `用戶 ${body.username} 已${status}` }));
+    return res.end(JSON.stringify({ ok: true, active: newActive, message: `用戶 ${body.username} 已${status}` }));
   }
 
   // POST /api/users/delete — 刪除用戶（管理員限定）
@@ -223,8 +281,8 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: '需要管理員權限' }));
     }
     const body = await readBody();
-    const users = loadUsers();
-    if (!users[body.username]) {
+    const delUser = await getUser(body.username);
+    if (!delUser) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '用戶不存在' }));
     }
@@ -232,8 +290,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '不能刪除管理員帳號' }));
     }
-    delete users[body.username];
-    saveUsers(users);
+    await deleteUserDoc(body.username);
     console.log(`[AUTH] 管理員 ${payload.u} 刪除用戶 ${body.username}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 已刪除` }));
@@ -248,8 +305,8 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: '需要管理員權限' }));
     }
     const body = await readBody();
-    const users = loadUsers();
-    if (!users[body.username]) {
+    const pwUser = await getUser(body.username);
+    if (!pwUser) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '用戶不存在' }));
     }
@@ -257,8 +314,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '密碼至少 4 個字元' }));
     }
-    users[body.username].password = body.newPassword;
-    saveUsers(users);
+    await setUser(body.username, { password: body.newPassword });
     console.log(`[AUTH] 管理員 ${payload.u} 重設用戶 ${body.username} 密碼`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 密碼已更新` }));
