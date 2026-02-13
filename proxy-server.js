@@ -512,4 +512,21 @@ server.listen(PORT, () => {
   console.log(`Alliance IDs:`);
   console.log(`  3=NBA, 8=歐洲職籃, 1=MLB, 2=日職, 6=中職`);
   console.log(`  4=足球, 91=NHL, 21=網球\n`);
+
+  // ===== Keep-Alive：防止 Render 免費方案休眠 =====
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_URL;
+  if (RENDER_URL) {
+    const PING_INTERVAL = 14 * 60 * 1000; // 每 14 分鐘 ping 一次
+    setInterval(() => {
+      const pingUrl = `${RENDER_URL}/health`;
+      https.get(pingUrl, (r) => {
+        console.log(`[Keep-Alive] ${new Date().toLocaleTimeString()} → ${r.statusCode}`);
+      }).on('error', (e) => {
+        console.log(`[Keep-Alive] ping failed: ${e.message}`);
+      });
+    }, PING_INTERVAL);
+    console.log(`[Keep-Alive] 已啟動，每 14 分鐘自動 ping ${RENDER_URL}/health`);
+  } else {
+    console.log(`[Keep-Alive] 本地模式，不啟動 keep-alive`);
+  }
 });
