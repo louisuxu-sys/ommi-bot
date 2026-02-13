@@ -388,7 +388,7 @@ const server = http.createServer(async (req, res) => {
           const games = parsePlaySportHTML(preHtml, aid, gd);
           // 從預設模式取得比分和狀態
           const scoreData = parseScoresFromLiveHTML(liveHtml);
-          // 合併比分到 games
+          // 合併比分和隊名到 games
           for (const game of games) {
             const sd = scoreData[game.gameId];
             if (sd) {
@@ -396,6 +396,9 @@ const server = http.createServer(async (req, res) => {
               if (sd.homeScore !== null) game.homeScore = sd.homeScore;
               if (sd.status) game.status = sd.status;
               if (sd.quarterScores) game.quarterScores = sd.quarterScores;
+              // 用 live HTML 的完整隊名覆蓋短名稱
+              if (sd.liveAway && sd.liveAway.length > (game.away || '').length) game.away = sd.liveAway;
+              if (sd.liveHome && sd.liveHome.length > (game.home || '').length) game.home = sd.liveHome;
             }
           }
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -553,11 +556,23 @@ function parseScoresFromLiveHTML(html) {
       }
     }
 
+    // 從 <h6> 標籤取隊名（live HTML 有完整中文名稱）
+    let liveAway = '', liveHome = '';
+    if (gbLiveHtml) {
+      const h6s = gbLiveHtml.match(/<h6[^>]*>([\s\S]*?)<\/h6>/gi);
+      if (h6s && h6s.length >= 2) {
+        liveAway = h6s[0].replace(/<[^>]+>/g, '').trim();
+        liveHome = h6s[1].replace(/<[^>]+>/g, '').trim();
+      }
+    }
+
     scoreData[gameId] = {
       awayScore,
       homeScore,
       status,
       quarterScores: (quarterScores.away.length > 0 || quarterScores.home.length > 0) ? quarterScores : null,
+      liveAway,
+      liveHome,
     };
   }
 
@@ -720,6 +735,20 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
     const fullNameA = html.match(new RegExp(`outer-gamebox-${gameId}[\\s\\S]{0,5000}data-namea="([^"]*)"`));
     if (fullNameH && stripTags(fullNameH[1]).length > home.length) home = stripTags(fullNameH[1]);
     if (fullNameA && stripTags(fullNameA[1]).length > away.length) away = stripTags(fullNameA[1]);
+
+    // 從 <h6> 標籤取隊名（足球等運動使用此格式）
+    const gbStartH6 = html.indexOf(`id="outer-gamebox-${gameId}"`);
+    const gbEndH6 = html.indexOf('<!--outer-gamebox-->', gbStartH6);
+    if (gbStartH6 > -1 && gbEndH6 > -1) {
+      const gbFullHtml = html.substring(gbStartH6, gbEndH6);
+      const h6Matches = gbFullHtml.match(/<h6[^>]*>([\s\S]*?)<\/h6>/gi);
+      if (h6Matches && h6Matches.length >= 2) {
+        const h6Away = h6Matches[0].replace(/<[^>]+>/g, '').trim();
+        const h6Home = h6Matches[1].replace(/<[^>]+>/g, '').trim();
+        if (h6Away.length > away.length) away = h6Away;
+        if (h6Home.length > home.length) home = h6Home;
+      }
+    }
 
     // 從 select 取得隊名（總是嘗試，取較長的名稱）
     const selectGame = selectGames.find(g => g.value === oid || g.value === gameId);
