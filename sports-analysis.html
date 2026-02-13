@@ -1106,23 +1106,67 @@ function getAITip(m) {
     };
   }
 
-  // 未開始/進行中：基於讓分盤口預測
+  // 未開始/進行中：用博彩術語推薦
+  const rec = m.record || {};
+  const homeAvg = parseAvgScore(rec.homeAvg);
+  const awayAvg = parseAvgScore(rec.awayAvg);
+
   if (hasSpread) {
-    const favTeam = spread > 0 ? homeName : awayName;
+    // 有讓分盤口：判斷推薦讓分方還是受讓方
     const absSpread = Math.abs(spread);
-    return { label: `${favTeam} 讓${absSpread}`, color: spread > 0 ? 'text-emerald-400' : 'text-blue-400', bg: spread > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20' };
+    const favTeam = spread > 0 ? homeName : awayName;
+    const dogTeam = spread > 0 ? awayName : homeName;
+    let pickSpread = true; // 預設推讓分方
+
+    // 根據分析判斷推薦讓分或受讓
+    try {
+      const analysis = generateAnalysis(m);
+      const favWin = spread > 0 ? analysis.homeWin : analysis.awayWin;
+      const dogWin = spread > 0 ? analysis.awayWin : analysis.homeWin;
+      // 讓分方勝率高且讓分不大 → 讓分；否則受讓
+      if (favWin > dogWin + 5 && absSpread <= 8) pickSpread = true;
+      else if (absSpread >= 7) pickSpread = false; // 大讓分偏受讓
+      else pickSpread = favWin > 55;
+    } catch(e) {}
+
+    if (pickSpread) {
+      return { label: `讓分 ${favTeam}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
+    } else {
+      return { label: `受讓 ${dogTeam}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
+    }
   }
 
-  // 沒有盤口資料時，用 AI 分析引擎做基本預測
+  // 無讓分盤口：用分析引擎判斷獨贏 + 大小分
   try {
     const analysis = generateAnalysis(m);
+    let tipLabel = '';
+    let tipColor = 'text-emerald-400', tipBg = 'bg-emerald-900/20';
+
+    // 獨贏推薦
     if (analysis.homeWin > analysis.awayWin + 4) {
-      return { label: `看好 ${homeName}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
+      tipLabel = `獨贏 ${homeName}`;
+      tipColor = 'text-emerald-400'; tipBg = 'bg-emerald-900/20';
     } else if (analysis.awayWin > analysis.homeWin + 4) {
-      return { label: `看好 ${awayName}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
+      tipLabel = `獨贏 ${awayName}`;
+      tipColor = 'text-blue-400'; tipBg = 'bg-blue-900/20';
+    } else {
+      tipLabel = `獨贏 ${homeName}`;
+      tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
     }
-    // 真正勢均力敵時，主場優勢微偏主隊
-    return { label: `主場微優 ${homeName}`, color: 'text-amber-400', bg: 'bg-amber-900/20' };
+
+    // 如果有得失分數據，加上大小分判斷
+    if (homeAvg && awayAvg) {
+      const expectedTotal = (homeAvg.scored + awayAvg.scored + homeAvg.allowed + awayAvg.allowed) / 2;
+      const isBball = currentSport === 'basketball';
+      const threshold = isBball ? 215 : 2.5;
+      if (expectedTotal > threshold * 1.05) {
+        tipLabel += ' · 大分';
+      } else if (expectedTotal < threshold * 0.95) {
+        tipLabel += ' · 小分';
+      }
+    }
+
+    return { label: tipLabel, color: tipColor, bg: tipBg };
   } catch(e) {}
   return { label: '分析中', color: 'text-gray-500', bg: 'bg-gray-800/30' };
 }
