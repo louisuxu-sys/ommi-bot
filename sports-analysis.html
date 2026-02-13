@@ -90,7 +90,37 @@
 </head>
 <body>
 
-<div class="min-h-screen flex flex-col">
+<!-- ===== 登入頁面 ===== -->
+<div id="login-overlay" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%)">
+  <div class="w-full max-w-sm mx-4">
+    <div class="text-center mb-8">
+      <span class="text-4xl">🏆</span>
+      <h1 class="text-2xl font-black text-white mt-3 tracking-wider">SPORTIQ</h1>
+      <p class="text-xs text-gray-500 mt-1">體育即時比分 · AI 智能分析</p>
+    </div>
+    <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-6 space-y-4">
+      <div>
+        <label class="text-xs text-gray-500 font-bold mb-1.5 block">帳號</label>
+        <input id="login-username" type="text" placeholder="請輸入帳號"
+          class="w-full px-3 py-2.5 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 transition-colors" />
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 font-bold mb-1.5 block">密碼</label>
+        <input id="login-password" type="password" placeholder="請輸入密碼"
+          class="w-full px-3 py-2.5 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600 transition-colors"
+          onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <div id="login-error" class="text-xs text-red-400 font-bold hidden"></div>
+      <button onclick="doLogin()" id="login-btn"
+        class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-all">
+        登入
+      </button>
+    </div>
+    <p class="text-[10px] text-gray-700 text-center mt-4">需要帳號？請聯繫管理員開通</p>
+  </div>
+</div>
+
+<div id="main-app" class="min-h-screen flex flex-col" style="display:none">
 
   <!-- ===== 頂部導航 ===== -->
   <header style="background:#010409;border-bottom:1px solid #21262d" class="flex items-center justify-between px-5 h-12 flex-shrink-0">
@@ -111,6 +141,12 @@
       <a href="https://www.playsport.cc/livescore/3" target="_blank" class="header-right-extras flex items-center gap-1 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[11px] font-bold rounded-md border border-blue-800/40 transition-all">
         <i data-lucide="external-link" class="w-3 h-3"></i> 玩運彩
       </a>
+      <a id="admin-link" href="admin-panel.html" style="display:none" class="flex items-center gap-1 px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 text-[11px] font-bold rounded-md border border-purple-800/40 transition-all">
+        <i data-lucide="shield" class="w-3 h-3"></i> 管理
+      </a>
+      <button onclick="doLogout()" class="flex items-center gap-1 px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-400 text-[11px] font-bold rounded-md border border-red-800/30 transition-all">
+        <i data-lucide="log-out" class="w-3 h-3"></i> <span id="user-display" class="header-right-extras"></span>登出
+      </button>
     </div>
   </header>
 
@@ -178,6 +214,80 @@
 </div>
 
 <script>
+/* ========== 登入認證 ========== */
+const AUTH_API = (() => {
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return `http://localhost:3939`;
+  return 'https://ommi-bot.onrender.com';
+})();
+
+let currentUser = null;
+
+async function checkAuth() {
+  const token = localStorage.getItem('sportiq_token');
+  if (!token) { showLogin(); return; }
+  try {
+    const r = await fetch(`${AUTH_API}/api/verify`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!r.ok) { showLogin(); return; }
+    const data = await r.json();
+    currentUser = data;
+    showApp();
+  } catch(e) { showLogin(); }
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  if (!username || !password) { errEl.textContent = '請輸入帳號和密碼'; errEl.classList.remove('hidden'); return; }
+  btn.textContent = '登入中...'; btn.disabled = true;
+  try {
+    const r = await fetch(`${AUTH_API}/api/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.error || '登入失敗'; errEl.classList.remove('hidden'); btn.textContent = '登入'; btn.disabled = false; return; }
+    localStorage.setItem('sportiq_token', data.token);
+    localStorage.setItem('sportiq_user', data.username);
+    localStorage.setItem('sportiq_role', data.role);
+    currentUser = { username: data.username, role: data.role };
+    showApp();
+  } catch(e) {
+    errEl.textContent = '伺服器連線失敗，請稍後再試'; errEl.classList.remove('hidden');
+    btn.textContent = '登入'; btn.disabled = false;
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('sportiq_token');
+  localStorage.removeItem('sportiq_user');
+  localStorage.removeItem('sportiq_role');
+  currentUser = null;
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  const errEl = document.getElementById('login-error');
+  errEl.classList.add('hidden');
+  const btn = document.getElementById('login-btn');
+  btn.textContent = '登入'; btn.disabled = false;
+}
+
+function showApp() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  // 顯示用戶名稱
+  const ud = document.getElementById('user-display');
+  if (ud && currentUser) ud.textContent = currentUser.username + ' ';
+  // 管理員才顯示管理按鈕
+  const al = document.getElementById('admin-link');
+  if (al) al.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
+  if (window.lucide) window.lucide.createIcons();
+}
+
 /* ========== 全域狀態 ========== */
 let currentSport = 'basketball';
 let currentLeague = 'all';
@@ -1475,11 +1585,15 @@ function setDate(d) {
 }
 
 /* ========== 初始化 ========== */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   if (window.lucide) window.lucide.createIcons();
-  renderDateTabs();
-  fetchAllData();
-  checkDateAvailability(); // 檢查昨天/今天/明天是否有賽事
+  await checkAuth();
+  // 登入成功後才載入資料
+  if (currentUser) {
+    renderDateTabs();
+    fetchAllData();
+    checkDateAvailability();
+  }
 });
 </script>
 </body>

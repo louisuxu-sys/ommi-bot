@@ -1,0 +1,10 @@
+{
+  "admin": {
+    "username": "admin",
+    "password": "admin888",
+    "role": "admin",
+    "active": true,
+    "createdAt": "2026-02-14",
+    "note": "系統管理員"
+  }
+}

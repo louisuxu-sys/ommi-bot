@@ -7,11 +7,11 @@ const path = require('path');
 const PORT = process.env.PORT || 3939;
 const STATIC_DIR = __dirname;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -20,6 +20,211 @@ const server = http.createServer((req, res) => {
   }
 
   const parsed = url.parse(req.url, true);
+
+  // ===== 用戶認證 API =====
+  // 讀取 POST body
+  const readBody = () => new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try { resolve(JSON.parse(body)); } catch(e) { resolve({}); }
+    });
+  });
+
+  // 載入用戶資料
+  const USERS_FILE = path.join(__dirname, 'users.json');
+  const loadUsers = () => {
+    try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { return {}; }
+  };
+  const saveUsers = (users) => {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  };
+
+  // Token 驗證（簡易 base64 token）
+  const generateToken = (username, role) => {
+    const payload = JSON.stringify({ u: username, r: role, t: Date.now() });
+    return Buffer.from(payload).toString('base64');
+  };
+  const verifyToken = (token) => {
+    try {
+      const payload = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
+      // Token 有效期 7 天
+      if (Date.now() - payload.t > 7 * 24 * 60 * 60 * 1000) return null;
+      return payload;
+    } catch(e) { return null; }
+  };
+  const getTokenFromReq = () => {
+    const auth = req.headers.authorization || '';
+    if (auth.startsWith('Bearer ')) return auth.slice(7);
+    return parsed.query.token || null;
+  };
+
+  // POST /api/login
+  if (parsed.pathname === '/api/login' && req.method === 'POST') {
+    const body = await readBody();
+    const users = loadUsers();
+    const user = users[body.username];
+    if (!user) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號不存在' }));
+    }
+    if (user.password !== body.password) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '密碼錯誤' }));
+    }
+    if (!user.active) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號尚未開通，請聯繫管理員' }));
+    }
+    const token = generateToken(user.username, user.role);
+    console.log(`[AUTH] ${user.username} 登入成功`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token, username: user.username, role: user.role }));
+  }
+
+  // GET /api/verify — 驗證 token
+  if (parsed.pathname === '/api/verify') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Token 無效或已過期' }));
+    }
+    const users = loadUsers();
+    const user = users[payload.u];
+    if (!user || !user.active) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已停用' }));
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ username: payload.u, role: payload.r }));
+  }
+
+  // GET /api/users — 取得所有用戶（管理員限定）
+  if (parsed.pathname === '/api/users' && req.method === 'GET') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const users = loadUsers();
+    // 不回傳密碼
+    const list = Object.values(users).map(u => ({
+      username: u.username, role: u.role, active: u.active,
+      createdAt: u.createdAt, note: u.note || ''
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ users: list }));
+  }
+
+  // POST /api/users — 新增用戶（管理員限定）
+  if (parsed.pathname === '/api/users' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    if (!body.username || !body.password) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '請提供帳號和密碼' }));
+    }
+    const users = loadUsers();
+    if (users[body.username]) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已存在' }));
+    }
+    users[body.username] = {
+      username: body.username,
+      password: body.password,
+      role: body.role || 'user',
+      active: body.active !== false,
+      createdAt: new Date().toISOString().slice(0, 10),
+      note: body.note || '',
+    };
+    saveUsers(users);
+    console.log(`[AUTH] 管理員 ${payload.u} 新增用戶 ${body.username}`);
+    res.writeHead(201, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 已建立` }));
+  }
+
+  // POST /api/users/toggle — 開通/停用用戶（管理員限定）
+  if (parsed.pathname === '/api/users/toggle' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    const users = loadUsers();
+    if (!users[body.username]) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '用戶不存在' }));
+    }
+    if (body.username === 'admin') {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '不能停用管理員帳號' }));
+    }
+    users[body.username].active = !users[body.username].active;
+    saveUsers(users);
+    const status = users[body.username].active ? '開通' : '停用';
+    console.log(`[AUTH] 管理員 ${payload.u} ${status}用戶 ${body.username}`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, active: users[body.username].active, message: `用戶 ${body.username} 已${status}` }));
+  }
+
+  // POST /api/users/delete — 刪除用戶（管理員限定）
+  if (parsed.pathname === '/api/users/delete' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    const users = loadUsers();
+    if (!users[body.username]) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '用戶不存在' }));
+    }
+    if (body.username === 'admin') {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '不能刪除管理員帳號' }));
+    }
+    delete users[body.username];
+    saveUsers(users);
+    console.log(`[AUTH] 管理員 ${payload.u} 刪除用戶 ${body.username}`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 已刪除` }));
+  }
+
+  // POST /api/users/password — 修改密碼（管理員限定）
+  if (parsed.pathname === '/api/users/password' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    const users = loadUsers();
+    if (!users[body.username]) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '用戶不存在' }));
+    }
+    if (!body.newPassword || body.newPassword.length < 4) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '密碼至少 4 個字元' }));
+    }
+    users[body.username].password = body.newPassword;
+    saveUsers(users);
+    console.log(`[AUTH] 管理員 ${payload.u} 重設用戶 ${body.username} 密碼`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 密碼已更新` }));
+  }
 
   // /fetch?url=<encoded_url>
   if (parsed.pathname === '/fetch' && parsed.query.url) {
