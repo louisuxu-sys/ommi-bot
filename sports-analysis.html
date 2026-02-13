@@ -1135,10 +1135,12 @@ function renderMatchList() {
   const srcHtml = `<div class="text-[10px] text-gray-600 text-right mb-2 px-2">資料來源：${srcLabel}</div>`;
 
   if (filtered.length === 0) {
+    const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
     container.innerHTML = srcHtml + `<div class="flex items-center justify-center py-16 text-center">
       <div>
-        <p class="text-sm font-bold text-gray-500 mb-1">${fmtDate(currentDate)} 無賽事</p>
-        <p class="text-xs text-gray-700">請切換日期、運動類型或聯賽查看</p>
+        <p class="text-2xl mb-3">📭</p>
+        <p class="text-sm font-bold text-gray-500 mb-1">${fmtDate(currentDate)} ${sportName} 今日無賽事</p>
+        <p class="text-xs text-gray-700">請切換日期或運動類型</p>
       </div>
     </div>`;
     return;
