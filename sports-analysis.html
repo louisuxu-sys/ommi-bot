@@ -1001,7 +1001,7 @@ async function fetchAllData(showLoading = true) {
       <div class="flex items-center justify-center py-12">
         <div class="text-center text-gray-600">
           <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p class="text-xs" id="fetch-status">正在從 playsport.cc 爬取 ${leagues[0]?.name || ''} 資料...</p>
+          <p class="text-xs" id="fetch-status">正在讀取 ${leagues[0]?.name || ''} 資料...</p>
         </div>
       </div>`;
   }
@@ -1020,7 +1020,7 @@ async function fetchAllData(showLoading = true) {
         console.log(`[SPORTIQ] ${leagues[i].name}: 非賽季，跳過`);
         continue;
       }
-      if (el) el.textContent = `正在爬取 ${leagues[i].name}（${i+1}/${leagues.length}）...`;
+      if (el) el.textContent = `正在讀取 ${leagues[i].name}（${i+1}/${leagues.length}）...`;
       try {
         const result = await fetchFromPlaysport(leagues[i].psId, currentDate);
         psMatches = psMatches.concat(result);
