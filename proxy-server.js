@@ -170,9 +170,19 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '密碼錯誤' }));
     }
+    if (user.frozen) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已被凍結，請聯繫管理員' }));
+    }
     if (!user.active) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號尚未開通，請聯繫管理員' }));
+    }
+    // 檢查是否到期
+    if (user.expiresAt && new Date(user.expiresAt) < new Date()) {
+      await setUser(body.username, { active: false });
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已到期，請聯繫管理員續期' }));
     }
     const token = generateToken(user.username, user.role);
     console.log(`[AUTH] ${user.username} 登入成功`);
@@ -193,6 +203,16 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: '帳號已停用' }));
     }
+    if (user.frozen) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已被凍結' }));
+    }
+    // 檢查到期
+    if (user.expiresAt && new Date(user.expiresAt) < new Date()) {
+      await setUser(payload.u, { active: false });
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '帳號已到期' }));
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ username: payload.u, role: payload.r }));
   }
@@ -209,7 +229,9 @@ const server = http.createServer(async (req, res) => {
     // 不回傳密碼
     const list = Object.values(users).map(u => ({
       username: u.username, role: u.role, active: u.active,
-      createdAt: u.createdAt, note: u.note || ''
+      createdAt: u.createdAt, note: u.note || '',
+      frozen: u.frozen || false,
+      expiresAt: u.expiresAt || null
     }));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ users: list }));
@@ -318,6 +340,58 @@ const server = http.createServer(async (req, res) => {
     console.log(`[AUTH] 管理員 ${payload.u} 重設用戶 ${body.username} 密碼`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: `用戶 ${body.username} 密碼已更新` }));
+  }
+
+  // POST /api/users/set-days — 設定開放天數（管理員限定）
+  if (parsed.pathname === '/api/users/set-days' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    const daysUser = await getUser(body.username);
+    if (!daysUser) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '用戶不存在' }));
+    }
+    const days = parseInt(body.days);
+    if (!days || days < 1 || days > 3650) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '天數需為 1~3650' }));
+    }
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    await setUser(body.username, { expiresAt, active: true });
+    console.log(`[AUTH] 管理員 ${payload.u} 設定 ${body.username} 開放 ${days} 天（到期：${expiresAt.slice(0,10)}）`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, expiresAt, message: `用戶 ${body.username} 已開通 ${days} 天（到期：${expiresAt.slice(0,10)}）` }));
+  }
+
+  // POST /api/users/freeze — 凍結/解凍帳號（管理員限定）
+  if (parsed.pathname === '/api/users/freeze' && req.method === 'POST') {
+    const token = getTokenFromReq();
+    const payload = verifyToken(token);
+    if (!payload || payload.r !== 'admin') {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '需要管理員權限' }));
+    }
+    const body = await readBody();
+    const freezeUser = await getUser(body.username);
+    if (!freezeUser) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '用戶不存在' }));
+    }
+    if (body.username === 'admin') {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: '不能凍結管理員帳號' }));
+    }
+    const newFrozen = !freezeUser.frozen;
+    await setUser(body.username, { frozen: newFrozen });
+    const action = newFrozen ? '凍結' : '解凍';
+    console.log(`[AUTH] 管理員 ${payload.u} ${action}用戶 ${body.username}`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, frozen: newFrozen, message: `用戶 ${body.username} 已${action}` }));
   }
 
   // /fetch?url=<encoded_url>

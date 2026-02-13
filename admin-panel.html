@@ -60,7 +60,7 @@
   <!-- 主內容 -->
   <div class="main-content flex-1 overflow-y-auto px-5 py-6 max-w-4xl mx-auto w-full">
     <!-- 統計卡片 -->
-    <div class="stat-grid grid grid-cols-4 gap-4 mb-6">
+    <div class="stat-grid grid grid-cols-5 gap-4 mb-6">
       <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
         <p class="text-[10px] text-gray-500 mb-1">總用戶</p>
         <p class="text-2xl font-black text-white" id="stat-total">0</p>
@@ -76,6 +76,10 @@
       <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
         <p class="text-[10px] text-gray-500 mb-1">已停用</p>
         <p class="text-2xl font-black text-red-400" id="stat-inactive">0</p>
+      </div>
+      <div class="bg-[#161b22] rounded-xl border border-gray-800/60 p-4 text-center">
+        <p class="text-[10px] text-gray-500 mb-1">已凍結</p>
+        <p class="text-2xl font-black text-cyan-400" id="stat-frozen">0</p>
       </div>
     </div>
 
@@ -101,6 +105,11 @@
             <option value="user">一般用戶</option>
             <option value="admin">管理員</option>
           </select>
+        </div>
+        <div class="min-w-[80px]">
+          <label class="text-[10px] text-gray-500 font-bold mb-1 block">開放天數</label>
+          <input id="new-days" type="number" min="1" max="3650" placeholder="30" value="30"
+            class="w-full px-3 py-2 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-600" />
         </div>
         <div class="flex-1 min-w-[140px]">
           <label class="text-[10px] text-gray-500 font-bold mb-1 block">備註</label>
@@ -142,6 +151,28 @@
     <div class="flex gap-2">
       <button onclick="closePwModal()" class="btn bg-gray-700 hover:bg-gray-600 text-gray-300 flex-1">取消</button>
       <button onclick="submitPassword()" class="btn bg-emerald-600 hover:bg-emerald-500 text-white flex-1">確認修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定天數彈窗 -->
+<div id="days-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeDaysModal()">
+  <div class="pw-modal-box bg-[#161b22] border border-gray-700 rounded-xl w-[360px] p-6" onclick="event.stopPropagation()">
+    <h3 class="text-sm font-black text-white mb-4">設定開放天數</h3>
+    <p class="text-xs text-gray-500 mb-3">用戶：<span id="days-username" class="text-white font-bold"></span></p>
+    <div class="flex gap-2 mb-3">
+      <button onclick="document.getElementById('days-input').value=7" class="btn text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5">7天</button>
+      <button onclick="document.getElementById('days-input').value=14" class="btn text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5">14天</button>
+      <button onclick="document.getElementById('days-input').value=30" class="btn text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5">30天</button>
+      <button onclick="document.getElementById('days-input').value=90" class="btn text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5">90天</button>
+      <button onclick="document.getElementById('days-input').value=365" class="btn text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5">365天</button>
+    </div>
+    <input id="days-input" type="number" min="1" max="3650" placeholder="輸入天數" value="30"
+      class="w-full px-3 py-2 bg-[#0d1117] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 mb-3" />
+    <div id="days-msg" class="text-xs mb-3 hidden"></div>
+    <div class="flex gap-2">
+      <button onclick="closeDaysModal()" class="btn bg-gray-700 hover:bg-gray-600 text-gray-300 flex-1">取消</button>
+      <button onclick="submitDays()" class="btn bg-purple-600 hover:bg-purple-500 text-white flex-1">確認設定</button>
     </div>
   </div>
 </div>
@@ -190,13 +221,15 @@ async function loadUsers() {
 function renderUsers(users) {
   const container = document.getElementById('user-list');
   // 統計
-  const pending = users.filter(u => !u.active && u.note && u.note.includes('自助註冊'));
-  const activeUsers = users.filter(u => u.active);
-  const inactive = users.filter(u => !u.active && !(u.note && u.note.includes('自助註冊')));
+  const pending = users.filter(u => !u.active && !u.frozen && u.note && u.note.includes('自助註冊'));
+  const activeUsers = users.filter(u => u.active && !u.frozen);
+  const inactive = users.filter(u => !u.active && !u.frozen && !(u.note && u.note.includes('自助註冊')));
+  const frozenUsers = users.filter(u => u.frozen);
   document.getElementById('stat-total').textContent = users.length;
   document.getElementById('stat-pending').textContent = pending.length;
   document.getElementById('stat-active').textContent = activeUsers.length;
   document.getElementById('stat-inactive').textContent = inactive.length;
+  document.getElementById('stat-frozen').textContent = frozenUsers.length;
 
   if (users.length === 0) {
     container.innerHTML = '<div class="p-8 text-center text-gray-600 text-sm">沒有用戶</div>';
@@ -215,17 +248,40 @@ function renderUsers(users) {
   });
 
   container.innerHTML = sorted.map(u => {
-    const isPending = !u.active && u.note && u.note.includes('自助註冊');
-    const statusBadge = u.active
-      ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-600/20 text-emerald-400 border border-emerald-700/30">✓ 已開通</span>'
-      : isPending
-        ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-600/20 text-amber-400 border border-amber-700/30 animate-pulse">⏳ 待審核</span>'
-        : '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-red-600/20 text-red-400 border border-red-700/30">✗ 已停用</span>';
-    const rowBorder = isPending ? 'border-l-2 border-l-amber-500' : '';
+    const isPending = !u.active && !u.frozen && u.note && u.note.includes('自助註冊');
+    let statusBadge = '';
+    if (u.frozen) {
+      statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-cyan-600/20 text-cyan-400 border border-cyan-700/30">🧳 已凍結</span>';
+    } else if (u.active) {
+      statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-600/20 text-emerald-400 border border-emerald-700/30">✓ 已開通</span>';
+    } else if (isPending) {
+      statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-600/20 text-amber-400 border border-amber-700/30 animate-pulse">⏳ 待審核</span>';
+    } else {
+      statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-red-600/20 text-red-400 border border-red-700/30">✗ 已停用</span>';
+    }
+    // 到期時間顯示
+    let expiryBadge = '';
+    if (u.expiresAt) {
+      const exp = new Date(u.expiresAt);
+      const now = new Date();
+      const daysLeft = Math.ceil((exp - now) / (1000*60*60*24));
+      if (daysLeft <= 0) {
+        expiryBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-red-600/20 text-red-400 border border-red-700/30">已到期</span>';
+      } else if (daysLeft <= 3) {
+        expiryBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-600/20 text-amber-400 border border-amber-700/30">剩${daysLeft}天</span>`;
+      } else {
+        expiryBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-gray-700/40 text-gray-400 border border-gray-700/30">剩${daysLeft}天</span>`;
+      }
+    }
+    const rowBorder = isPending ? 'border-l-2 border-l-amber-500' : u.frozen ? 'border-l-2 border-l-cyan-500' : '';
     const toggleLabel = u.active ? '停用' : isPending ? '✓ 審核通過' : '開通';
     const toggleClass = u.active
       ? 'bg-red-600/10 text-red-400 border border-red-800/30 hover:bg-red-600/20'
       : 'bg-emerald-600/10 text-emerald-400 border border-emerald-800/30 hover:bg-emerald-600/20';
+    const freezeLabel = u.frozen ? '解凍' : '凍結';
+    const freezeClass = u.frozen
+      ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-800/30 hover:bg-emerald-600/20'
+      : 'bg-cyan-600/10 text-cyan-400 border border-cyan-800/30 hover:bg-cyan-600/20';
     return `
     <div class="user-row flex items-center gap-4 px-5 py-3 hover:bg-[#1c2333] transition-colors ${rowBorder}">
       <div class="user-avatar w-8 h-8 rounded-full flex items-center justify-center text-sm font-black
@@ -240,15 +296,22 @@ function renderUsers(users) {
             ${u.role === 'admin' ? '管理員' : '用戶'}
           </span>
           ${statusBadge}
+          ${expiryBadge}
         </div>
         <div class="text-[10px] text-gray-600 mt-0.5">
-          建立：${u.createdAt || '—'}${u.note ? ` · ${u.note}` : ''}
+          建立：${u.createdAt || '—'}${u.expiresAt ? ` · 到期：${u.expiresAt.slice(0,10)}` : ''}${u.note ? ` · ${u.note}` : ''}
         </div>
       </div>
       <div class="user-actions flex items-center gap-2 flex-shrink-0">
         ${u.username !== 'admin' ? `
           <button onclick="toggleUser('${u.username}')" class="btn text-[10px] px-3 py-1.5 ${toggleClass}">
             ${toggleLabel}
+          </button>
+          <button onclick="openDaysModal('${u.username}')" class="btn text-[10px] px-3 py-1.5 bg-purple-600/10 text-purple-400 border border-purple-800/30 hover:bg-purple-600/20">
+            設天數
+          </button>
+          <button onclick="freezeUser('${u.username}')" class="btn text-[10px] px-3 py-1.5 ${freezeClass}">
+            ${freezeLabel}
           </button>
         ` : ''}
         <button onclick="openPwModal('${u.username}')" class="btn text-[10px] px-3 py-1.5 bg-amber-600/10 text-amber-400 border border-amber-800/30 hover:bg-amber-600/20">
@@ -281,14 +344,22 @@ async function addUser() {
     msgEl.textContent = '密碼至少 4 個字元'; msgEl.className = 'text-xs mt-2 text-red-400'; return;
   }
 
+  const days = parseInt(document.getElementById('new-days').value) || 30;
+
   try {
+    // 先建立用戶
     const r = await fetch(`${API}/api/users`, {
       method: 'POST', headers: getHeaders(),
       body: JSON.stringify({ username, password, role, note, active: true })
     });
     const data = await r.json();
     if (!r.ok) { msgEl.textContent = data.error; msgEl.className = 'text-xs mt-2 text-red-400'; return; }
-    msgEl.textContent = `✓ ${data.message}`; msgEl.className = 'text-xs mt-2 text-emerald-400';
+    // 設定開放天數
+    await fetch(`${API}/api/users/set-days`, {
+      method: 'POST', headers: getHeaders(),
+      body: JSON.stringify({ username, days })
+    });
+    msgEl.textContent = `✓ ${data.message}（開放 ${days} 天）`; msgEl.className = 'text-xs mt-2 text-emerald-400';
     document.getElementById('new-username').value = '';
     document.getElementById('new-password').value = '';
     document.getElementById('new-note').value = '';
@@ -354,6 +425,55 @@ async function submitPassword() {
     if (!r.ok) { msgEl.textContent = data.error; msgEl.className = 'text-xs mb-3 text-red-400'; return; }
     msgEl.textContent = '✓ 密碼已更新'; msgEl.className = 'text-xs mb-3 text-emerald-400';
     setTimeout(closePwModal, 1000);
+  } catch(e) {
+    msgEl.textContent = '操作失敗'; msgEl.className = 'text-xs mb-3 text-red-400';
+  }
+}
+
+// 凍結/解凍
+async function freezeUser(username) {
+  const action = confirm(`確定要凍結/解凍用戶「${username}」嗎？`) ? true : false;
+  if (!action) return;
+  try {
+    const r = await fetch(`${API}/api/users/freeze`, {
+      method: 'POST', headers: getHeaders(),
+      body: JSON.stringify({ username })
+    });
+    const data = await r.json();
+    if (!r.ok) { alert(data.error); return; }
+    loadUsers();
+  } catch(e) { alert('操作失敗'); }
+}
+
+// 設定天數彈窗
+let daysTarget = '';
+function openDaysModal(username) {
+  daysTarget = username;
+  document.getElementById('days-username').textContent = username;
+  document.getElementById('days-input').value = 30;
+  document.getElementById('days-msg').classList.add('hidden');
+  const modal = document.getElementById('days-modal');
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function closeDaysModal() {
+  const modal = document.getElementById('days-modal');
+  modal.classList.add('hidden'); modal.classList.remove('flex');
+}
+async function submitDays() {
+  const days = parseInt(document.getElementById('days-input').value);
+  const msgEl = document.getElementById('days-msg');
+  if (!days || days < 1) {
+    msgEl.textContent = '請輸入有效天數'; msgEl.className = 'text-xs mb-3 text-red-400'; return;
+  }
+  try {
+    const r = await fetch(`${API}/api/users/set-days`, {
+      method: 'POST', headers: getHeaders(),
+      body: JSON.stringify({ username: daysTarget, days })
+    });
+    const data = await r.json();
+    if (!r.ok) { msgEl.textContent = data.error; msgEl.className = 'text-xs mb-3 text-red-400'; return; }
+    msgEl.textContent = `✓ ${data.message}`; msgEl.className = 'text-xs mb-3 text-emerald-400';
+    setTimeout(() => { closeDaysModal(); loadUsers(); }, 1000);
   } catch(e) {
     msgEl.textContent = '操作失敗'; msgEl.className = 'text-xs mb-3 text-red-400';
   }
