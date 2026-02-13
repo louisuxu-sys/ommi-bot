@@ -842,13 +842,12 @@ function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
       if (sp) odds.spread = sp[1];
       if (so) odds.spreadOdds = so[1];
 
-      // 從 onBox 取得隊名（備援）
-      if (!away || !home) {
-        const nh = boxHtml.match(/data-nameh="([^"]*)"/);
-        const na = boxHtml.match(/data-namea="([^"]*)"/);
-        if (!home && nh) home = nh[1];
-        if (!away && na) away = na[1];
-      }
+      // 從 onBox 取得隊名（總是嘗試，取較長的名稱）
+      const nh = boxHtml.match(/data-nameh="([^"]*)"/);
+      const na = boxHtml.match(/data-namea="([^"]*)"/);
+      if (nh && nh[1].length > home.length) home = nh[1];
+      if (na && na[1].length > away.length) away = na[1];
+
       // 時間備援
       if (!time) {
         const tm = boxHtml.match(/比賽時間[^]*?(\d{1,2}:\d{2})/);
@@ -856,10 +855,11 @@ function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
       }
     }
 
-    // 從 select 備援
-    if (!away || !home) {
-      const sg = selectGames.find(g => g.value === box.oid);
-      if (sg) { away = away || sg.away; home = home || sg.home; }
+    // 從 select 取得隊名（總是嘗試，取較長的名稱）
+    const sg = selectGames.find(g => g.value === box.oid);
+    if (sg) {
+      if (sg.home && sg.home.length > home.length) home = sg.home;
+      if (sg.away && sg.away.length > away.length) away = sg.away;
     }
 
     if (away || home) {
@@ -1136,37 +1136,69 @@ function getAITip(m) {
     }
   }
 
-  // 無讓分盤口：用分析引擎判斷獨贏
+  // 無讓分盤口：用分析引擎推薦（混合獨贏、讓分、受讓）
   try {
     const analysis = generateAnalysis(m);
     let tipLabel = '';
     let tipColor = 'text-emerald-400', tipBg = 'bg-emerald-900/20';
 
-    // 獨贏推薦（需有明顯差距才推薦）
     const diff = analysis.homeWin - analysis.awayWin;
-    if (diff > 8) {
-      tipLabel = `獨贏 ${homeName}`;
-      tipColor = 'text-emerald-400'; tipBg = 'bg-emerald-900/20';
-    } else if (diff < -8) {
-      tipLabel = `獨贏 ${awayName}`;
-      tipColor = 'text-blue-400'; tipBg = 'bg-blue-900/20';
-    } else if (diff > 3) {
-      tipLabel = `獨贏 ${homeName}`;
-      tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
-    } else if (diff < -3) {
-      tipLabel = `獨贏 ${awayName}`;
-      tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
-    } else {
-      // 真正接近時顯示預估總分或觀望
-      if (homeAvg && awayAvg) {
-        const expectedTotal = Math.round((homeAvg.scored + awayAvg.scored + homeAvg.allowed + awayAvg.allowed) / 2);
-        tipLabel = `預估總分 ${expectedTotal}`;
-        tipColor = 'text-cyan-400'; tipBg = 'bg-cyan-900/20';
+    const absDiff = Math.abs(diff);
+    const isSoccer = currentSport === 'soccer';
+    const isBball = currentSport === 'basketball';
+    const favTeam = diff > 0 ? homeName : awayName;
+    const dogTeam = diff > 0 ? awayName : homeName;
+    const favColor = diff > 0 ? 'text-emerald-400' : 'text-blue-400';
+    const favBg = diff > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20';
+    const dogColor = diff > 0 ? 'text-blue-400' : 'text-emerald-400';
+    const dogBg = diff > 0 ? 'bg-blue-900/20' : 'bg-emerald-900/20';
+
+    // 根據勝率差距推算虛擬讓分
+    let vSpread = 0;
+    if (isSoccer) vSpread = absDiff > 12 ? 1.5 : absDiff > 6 ? 1 : 0.5;
+    else if (isBball) vSpread = Math.round(absDiff * 0.4);
+    else vSpread = Math.round(absDiff * 0.3);
+
+    // 用 seed 決定推薦類型（讓分 vs 受讓 vs 獨贏），增加多樣性
+    const seed = Math.abs(hashCode(m.home + m.away + m.date)) % 100;
+
+    if (absDiff > 12) {
+      // 強勢方明顯：70% 獨贏、30% 讓分
+      if (seed < 70) {
+        tipLabel = `獨贏 ${favTeam}`;
+        tipColor = favColor; tipBg = favBg;
+      } else {
+        tipLabel = `${favTeam} 讓${isSoccer ? vSpread : vSpread}`;
+        tipColor = favColor; tipBg = favBg;
+      }
+    } else if (absDiff > 5) {
+      // 中等差距：40% 讓分、30% 受讓、30% 獨贏
+      if (seed < 40) {
+        tipLabel = `${favTeam} 讓${vSpread}`;
+        tipColor = favColor; tipBg = favBg;
+      } else if (seed < 70) {
+        tipLabel = `${dogTeam} 受讓${vSpread}`;
+        tipColor = dogColor; tipBg = dogBg;
+      } else {
+        tipLabel = `獨贏 ${favTeam}`;
+        tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
+      }
+    } else if (absDiff > 2) {
+      // 接近：50% 受讓、30% 讓分、20% 觀望
+      if (seed < 50) {
+        tipLabel = `${dogTeam} 受讓${vSpread}`;
+        tipColor = dogColor; tipBg = dogBg;
+      } else if (seed < 80) {
+        tipLabel = `${favTeam} 讓${vSpread}`;
+        tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
       } else {
         tipLabel = '觀望';
         tipColor = 'text-gray-400'; tipBg = 'bg-gray-800/30';
       }
-      return { label: tipLabel, color: tipColor, bg: tipBg };
+    } else {
+      // 實力接近
+      tipLabel = '觀望';
+      tipColor = 'text-gray-400'; tipBg = 'bg-gray-800/30';
     }
 
     return { label: tipLabel, color: tipColor, bg: tipBg };
