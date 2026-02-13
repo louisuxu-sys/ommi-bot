@@ -623,6 +623,7 @@ async function silentRefresh() {
   let psMatches = [];
   try {
     for (const l of leagues) {
+      if (!isLeagueInSeason(l.psId, currentDate)) continue;
       try {
         const result = await fetchFromPlaysport(l.psId, currentDate);
         psMatches = psMatches.concat(result);
@@ -1026,9 +1027,17 @@ async function fetchAllData(showLoading = true) {
     }
   } catch(e) { console.warn('playsport fetch error:', e); }
 
+  // 檢查是否所有聯賽都不在賽季內
+  const allOffSeason = leagues.length > 0 && leagues.every(l => !isLeagueInSeason(l.psId, currentDate));
+
   if (psMatches.length > 0) {
     allMatches = psMatches;
     dataSource = 'playsport';
+  } else if (allOffSeason) {
+    // 所有聯賽都是休賽期，不需要備援
+    allMatches = [];
+    dataSource = 'offseason';
+    console.log(`[SPORTIQ] ${currentSport}: 所有聯賽均為休賽期`);
   } else {
     // 備援：TheSportsDB
     const el = document.getElementById('fetch-status');
