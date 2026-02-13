@@ -804,18 +804,40 @@ function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
     let record = {}, odds = {};
     const teamCodes = (box.oid.split('_')[2]) || '';
 
+    // HTML 標籤清除
+    const stripTags = (s) => s.replace(/<[^>]+>/g, '').trim();
+
     // 從 previewBox 取得隊名和時間
     const previewStart = html.indexOf(`id="gamebox-preview-${box.id}"`);
     if (previewStart > -1) {
       const previewEnd = html.indexOf('開打前的gamebox END', previewStart);
       const ph = previewEnd > -1 ? html.substring(previewStart, previewEnd) : html.substring(previewStart, previewStart + 15000);
 
+      // 嘗試多種模式提取隊名
       const leftMatch = ph.match(/team_left[^>]*>[\s\S]*?<a[^>]*>\s*([\s\S]*?)\s*<\/a>/);
       const rightMatch = ph.match(/team_right[^>]*>[\s\S]*?<a[^>]*>\s*([\s\S]*?)\s*<\/a>/);
       const centerMatch = ph.match(/team_cinter[^>]*>\s*([^<]+)/);
-      if (leftMatch) away = leftMatch[1].trim();
-      if (rightMatch) home = rightMatch[1].trim();
+      if (leftMatch) away = stripTags(leftMatch[1]);
+      if (rightMatch) home = stripTags(rightMatch[1]);
       if (centerMatch) time = centerMatch[1].trim();
+
+      // 備援：從 title 屬性取隊名（通常是完整名稱）
+      const leftTitle = ph.match(/team_left[\s\S]*?title="([^"]+)"/);
+      const rightTitle = ph.match(/team_right[\s\S]*?title="([^"]+)"/);
+      if (leftTitle && stripTags(leftTitle[1]).length > away.length) away = stripTags(leftTitle[1]);
+      if (rightTitle && stripTags(rightTitle[1]).length > home.length) home = stripTags(rightTitle[1]);
+
+      // 備援：從 <a> 的 title 取隊名
+      const leftATitle = ph.match(/team_left[\s\S]*?<a[^>]*title="([^"]+)"/);
+      const rightATitle = ph.match(/team_right[\s\S]*?<a[^>]*title="([^"]+)"/);
+      if (leftATitle && stripTags(leftATitle[1]).length > away.length) away = stripTags(leftATitle[1]);
+      if (rightATitle && stripTags(rightATitle[1]).length > home.length) home = stripTags(rightATitle[1]);
+
+      // 備援：從 img alt 取隊名
+      const leftAlt = ph.match(/team_left[\s\S]*?alt="([^"]+)"/);
+      const rightAlt = ph.match(/team_right[\s\S]*?alt="([^"]+)"/);
+      if (leftAlt && stripTags(leftAlt[1]).length > away.length) away = stripTags(leftAlt[1]);
+      if (rightAlt && stripTags(rightAlt[1]).length > home.length) home = stripTags(rightAlt[1]);
 
       // 戰績
       const extractStat = (label) => {
@@ -842,11 +864,17 @@ function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
       if (sp) odds.spread = sp[1];
       if (so) odds.spreadOdds = so[1];
 
-      // 從 onBox 取得隊名（總是嘗試，取較長的名稱）
+      // 從 onBox / gamebox 取得隊名（總是嘗試，取較長的名稱）
       const nh = boxHtml.match(/data-nameh="([^"]*)"/);
       const na = boxHtml.match(/data-namea="([^"]*)"/);
-      if (nh && nh[1].length > home.length) home = nh[1];
-      if (na && na[1].length > away.length) away = na[1];
+      if (nh && stripTags(nh[1]).length > home.length) home = stripTags(nh[1]);
+      if (na && stripTags(na[1]).length > away.length) away = stripTags(na[1]);
+
+      // 從 gamebox 內的 title 或 alt 屬性取隊名
+      const titleH = boxHtml.match(/team_right[\s\S]*?title="([^"]+)"/);
+      const titleA = boxHtml.match(/team_left[\s\S]*?title="([^"]+)"/);
+      if (titleH && stripTags(titleH[1]).length > home.length) home = stripTags(titleH[1]);
+      if (titleA && stripTags(titleA[1]).length > away.length) away = stripTags(titleA[1]);
 
       // 時間備援
       if (!time) {
@@ -855,12 +883,22 @@ function parsePlaySportHTML(html, psId, gd, dateStr, leagueName) {
       }
     }
 
+    // 從完整 HTML 搜尋 data-nameh / data-namea（範圍更廣）
+    const fullNameH = html.match(new RegExp(`outer-gamebox-${box.id}[\\s\\S]{0,5000}data-nameh="([^"]*)"`));
+    const fullNameA = html.match(new RegExp(`outer-gamebox-${box.id}[\\s\\S]{0,5000}data-namea="([^"]*)"`));
+    if (fullNameH && stripTags(fullNameH[1]).length > home.length) home = stripTags(fullNameH[1]);
+    if (fullNameA && stripTags(fullNameA[1]).length > away.length) away = stripTags(fullNameA[1]);
+
     // 從 select 取得隊名（總是嘗試，取較長的名稱）
-    const sg = selectGames.find(g => g.value === box.oid);
+    const sg = selectGames.find(g => g.value === box.oid || g.value === box.id);
     if (sg) {
       if (sg.home && sg.home.length > home.length) home = sg.home;
       if (sg.away && sg.away.length > away.length) away = sg.away;
     }
+
+    // 最後清理：確保沒有殘留 HTML
+    home = stripTags(home);
+    away = stripTags(away);
 
     if (away || home) {
       matches.push({
