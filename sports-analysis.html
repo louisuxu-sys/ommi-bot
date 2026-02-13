@@ -1011,6 +1011,8 @@ async function fetchAllData(showLoading = true) {
 
   // 嘗試從 playsport.cc 爬取（逐一爬取，避免同時太多請求）
   let psMatches = [];
+  let playsportReached = false; // 是否成功連線到 playsport（即使 0 場比賽）
+  let leaguesFetched = 0;
   try {
     for (let i = 0; i < leagues.length; i++) {
       const el = document.getElementById('fetch-status');
@@ -1022,6 +1024,8 @@ async function fetchAllData(showLoading = true) {
       try {
         const result = await fetchFromPlaysport(leagues[i].psId, currentDate);
         psMatches = psMatches.concat(result);
+        playsportReached = true; // 成功取得回應（不管有沒有比賽）
+        leaguesFetched++;
         console.log(`[SPORTIQ] ${leagues[i].name}: ${result.length} 場賽事`);
       } catch(e) { console.warn(`[${leagues[i].name}] fetch error:`, e); }
     }
@@ -1038,8 +1042,13 @@ async function fetchAllData(showLoading = true) {
     allMatches = [];
     dataSource = 'offseason';
     console.log(`[SPORTIQ] ${currentSport}: 所有聯賽均為休賽期`);
+  } else if (playsportReached) {
+    // playsport 成功連線但今天確實沒有比賽，不使用備援
+    allMatches = [];
+    dataSource = 'playsport';
+    console.log(`[SPORTIQ] ${currentSport}: playsport 回傳 0 場（已成功爬取 ${leaguesFetched} 個聯賽）`);
   } else {
-    // 備援：TheSportsDB
+    // playsport 完全無法連線，才使用 TheSportsDB 備援
     const el = document.getElementById('fetch-status');
     if (el) el.textContent = 'playsport.cc 無法連線，改用 TheSportsDB...';
     try {
