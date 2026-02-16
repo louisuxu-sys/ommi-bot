@@ -593,8 +593,6 @@ const server = http.createServer(async (req, res) => {
     if (ext === '.html') {
       output = data
         .replace(/<!--[\s\S]*?-->/g, '')           // 移除 HTML 註解
-        .replace(/\/\*[\s\S]*?\*\//g, '')           // 移除 CSS 註解
-        .replace(/\/\/[^\n]*(?=\n)/g, '')           // 移除單行 JS 註解
         .replace(/\n\s*/g, '')                      // 移除換行和前導空白
         .replace(/\s{2,}/g, ' ')                    // 多空格合併
         .replace(/>\s+</g, '><')                    // 移除標籤間空白
