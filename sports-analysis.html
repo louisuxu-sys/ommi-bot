@@ -22,81 +22,99 @@
     @keyframes slideIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
     @keyframes pulse-glow { 0%,100%{box-shadow:0 0 6px rgba(16,185,129,.15)} 50%{box-shadow:0 0 16px rgba(16,185,129,.4)} }
     @keyframes liveDot { 0%,100%{opacity:1} 50%{opacity:.25} }
+    @keyframes ticker-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
     .anim-slide { animation:slideIn .2s ease-out }
     .anim-glow { animation:pulse-glow 2s infinite }
     .live-dot { animation:liveDot 1s infinite }
     ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#0d1117} ::-webkit-scrollbar-thumb{background:#2a2f38;border-radius:4px}
     body{margin:0;background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-    .sport-btn{padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;border:none;border-bottom:3px solid transparent;background:transparent;color:#6b7280;transition:all .15s}
-    .sport-btn:hover{color:#d1d5db;background:rgba(255,255,255,.03)}
-    .sport-btn.active{color:#fff;border-bottom-color:#3b82f6;background:rgba(59,130,246,.06)}
-    .league-btn{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
+
+    .sidebar{width:220px;background:#010409;border-right:1px solid #21262d;display:flex;flex-direction:column;flex-shrink:0;height:100vh;position:sticky;top:0;z-index:40}
+    .sidebar-header{padding:16px 20px;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:10px}
+    .sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+    .sidebar-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;color:#8b949e;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;width:100%}
+    .sidebar-item:hover{background:rgba(255,255,255,.04);color:#c9d1d9}
+    .sidebar-item.active{background:rgba(59,130,246,.1);color:#58a6ff}
+    .sidebar-item .s-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+    .sidebar-footer{padding:12px 10px;border-top:1px solid #21262d;display:flex;flex-direction:column;gap:4px}
+    .sidebar-footer-btn{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;color:#8b949e;background:transparent;border:none;cursor:pointer;transition:all .15s;text-decoration:none;width:100%}
+    .sidebar-footer-btn:hover{background:rgba(255,255,255,.04);color:#c9d1d9}
+
+    .topbar{background:#010409;border-bottom:1px solid #21262d;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
+    .ticker-wrap{flex:1;overflow:hidden;margin:0 16px;position:relative;height:28px}
+    .ticker-content{display:inline-flex;gap:32px;white-space:nowrap;animation:ticker-scroll 40s linear infinite;align-items:center;height:100%}
+    .ticker-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8b949e}
+    .ticker-item .t-live{color:#ef4444;font-weight:800}
+    .ticker-item .t-score{color:#fff;font-weight:800}
+
+    .sub-nav{background:#0d1117;border-bottom:1px solid #21262d;padding:10px 20px;display:flex;flex-direction:column;gap:8px}
+    .league-btn{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
     .league-btn:hover{border-color:#30363d;color:#c9d1d9}
-    .league-btn.active{background:#1f6feb22;border-color:#1f6feb;color:#58a6ff}
-    .date-btn{padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
+    .league-btn.active{background:rgba(31,111,235,.12);border-color:#1f6feb;color:#58a6ff}
+    .date-btn{padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
     .date-btn:hover{border-color:#30363d;color:#c9d1d9}
     .date-btn.active{background:#238636;border-color:#238636;color:#fff}
-    .match-row{background:#161b22;border:1px solid #21262d;border-radius:10px;transition:all .15s;cursor:pointer}
-    .match-row:hover{border-color:#30363d;background:#1c2333}
-    .match-row.expanded{border-color:#1f6feb55;background:#131a27}
-    .q-score{min-width:28px;text-align:center;font-size:12px;padding:2px 4px;border-radius:4px}
     .filter-chip{padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;border:1px solid #21262d;background:#161b22;color:#8b949e;transition:all .15s}
     .filter-chip:hover{border-color:#30363d;color:#c9d1d9}
-    .filter-chip.active{background:#1f6feb22;border-color:#1f6feb;color:#58a6ff}
+    .filter-chip.active{background:rgba(31,111,235,.12);border-color:#1f6feb;color:#58a6ff}
 
-    /* ===== Mobile RWD ===== */
+    .match-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .match-card{background:#161b22;border:1px solid #21262d;border-radius:12px;transition:all .2s;cursor:pointer;overflow:hidden}
+    .match-card:hover{border-color:#30363d;background:#1c2333;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+    .match-card.expanded{border-color:rgba(31,111,235,.35);background:#131a27}
+    .match-card.live-card{border-color:rgba(239,68,68,.2)}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(33,38,45,.5)}
+    .card-teams{padding:12px 14px}
+    .card-team{display:flex;align-items:center;justify-content:space-between;padding:5px 0}
+    .card-team .team-info{display:flex;align-items:center;gap:8px}
+    .card-team .team-score{font-size:20px;font-weight:900;min-width:30px;text-align:right}
+    .card-footer{padding:8px 14px;border-top:1px solid rgba(33,38,45,.5);display:flex;align-items:center;justify-content:space-between}
+    .league-divider{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:4px 2px;margin-top:8px}
+    .league-divider:first-child{margin-top:0}
+
+    .q-score{min-width:28px;text-align:center;font-size:12px;padding:2px 4px;border-radius:4px}
+    .match-row{background:#161b22;border:1px solid #21262d;border-radius:10px;transition:all .15s;cursor:pointer}
+    .match-row:hover{border-color:#30363d;background:#1c2333}
+    .match-row.expanded{border-color:rgba(31,111,235,.35);background:#131a27}
+
+    .sidebar-toggle{display:none;background:none;border:none;color:#c9d1d9;cursor:pointer;padding:4px}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:45;backdrop-filter:blur(2px)}
+
+    @media (max-width: 1200px) { .match-grid{grid-template-columns:1fr} }
     @media (max-width: 768px) {
-      /* 頂部導航 */
-      .header-subtitle { display: none; }
-      .header-right-extras { display: none; }
-      header { padding-left: 10px !important; padding-right: 10px !important; gap: 8px; }
-      /* 運動分類 */
-      .sport-btn { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
-      /* 聯賽 + 日期 + 篩選 */
-      .league-btn { padding: 5px 10px; font-size: 11px; white-space: nowrap; }
-      .date-btn { padding: 5px 10px; font-size: 11px; white-space: nowrap; }
-      .filter-chip { padding: 4px 10px; font-size: 10px; white-space: nowrap; }
-      /* 表頭：隱藏節比分 & AI 推薦 & 箭頭 */
-      .col-quarter, .col-ai, .col-arrow { display: none !important; }
-      .col-status { width: 42px !important; min-width: 42px !important; }
-      .col-time { width: 38px !important; min-width: 38px !important; font-size: 10px !important; }
-      .col-score { width: 54px !important; min-width: 54px !important; }
-      /* 主內容區 */
-      .main-content { padding-left: 6px !important; padding-right: 6px !important; padding-top: 8px !important; }
-      /* 賽事列表行 */
-      .match-row { border-radius: 8px !important; }
-      .match-row-inner { padding: 10px 8px !important; }
-      .team-name { font-size: 12px !important; }
-      .score-text { font-size: 14px !important; }
-      /* 展開面板 */
-      .expanded-panel { padding: 10px 8px !important; }
-      .expanded-panel .grid-cols-3 { gap: 4px !important; }
-      .expanded-panel .grid-cols-3 > div { padding: 8px 4px !important; }
-      .expanded-panel .grid-cols-3 .text-lg { font-size: 14px !important; }
-      .expanded-panel button, .expanded-panel a { font-size: 10px !important; padding: 6px 8px !important; }
-      /* AI 彈窗 */
-      .ai-modal-box { width: 95vw !important; max-width: 95vw !important; margin: 8px; border-radius: 12px !important; }
-      .ai-modal-box .p-6 { padding: 12px !important; }
-      .ai-modal-box .px-6 { padding-left: 12px !important; padding-right: 12px !important; }
-      .ai-modal-box .text-2xl { font-size: 18px !important; }
-      .ai-modal-box .grid-cols-3 { gap: 4px !important; }
-      .ai-modal-box .grid-cols-3 > div { padding: 8px 4px !important; }
-      /* 篩選列 */
-      .filter-row { flex-direction: column; gap: 6px !important; align-items: stretch !important; }
-      .filter-chips { flex-wrap: wrap; gap: 4px !important; }
-      /* 子聯賽橫向捲動 */
-      #league-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; }
-      #league-tabs::-webkit-scrollbar { display: none; }
+      .sidebar{position:fixed;left:-240px;transition:left .3s ease;z-index:50;height:100vh}
+      .sidebar.open{left:0}
+      .sidebar-overlay.open{display:block}
+      .sidebar-toggle{display:flex}
+      .topbar{padding:0 12px}
+      .sub-nav{padding:8px 12px}
+      .match-grid{gap:8px}
+      .main-content{padding:10px !important}
+      .filter-row{flex-direction:column;gap:6px !important;align-items:stretch !important}
+      .filter-chips{flex-wrap:wrap;gap:4px !important}
+      .league-btn{padding:5px 10px;font-size:11px;white-space:nowrap}
+      .date-btn{padding:5px 10px;font-size:11px;white-space:nowrap}
+      .filter-chip{padding:4px 10px;font-size:10px;white-space:nowrap}
+      #league-tabs{overflow-x:auto;flex-wrap:nowrap !important;-webkit-overflow-scrolling:touch}
+      #league-tabs::-webkit-scrollbar{display:none}
+      .expanded-panel{padding:10px 8px !important}
+      .expanded-panel .grid-cols-3{gap:4px !important}
+      .expanded-panel .grid-cols-3 > div{padding:8px 4px !important}
+      .expanded-panel .grid-cols-3 .text-lg{font-size:14px !important}
+      .expanded-panel button,.expanded-panel a{font-size:10px !important;padding:6px 8px !important}
+      .ai-modal-box{width:95vw !important;max-width:95vw !important;margin:8px;border-radius:12px !important}
+      .ai-modal-box .p-6{padding:12px !important}
+      .ai-modal-box .px-6{padding-left:12px !important;padding-right:12px !important}
+      .ai-modal-box .text-2xl{font-size:18px !important}
+      .ai-modal-box .grid-cols-3{gap:4px !important}
+      .ai-modal-box .grid-cols-3 > div{padding:8px 4px !important}
     }
     @media (max-width: 480px) {
-      .sport-btn { padding: 7px 6px; font-size: 11px; }
-      .col-time { display: none !important; }
-      .col-status { width: 36px !important; min-width: 36px !important; }
-      .col-status span { font-size: 9px !important; }
-      .match-row-inner { padding: 8px 6px !important; }
-      .team-name { font-size: 11px !important; }
-      .score-text { font-size: 13px !important; }
-      .expanded-panel .text-xs { font-size: 11px !important; }
+      .card-team .team-score{font-size:16px}
+      .card-teams{padding:10px 12px}
+      .card-header{padding:8px 12px}
+      .card-footer{padding:6px 12px}
+      .team-name{font-size:12px !important}
     }
   </style>
 </head>
@@ -144,79 +162,106 @@
   </div>
 </div>
 
-<div id="main-app" class="min-h-screen flex flex-col" style="display:none">
+<div id="main-app" class="min-h-screen flex" style="display:none">
 
-  <!-- ===== 頂部導航 ===== -->
-  <header style="background:#010409;border-bottom:1px solid #21262d" class="flex items-center justify-between px-5 h-12 flex-shrink-0">
-    <div class="flex items-center gap-3">
-      <a href="#" onclick="switchSport('basketball');return false;" class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity cursor-pointer">
-        <span class="text-3xl">🏆</span>
-        <span class="text-xl font-black text-white tracking-wider">SPORTIQ</span>
-        <span class="text-[9px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">LIVE</span>
+  <!-- ===== 側邊欄遮罩 (手機版) ===== -->
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- ===== 左側導航欄 ===== -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <a href="#" onclick="switchSport('basketball');return false;" class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
+        <span class="text-2xl">🏆</span>
+        <div>
+          <span class="text-base font-black text-white tracking-wider block leading-tight">SPORTIQ</span>
+          <span class="text-[9px] text-gray-600">AI 體育分析平台</span>
+        </div>
       </a>
-      <span class="text-[10px] text-gray-600 ml-2 header-subtitle">體育即時比分 · AI 智能分析</span>
     </div>
-    <div class="flex items-center gap-4">
-      <span class="text-[10px] text-gray-600 header-right-extras" id="current-time"></span>
-      <span class="text-[10px] text-gray-600 header-right-extras">自動更新 <span id="refresh-countdown" class="text-emerald-500 font-bold">30</span>s</span>
-      <button onclick="fetchAllData()" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-md transition-all">
-        <i data-lucide="refresh-cw" class="w-3 h-3"></i> 更新
+    <nav class="sidebar-nav">
+      <div class="text-[9px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1">運動賽事</div>
+      <button onclick="switchSport('basketball');closeSidebarMobile()" id="tab-basketball" class="sidebar-item active">
+        <span class="s-icon">🏀</span><span>籃球</span>
       </button>
-      <a id="admin-link" href="admin-panel.html" style="display:none" class="flex items-center gap-1 px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 text-[11px] font-bold rounded-md border border-purple-800/40 transition-all">
-        <i data-lucide="shield" class="w-3 h-3"></i> 管理
+      <button onclick="switchSport('baseball');closeSidebarMobile()" id="tab-baseball" class="sidebar-item">
+        <span class="s-icon">⚾</span><span>棒球</span>
+      </button>
+      <button onclick="switchSport('soccer');closeSidebarMobile()" id="tab-soccer" class="sidebar-item">
+        <span class="s-icon">⚽</span><span>足球</span>
+      </button>
+      <button onclick="switchSport('hockey');closeSidebarMobile()" id="tab-hockey" class="sidebar-item">
+        <span class="s-icon">🏒</span><span>冰球</span>
+      </button>
+      <button onclick="switchSport('tennis');closeSidebarMobile()" id="tab-tennis" class="sidebar-item">
+        <span class="s-icon">🎾</span><span>網球</span>
+      </button>
+      <div class="text-[9px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1 mt-6">管理工具</div>
+      <a id="admin-link" href="admin-panel.html" style="display:none" class="sidebar-item no-underline">
+        <span class="s-icon">🛡️</span><span>管理後台</span>
       </a>
-      <button onclick="doLogout()" class="flex items-center gap-1 px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-400 text-[11px] font-bold rounded-md border border-red-800/30 transition-all">
-        <i data-lucide="log-out" class="w-3 h-3"></i> <span id="user-display" class="header-right-extras"></span>登出
+    </nav>
+    <div class="sidebar-footer">
+      <div class="flex items-center gap-2.5 px-3 py-2">
+        <div class="w-7 h-7 rounded-full bg-emerald-600/20 flex items-center justify-center text-[11px] font-bold text-emerald-400 border border-emerald-700/40">
+          <span id="user-avatar">U</span>
+        </div>
+        <span id="user-display" class="text-xs font-bold text-gray-400 flex-1 truncate"></span>
+      </div>
+      <button onclick="doLogout()" class="sidebar-footer-btn text-red-400 hover:!bg-red-600/10">
+        <i data-lucide="log-out" class="w-4 h-4"></i><span>登出</span>
       </button>
     </div>
-  </header>
+  </aside>
 
-  <!-- ===== 運動分類 ===== -->
-  <div style="background:#0d1117;border-bottom:1px solid #21262d" class="flex items-center px-5 flex-shrink-0 overflow-x-auto">
-    <button onclick="switchSport('basketball')" id="tab-basketball" class="sport-btn active">🏀 籃球</button>
-    <button onclick="switchSport('baseball')" id="tab-baseball" class="sport-btn">⚾ 棒球</button>
-    <button onclick="switchSport('soccer')" id="tab-soccer" class="sport-btn">⚽ 足球</button>
-    <button onclick="switchSport('hockey')" id="tab-hockey" class="sport-btn">🏒 冰球</button>
-    <button onclick="switchSport('tennis')" id="tab-tennis" class="sport-btn">🎾 網球</button>
-  </div>
+  <!-- ===== 右側主區域 ===== -->
+  <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
 
-  <!-- ===== 子聯賽 + 日期 + 篩選 ===== -->
-  <div style="background:#0d1117;border-bottom:1px solid #21262d" class="px-5 py-2.5 flex flex-col gap-2 flex-shrink-0">
-    <!-- 子聯賽 -->
-    <div id="league-tabs" class="flex items-center gap-2 flex-wrap"></div>
-    <!-- 日期 + 篩選 -->
-    <div class="flex items-center justify-between filter-row">
-      <div id="date-tabs" class="flex items-center gap-2 overflow-x-auto"></div>
-      <div class="flex items-center gap-2 filter-chips">
-        <button onclick="setFilter('all')" id="f-all" class="filter-chip active">全部</button>
-        <button onclick="setFilter('live')" id="f-live" class="filter-chip">🔴 進行中</button>
-        <button onclick="setFilter('upcoming')" id="f-upcoming" class="filter-chip">即將開始</button>
-        <button onclick="setFilter('finished')" id="f-finished" class="filter-chip">已結束</button>
-        <button onclick="setFilter('postponed')" id="f-postponed" class="filter-chip">⚠ 延期</button>
-        <span class="text-[10px] text-gray-600 ml-2"><span id="match-count">0</span> 場</span>
+    <!-- ===== 頂部導航列 + 跑馬燈 ===== -->
+    <header class="topbar">
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <button onclick="toggleSidebar()" class="sidebar-toggle">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <span class="text-[9px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded font-bold">LIVE</span>
+      </div>
+      <div class="ticker-wrap">
+        <div id="ticker" class="ticker-content">
+          <span class="ticker-item"><span class="text-gray-600">正在載入即時比分...</span></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <span class="text-[10px] text-gray-600 hidden md:inline" id="current-time"></span>
+        <span class="text-[10px] text-gray-600 hidden md:inline">自動更新 <span id="refresh-countdown" class="text-emerald-500 font-bold">60</span>s</span>
+        <button onclick="fetchAllData()" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-md transition-all">
+          <i data-lucide="refresh-cw" class="w-3 h-3"></i> <span class="hidden sm:inline">更新</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== 子聯賽 + 日期 + 篩選 ===== -->
+    <div class="sub-nav">
+      <div id="league-tabs" class="flex items-center gap-2 flex-wrap"></div>
+      <div class="flex items-center justify-between filter-row">
+        <div id="date-tabs" class="flex items-center gap-2 overflow-x-auto"></div>
+        <div class="flex items-center gap-2 filter-chips">
+          <button onclick="setFilter('all')" id="f-all" class="filter-chip active">全部</button>
+          <button onclick="setFilter('live')" id="f-live" class="filter-chip">🔴 進行中</button>
+          <button onclick="setFilter('upcoming')" id="f-upcoming" class="filter-chip">即將開始</button>
+          <button onclick="setFilter('finished')" id="f-finished" class="filter-chip">已結束</button>
+          <button onclick="setFilter('postponed')" id="f-postponed" class="filter-chip">⚠ 延期</button>
+          <span class="text-[10px] text-gray-600 ml-2"><span id="match-count">0</span> 場</span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ===== 主內容 ===== -->
-  <div class="flex-1 overflow-y-auto px-5 py-4 main-content">
-    <!-- 表頭 -->
-    <div class="flex items-center text-xs text-gray-600 font-bold uppercase tracking-wider mb-2 px-4">
-      <div class="w-16 col-status">狀態</div>
-      <div class="w-14 text-center col-time">時間</div>
-      <div class="flex-1 pl-4">對戰</div>
-      <div class="w-16 text-center col-score">比分</div>
-      <div class="w-[200px] text-center col-quarter">節比分</div>
-      <div class="w-36 text-center col-ai">AI 推薦</div>
-      <div class="w-10 col-arrow"></div>
-    </div>
-
-    <!-- 賽事列表 -->
-    <div id="match-list" class="space-y-2">
-      <div class="flex items-center justify-center py-16">
-        <div class="text-center text-gray-600">
-          <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p class="text-sm">正在載入賽事資料...</p>
+    <!-- ===== 主內容（卡片網格） ===== -->
+    <div class="flex-1 overflow-y-auto p-5 main-content">
+      <div id="match-list" class="match-grid">
+        <div class="flex items-center justify-center py-16" style="grid-column:1/-1">
+          <div class="text-center text-gray-600">
+            <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p class="text-sm">正在載入賽事資料...</p>
+          </div>
         </div>
       </div>
     </div>
@@ -358,10 +403,10 @@ function showLogin() {
 function showApp() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
-  // 顯示用戶名稱
   const ud = document.getElementById('user-display');
-  if (ud && currentUser) ud.textContent = currentUser.username + ' ';
-  // 管理員才顯示管理按鈕
+  if (ud && currentUser) ud.textContent = currentUser.username;
+  const ua = document.getElementById('user-avatar');
+  if (ua && currentUser) ua.textContent = currentUser.username.charAt(0).toUpperCase();
   const al = document.getElementById('admin-link');
   if (al) al.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
   if (window.lucide) window.lucide.createIcons();
@@ -1010,7 +1055,7 @@ async function fetchAllData(showLoading = true) {
 
   if (showLoading) {
     document.getElementById('match-list').innerHTML = `
-      <div class="flex items-center justify-center py-12">
+      <div class="flex items-center justify-center py-12" style="grid-column:1/-1">
         <div class="text-center text-gray-600">
           <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
           <p class="text-xs" id="fetch-status">正在讀取 ${leagues[0]?.name || ''} 資料...</p>
@@ -1083,6 +1128,7 @@ async function fetchAllData(showLoading = true) {
   });
 
   renderMatchList();
+  updateTicker();
   startCountdown();
 
   // 顯示資料來源
@@ -1369,7 +1415,7 @@ function renderMatchList() {
 
   if (filtered.length === 0) {
     const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
-    container.innerHTML = `<div class="flex items-center justify-center py-16 text-center">
+    container.innerHTML = `<div class="flex items-center justify-center py-16 text-center" style="grid-column:1/-1">
       <div>
         <p class="text-2xl mb-3">📭</p>
         <p class="text-sm font-bold text-gray-500 mb-1">${fmtDate(currentDate)} ${sportName} 今日無賽事</p>
@@ -1384,7 +1430,6 @@ function renderMatchList() {
 }
 
 function renderRows(list) {
-  // 按聯賽分組
   const groups = {};
   list.forEach(m => {
     if (!groups[m.league]) groups[m.league] = [];
@@ -1393,7 +1438,7 @@ function renderRows(list) {
 
   let html = '';
   for (const [league, matches] of Object.entries(groups)) {
-    html += `<div class="mb-1 mt-3 first:mt-0 flex items-center gap-2 px-2">
+    html += `<div class="league-divider">
       <span class="text-[11px] font-bold text-blue-400">${league}</span>
       <span class="flex-1 border-t border-gray-800/60"></span>
       <span class="text-[10px] text-gray-600">${matches.length} 場</span>
@@ -1402,71 +1447,54 @@ function renderRows(list) {
     for (const m of matches) {
       const isExpanded = expandedId === m.id;
       const tip = getAITip(m);
-      const qs = genQuarterScores(m);
-
-      // 狀態
-      let statusHtml;
-      if (m.status === 'postponed') {
-        statusHtml = `<span class="text-[10px] font-bold text-yellow-500">⚠ 延期</span>`;
-      } else if (m.status === 'live') {
-        statusHtml = `<span class="flex items-center gap-1 text-[10px] font-bold text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></span>進行中</span>`;
-      } else if (m.status === 'upcoming') {
-        statusHtml = `<span class="text-[10px] font-bold text-blue-400">未開始</span>`;
-      } else {
-        statusHtml = `<span class="text-[10px] font-bold text-gray-500">已結束</span>`;
-      }
-
-      // 比分
       const hasScore = m.homeScore !== null && m.homeScore !== undefined;
-      const scoreColor = m.status === 'live' ? 'text-red-400' : 'text-white';
-      const scoreHtml = hasScore
-        ? `<span class="score-text text-base font-black ${scoreColor}">${m.homeScore} : ${m.awayScore}</span>`
-        : `<span class="text-xs text-gray-500 font-bold">VS</span>`;
+      const isLive = m.status === 'live';
+      const scoreColor = isLive ? 'text-red-400' : 'text-white';
 
-      // 節比分
-      let qHtml = '<span class="text-[10px] text-gray-600">—</span>';
-      if (qs) {
-        const periodLabel = currentSport === 'basketball' ? 'Q' : currentSport === 'soccer' ? 'H' : '';
-        qHtml = `<div class="flex gap-0.5">` +
-          qs.hq.map((h, i) => `<div class="text-center"><div class="text-[9px] text-gray-600 mb-0.5">${periodLabel}${i+1}</div><div class="q-score bg-gray-800/60 text-gray-300">${h}</div><div class="q-score bg-gray-800/40 text-gray-400">${qs.aq[i]}</div></div>`).join('') +
-          `</div>`;
-      }
+      let statusHtml;
+      if (m.status === 'postponed') statusHtml = `<span class="text-[10px] font-bold text-yellow-500">⚠ 延期</span>`;
+      else if (isLive) statusHtml = `<span class="flex items-center gap-1 text-[10px] font-bold text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></span>LIVE</span>`;
+      else if (m.status === 'upcoming') statusHtml = `<span class="text-[10px] font-bold text-blue-400">未開始</span>`;
+      else statusHtml = `<span class="text-[10px] font-bold text-gray-500">已結束</span>`;
 
-      // 隊伍 badge
       const hBadge = m.homeBadge ? `<img src="${m.homeBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
       const aBadge = m.awayBadge ? `<img src="${m.awayBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
 
+      const tipHtml = m.status === 'finished' && tip.result
+        ? `<div class="flex items-center gap-1.5"><span class="text-[10px] font-bold ${tip.color}">${tip.label}</span><span class="text-[9px] text-gray-600">${tip.result}</span></div>`
+        : `<span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>`;
+
       html += `
-        <div class="match-row ${isExpanded ? 'expanded' : ''} anim-slide mb-1.5">
-          <div class="match-row-inner flex items-center px-4 py-3" onclick="toggleExpand('${m.id}')">
-            <div class="w-16 flex-shrink-0 col-status">${statusHtml}</div>
-            <div class="w-14 text-center flex-shrink-0 text-[11px] text-gray-500 col-time">${m.time ? m.time.slice(0,5) : '—'}</div>
-            <div class="flex-1 pl-2 min-w-0">
-              <div class="flex items-center gap-1.5 mb-0.5">
-                <span class="text-[9px] font-bold text-red-400 bg-red-900/20 px-1 py-0.5 rounded leading-none flex-shrink-0">主</span>
+        <div class="match-card ${isExpanded ? 'expanded' : ''} ${isLive ? 'live-card' : ''} anim-slide" onclick="toggleExpand('${m.id}')">
+          <div class="card-header">
+            <div class="flex items-center gap-2">
+              ${statusHtml}
+              <span class="text-[10px] text-gray-600">${m.time ? m.time.slice(0,5) : ''}</span>
+            </div>
+            ${tipHtml}
+          </div>
+          <div class="card-teams">
+            <div class="card-team">
+              <div class="team-info">
+                <span class="text-[9px] font-bold text-red-400 bg-red-900/20 px-1 py-0.5 rounded leading-none">主</span>
                 ${hBadge}
                 <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.homeScore) > parseInt(m.awayScore) ? 'text-white' : 'text-gray-300'}">${t(m.home)}</span>
               </div>
-              <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-bold text-blue-400 bg-blue-900/20 px-1 py-0.5 rounded leading-none flex-shrink-0">客</span>
+              <span class="team-score ${hasScore ? scoreColor : 'text-gray-600'}">${hasScore ? m.homeScore : '-'}</span>
+            </div>
+            <div class="h-px bg-gray-800/30 my-0.5"></div>
+            <div class="card-team">
+              <div class="team-info">
+                <span class="text-[9px] font-bold text-blue-400 bg-blue-900/20 px-1 py-0.5 rounded leading-none">客</span>
                 ${aBadge}
                 <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.awayScore) > parseInt(m.homeScore) ? 'text-white' : 'text-gray-300'}">${t(m.away)}</span>
               </div>
+              <span class="team-score ${hasScore ? scoreColor : 'text-gray-600'}">${hasScore ? m.awayScore : '-'}</span>
             </div>
-            <div class="w-16 text-center flex-shrink-0 col-score">${scoreHtml}</div>
-            <div class="w-[200px] flex-shrink-0 flex justify-center col-quarter">${qHtml}</div>
-            <div class="w-36 text-center flex-shrink-0 col-ai">
-              ${m.status === 'finished' && tip.result
-                ? `<div class="flex flex-col items-center gap-0.5">
-                      <span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>
-                      <span class="text-[10px] text-gray-500">${tip.result}</span>
-                    </div>`
-                : `<span class="text-xs font-bold ${tip.color} ${tip.bg} px-2 py-1 rounded-md">${tip.label}</span>`
-              }
-            </div>
-            <div class="w-10 text-center flex-shrink-0 col-arrow">
-              <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-gray-600 inline-block"></i>
-            </div>
+          </div>
+          <div class="card-footer">
+            <span class="text-[9px] text-gray-600">${m.date}</span>
+            <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5 text-gray-600"></i>
           </div>
           ${isExpanded ? renderExpandedPanel(m) : ''}
         </div>`;
@@ -1864,13 +1892,39 @@ function switchSport(sport) {
   currentSport = sport;
   currentLeague = 'all';
   expandedId = null;
-  dateAvailCache = {}; // 切換運動時清除日期快取
-  ['basketball','baseball','soccer','hockey','tennis'].forEach(s => {
-    const el = document.getElementById('tab-'+s);
-    if (el) { el.classList.toggle('active', s===sport); }
-  });
+  dateAvailCache = {};
+  document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('tab-'+sport);
+  if (el) el.classList.add('active');
   fetchAllData();
-  checkDateAvailability(); // 重新檢查日期可用性
+  checkDateAvailability();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebarMobile() {
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+}
+
+function updateTicker() {
+  const ticker = document.getElementById('ticker');
+  if (!ticker) return;
+  const liveOrDone = allMatches.filter(m => m.status === 'live' || (m.status === 'finished' && m.homeScore !== null));
+  if (liveOrDone.length === 0) {
+    const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
+    ticker.innerHTML = `<span class="ticker-item"><span class="text-gray-500">${sportName} — 暫無進行中的賽事</span></span><span class="ticker-item"><span class="text-gray-500">${sportName} — 暫無進行中的賽事</span></span>`;
+    return;
+  }
+  const items = liveOrDone.map(m => {
+    const isLive = m.status === 'live';
+    return `<span class="ticker-item">${isLive ? '<span class="t-live">● LIVE</span>' : '<span class="text-gray-600">結束</span>'} <span>${t(m.home)}</span> <span class="t-score">${m.homeScore??'-'} : ${m.awayScore??'-'}</span> <span>${t(m.away)}</span></span>`;
+  }).join('');
+  ticker.innerHTML = items + items;
 }
 
 function setLeague(id) {
