@@ -410,6 +410,9 @@ function showApp() {
   const al = document.getElementById('admin-link');
   if (al) al.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
   if (window.lucide) window.lucide.createIcons();
+  renderDateTabs();
+  fetchAllData();
+  checkDateAvailability();
 }
 
 /* ========== 全域狀態 ========== */
@@ -1953,12 +1956,6 @@ function setDate(d) {
 document.addEventListener('DOMContentLoaded', async function() {
   if (window.lucide) window.lucide.createIcons();
   await checkAuth();
-  // 登入成功後才載入資料
-  if (currentUser) {
-    renderDateTabs();
-    fetchAllData();
-    checkDateAvailability();
-  }
 });
 </script>
 </body>
