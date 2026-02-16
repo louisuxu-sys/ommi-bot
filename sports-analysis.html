@@ -42,7 +42,7 @@
 
     .topbar{background:#010409;border-bottom:1px solid #21262d;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
     .ticker-wrap{flex:1;overflow:hidden;margin:0 16px;position:relative;height:28px}
-    .ticker-content{display:inline-flex;gap:32px;white-space:nowrap;animation:ticker-scroll 40s linear infinite;align-items:center;height:100%}
+    .ticker-content{display:inline-flex;gap:32px;white-space:nowrap;animation:ticker-scroll 18s linear infinite;align-items:center;height:100%}
     .ticker-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8b949e}
     .ticker-item .t-live{color:#ef4444;font-weight:800}
     .ticker-item .t-score{color:#fff;font-weight:800}
@@ -1461,8 +1461,8 @@ function renderRows(list) {
       const aBadge = m.awayBadge ? `<img src="${m.awayBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
 
       const tipHtml = m.status === 'finished' && tip.result
-        ? `<div class="flex items-center gap-1.5"><span class="text-[10px] font-bold ${tip.color}">${tip.label}</span><span class="text-[9px] text-gray-600">${tip.result}</span></div>`
-        : `<span class="text-[10px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>`;
+        ? `<div class="flex items-center gap-1.5"><span class="text-[12px] font-bold ${tip.color}">${tip.label}</span><span class="text-[10px] text-gray-600">${tip.result}</span></div>`
+        : `<span class="text-[12px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>`;
 
       html += `
         <div class="match-card ${isExpanded ? 'expanded' : ''} ${isLive ? 'live-card' : ''} anim-slide" onclick="toggleExpand('${m.id}')">
