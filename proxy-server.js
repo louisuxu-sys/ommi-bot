@@ -582,15 +582,27 @@ const server = http.createServer(async (req, res) => {
   const ext = path.extname(fullPath).toLowerCase();
   const mimeTypes = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon' };
 
-  fs.readFile(fullPath, (err, data) => {
+  fs.readFile(fullPath, 'utf8', (err, data) => {
     if (err) {
       res.writeHead(404);
       res.end('Not Found');
       return;
     }
+    let output = data;
+    // HTML 檔案自動壓縮（minify），讓原始碼難以閱讀
+    if (ext === '.html') {
+      output = data
+        .replace(/<!--[\s\S]*?-->/g, '')           // 移除 HTML 註解
+        .replace(/\/\*[\s\S]*?\*\//g, '')           // 移除 CSS 註解
+        .replace(/\/\/[^\n]*(?=\n)/g, '')           // 移除單行 JS 註解
+        .replace(/\n\s*/g, '')                      // 移除換行和前導空白
+        .replace(/\s{2,}/g, ' ')                    // 多空格合併
+        .replace(/>\s+</g, '><')                    // 移除標籤間空白
+        .trim();
+    }
     res.setHeader('Content-Type', (mimeTypes[ext] || 'text/plain') + '; charset=utf-8');
     res.writeHead(200);
-    res.end(data);
+    res.end(output);
   });
 });
 
