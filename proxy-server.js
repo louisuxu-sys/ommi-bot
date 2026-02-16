@@ -590,13 +590,17 @@ const server = http.createServer(async (req, res) => {
     }
     let output = data;
     // HTML 檔案自動壓縮（minify），讓原始碼難以閱讀
+    // 只壓縮 HTML/CSS 部分，保留 <script> 內容不動（避免 JS 語法錯誤）
     if (ext === '.html') {
-      output = data
-        .replace(/<!--[\s\S]*?-->/g, '')           // 移除 HTML 註解
-        .replace(/\n\s*/g, '')                      // 移除換行和前導空白
-        .replace(/\s{2,}/g, ' ')                    // 多空格合併
-        .replace(/>\s+</g, '><')                    // 移除標籤間空白
-        .trim();
+      output = data.replace(/<!--[\s\S]*?-->/g, ''); // 移除 HTML 註解
+      const parts = output.split(/(<script[\s\S]*?<\/script>)/gi);
+      output = parts.map(part => {
+        if (/^<script/i.test(part)) return part; // script 區塊保持不動
+        return part
+          .replace(/\n\s*/g, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/>\s+</g, '><');
+      }).join('').trim();
     }
     res.setHeader('Content-Type', (mimeTypes[ext] || 'text/plain') + '; charset=utf-8');
     res.writeHead(200);
