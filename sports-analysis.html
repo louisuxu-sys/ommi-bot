@@ -391,6 +391,7 @@ function doLogout() {
   localStorage.removeItem('sportiq_user');
   localStorage.removeItem('sportiq_role');
   currentUser = null;
+  appInitialized = false;
   showLogin();
 }
 
@@ -400,6 +401,7 @@ function showLogin() {
   switchAuthMode('login');
 }
 
+let appInitialized = false;
 function showApp() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
@@ -410,9 +412,12 @@ function showApp() {
   const al = document.getElementById('admin-link');
   if (al) al.style.display = (currentUser && currentUser.role === 'admin') ? 'flex' : 'none';
   if (window.lucide) window.lucide.createIcons();
-  renderDateTabs();
-  fetchAllData();
-  checkDateAvailability();
+  if (!appInitialized) {
+    appInitialized = true;
+    renderDateTabs();
+    fetchAllData();
+    checkDateAvailability();
+  }
 }
 
 /* ========== 全域狀態 ========== */
@@ -704,6 +709,7 @@ async function silentRefresh() {
     return a.status === 'finished' ? db - da : da - db;
   });
   renderMatchList();
+  updateTicker();
   console.log(`[SPORTIQ] 靜默刷新完成，${allMatches.length} 場賽事`);
 }
 
@@ -1522,10 +1528,10 @@ function renderExpandedPanel(m) {
   const psLink = `https://www.playsport.cc/livescore/${psId}?gamedate=${gd}`;
 
   return `
-    <div class="expanded-panel border-t border-gray-800/60 px-4 py-4 space-y-4 anim-slide">
+    <div class="expanded-panel border-t border-gray-800/60 px-4 py-4 space-y-4 anim-slide" onclick="event.stopPropagation()">
       <!-- 快速資訊列 -->
       <div class="flex items-center gap-3 flex-wrap">
-        <span class="text-[10px] text-gray-500">� ${m.date} ${m.time || ''}</span>
+        <span class="text-[10px] text-gray-500">📅 ${m.date} ${m.time || ''}</span>
         ${odds.spread ? `<span class="text-[10px] px-2 py-0.5 bg-amber-900/20 text-amber-400 rounded border border-amber-800/30">讓分 ${odds.spread}</span>` : ''}
         ${m.teamCodes ? `<span class="text-[10px] text-gray-600">${m.teamCodes}</span>` : ''}
         <button onclick="event.stopPropagation();openAIModal('${m.id}')" class="ml-auto flex items-center gap-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[11px] font-bold rounded-lg border border-emerald-800/40 transition-all">
