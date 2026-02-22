@@ -50,6 +50,9 @@
     .no-underline{text-decoration-line:none}.cursor-pointer{cursor:pointer}
     .animate-spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     body{margin:0;background:#141c2b;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .app-shell{display:flex;height:100vh;overflow:hidden}
+    .app-right{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+    .app-scroll{flex:1;overflow-y:auto;padding:1.25rem;min-height:0}
 
     .sidebar{width:220px;background:#0f172a;border-right:1px solid #1e293b;display:flex;flex-direction:column;flex-shrink:0;height:100vh;z-index:40}
     .sidebar-header{padding:16px 20px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:10px}
@@ -184,7 +187,7 @@
   </div>
 </div>
 
-<div id="main-app" class="h-screen flex overflow-hidden" style="display:none">
+<div id="main-app" class="app-shell" style="display:none">
 
   <!-- ===== 側邊欄遮罩 (手機版) ===== -->
   <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
@@ -236,7 +239,7 @@
   </aside>
 
   <!-- ===== 右側主區域 ===== -->
-  <div class="flex-1 flex flex-col h-screen overflow-hidden">
+  <div class="app-right">
 
     <!-- ===== 頂部導航列 + 跑馬燈 ===== -->
     <header class="topbar">
@@ -277,7 +280,7 @@
     </div>
 
     <!-- ===== 主內容（卡片網格） ===== -->
-    <div class="flex-1 overflow-y-auto p-5 main-content" style="min-height:0">
+    <div class="app-scroll main-content">
       <div id="match-list" class="match-grid">
         <div class="flex items-center justify-center py-16" style="grid-column:1/-1">
           <div class="text-center text-gray-600">
@@ -419,14 +422,14 @@ function doLogout() {
 
 function showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
-  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('main-app').style.display = 'none'; document.getElementById('main-app').classList.remove('app-shell');
   switchAuthMode('login');
 }
 
 let appInitialized = false;
 function showApp() {
   document.getElementById('login-overlay').style.display = 'none';
-  document.getElementById('main-app').style.display = 'flex';
+  const ma = document.getElementById('main-app'); ma.style.display = ''; ma.classList.add('app-shell');
   const ud = document.getElementById('user-display');
   if (ud && currentUser) ud.textContent = currentUser.username;
   const ua = document.getElementById('user-avatar');
