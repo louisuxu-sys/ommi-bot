@@ -26,28 +26,28 @@
     .anim-slide { animation:slideIn .2s ease-out }
     .anim-glow { animation:pulse-glow 2s infinite }
     .live-dot { animation:liveDot 1s infinite }
-    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#0d1117} ::-webkit-scrollbar-thumb{background:#2a2f38;border-radius:4px}
-    body{margin:0;background:#111827;color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:#141c2b} ::-webkit-scrollbar-thumb{background:#334155;border-radius:4px} ::-webkit-scrollbar-thumb:hover{background:#475569}
+    body{margin:0;background:#141c2b;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
 
-    .sidebar{width:220px;background:#0f172a;border-right:1px solid #1e293b;display:flex;flex-direction:column;flex-shrink:0;height:100vh;position:sticky;top:0;z-index:40}
+    .sidebar{width:220px;background:#0f172a;border-right:1px solid #1e293b;display:flex;flex-direction:column;flex-shrink:0;height:100vh;z-index:40}
     .sidebar-header{padding:16px 20px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:10px}
     .sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-    .sidebar-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;color:#8b949e;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;width:100%}
-    .sidebar-item:hover{background:rgba(255,255,255,.04);color:#c9d1d9}
-    .sidebar-item.active{background:rgba(59,130,246,.1);color:#58a6ff}
+    .sidebar-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;color:#94a3b8;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;width:100%}
+    .sidebar-item:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
+    .sidebar-item.active{background:rgba(59,130,246,.15);color:#60a5fa}
     .sidebar-item .s-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
     .sidebar-footer{padding:12px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:4px}
-    .sidebar-footer-btn{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;color:#8b949e;background:transparent;border:none;cursor:pointer;transition:all .15s;text-decoration:none;width:100%}
-    .sidebar-footer-btn:hover{background:rgba(255,255,255,.04);color:#c9d1d9}
+    .sidebar-footer-btn{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;color:#94a3b8;background:transparent;border:none;cursor:pointer;transition:all .15s;text-decoration:none;width:100%}
+    .sidebar-footer-btn:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
 
-    .topbar{background:#0f172a;border-bottom:1px solid #1e293b;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
+    .topbar{background:#0f172a;border-bottom:1px solid #1e293b;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;flex-grow:0}
     .ticker-wrap{flex:1;overflow:hidden;margin:0 16px;position:relative;height:28px}
     .ticker-content{display:inline-flex;gap:32px;white-space:nowrap;animation:ticker-scroll 18s linear infinite;align-items:center;height:100%}
-    .ticker-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8b949e}
+    .ticker-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#94a3b8}
     .ticker-item .t-live{color:#ef4444;font-weight:800}
     .ticker-item .t-score{color:#fff;font-weight:800}
 
-    .sub-nav{background:#111827;border-bottom:1px solid #1e293b;padding:10px 20px;display:flex;flex-direction:column;gap:8px}
+    .sub-nav{background:#141c2b;border-bottom:1px solid #1e293b;padding:10px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
     .league-btn{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;border:1px solid #1e293b;background:#1e293b;color:#94a3b8;transition:all .15s}
     .league-btn:hover{border-color:#30363d;color:#c9d1d9}
     .league-btn.active{background:rgba(31,111,235,.12);border-color:#1f6feb;color:#58a6ff}
@@ -60,8 +60,8 @@
 
     .match-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     .match-card{background:#1e293b;border:1px solid #334155;border-radius:12px;transition:all .2s;cursor:pointer;overflow:hidden}
-    .match-card:hover{border-color:#475569;background:#253349;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-    .match-card.expanded{border-color:rgba(59,130,246,.4);background:#1a2744}
+    .match-card:hover{border-color:#475569;background:#263550;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.2)}
+    .match-card.expanded{border-color:rgba(59,130,246,.4);background:#1c2d4a}
     .match-card.live-card{border-color:rgba(239,68,68,.2)}
     .card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(33,38,45,.5)}
     .card-teams{padding:12px 14px}
@@ -162,7 +162,7 @@
   </div>
 </div>
 
-<div id="main-app" class="min-h-screen flex" style="display:none">
+<div id="main-app" class="h-screen flex overflow-hidden" style="display:none">
 
   <!-- ===== 側邊欄遮罩 (手機版) ===== -->
   <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
@@ -214,7 +214,7 @@
   </aside>
 
   <!-- ===== 右側主區域 ===== -->
-  <div class="flex-1 flex flex-col min-h-screen overflow-y-auto">
+  <div class="flex-1 flex flex-col h-screen overflow-hidden">
 
     <!-- ===== 頂部導航列 + 跑馬燈 ===== -->
     <header class="topbar">
@@ -255,7 +255,7 @@
     </div>
 
     <!-- ===== 主內容（卡片網格） ===== -->
-    <div class="flex-1 overflow-y-auto p-5 main-content">
+    <div class="flex-1 overflow-y-auto p-5 main-content" style="min-height:0">
       <div id="match-list" class="match-grid">
         <div class="flex items-center justify-center py-16" style="grid-column:1/-1">
           <div class="text-center text-gray-600">
