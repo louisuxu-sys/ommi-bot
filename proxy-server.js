@@ -488,6 +488,11 @@ const server = http.createServer(async (req, res) => {
           // 從預設模式取得比分和狀態
           const scoreData = parseScoresFromLiveHTML(liveHtml);
           // 合併比分和隊名到 games
+          // 計算台灣時間的今天日期字串 YYYYMMDD（用於日期防護）
+          const _now = new Date();
+          const _twNow = new Date(_now.getTime() + (8 * 60 * 60 * 1000 - _now.getTimezoneOffset() * 60 * 1000));
+          const _todayStr = _twNow.toISOString().slice(0, 10).replace(/-/g, '');
+
           for (const game of games) {
             const sd = scoreData[game.gameId];
             if (sd) {
@@ -498,6 +503,13 @@ const server = http.createServer(async (req, res) => {
               // 用 live HTML 的完整隊名覆蓋短名稱
               if (sd.liveAway && sd.liveAway.length > (game.away || '').length) game.away = sd.liveAway;
               if (sd.liveHome && sd.liveHome.length > (game.home || '').length) game.home = sd.liveHome;
+            }
+            // 日期防護：未來日期的賽事不可能是 live 或 finished
+            if (gd > _todayStr && (game.status === 'live' || game.status === 'finished')) {
+              game.status = 'upcoming';
+              game.homeScore = null;
+              game.awayScore = null;
+              game.quarterScores = null;
             }
           }
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -922,6 +934,20 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
         status = 'finished'; // 超過 3.5 小時 → 已結束
       } else if (diffMs > 0) {
         status = 'live'; // 已開始但未超過 3.5 小時 → 進行中
+      }
+    }
+
+    // 4. 日期防護：如果賽事日期在未來，強制設為 upcoming（防止誤判 LIVE）
+    if (status === 'live' || status === 'finished') {
+      const now = new Date();
+      // 取得台灣時間的今天日期字串 YYYYMMDD
+      const twNow = new Date(now.getTime() + (8 * 60 * 60 * 1000 - now.getTimezoneOffset() * 60 * 1000));
+      const todayStr = twNow.toISOString().slice(0, 10).replace(/-/g, '');
+      if (gamedate > todayStr) {
+        console.log(`[PARSE] ⚠ game ${gameId} date ${gamedate} is future (today=${todayStr}), forcing upcoming`);
+        status = 'upcoming';
+        homeScore = null;
+        awayScore = null;
       }
     }
 
