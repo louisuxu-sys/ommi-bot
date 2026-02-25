@@ -195,11 +195,11 @@
   <!-- ===== 左側導航欄 ===== -->
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-header">
-      <a href="#" onclick="switchSport('basketball');return false;" class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
-        <span class="text-2xl">🏆</span>
+      <a href="#" onclick="switchSport('basketball');return false;" class="flex items-center gap-3 no-underline hover:opacity-80 transition-opacity">
+        <img src="/logo.png" alt="新紀元" style="width:44px;height:44px;object-fit:contain;border-radius:8px">
         <div>
-          <span class="text-base font-black text-white tracking-wider block leading-tight">SPORTIQ</span>
-          <span class="text-[9px] text-gray-600">AI 體育分析平台</span>
+          <span style="font-size:18px;font-weight:900;color:#fff;letter-spacing:2px;display:block;line-height:1.2">新紀元</span>
+          <span class="text-[10px] text-gray-500">AI 體育分析平台</span>
         </div>
       </a>
     </div>
@@ -1504,9 +1504,11 @@ function renderRows(list) {
       const hBadge = m.homeBadge ? `<img src="${m.homeBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
       const aBadge = m.awayBadge ? `<img src="${m.awayBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
 
+      const isRealTip = tip.label && tip.label !== '觀望' && tip.label !== '分析中' && tip.label !== '已結束' && tip.label !== '—';
+      const tipPrefix = isRealTip ? '推薦：' : '';
       const tipHtml = m.status === 'finished' && tip.result
-        ? `<div class="flex items-center gap-1.5"><span class="text-[12px] font-bold ${tip.color}">${tip.label}</span><span class="text-[10px] text-gray-600">${tip.result}</span></div>`
-        : `<span class="text-[12px] font-bold ${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tip.label}</span>`;
+        ? `<div class="flex items-center gap-1.5"><span style="font-size:13px;font-weight:800" class="${tip.color}">${tipPrefix}${tip.label}</span><span class="text-[11px] text-gray-600">${tip.result}</span></div>`
+        : `<span style="font-size:13px;font-weight:800" class="${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tipPrefix}${tip.label}</span>`;
 
       html += `
         <div class="match-card ${isExpanded ? 'expanded' : ''} ${isLive ? 'live-card' : ''} anim-slide" onclick="toggleExpand('${m.id}')">

@@ -594,7 +594,11 @@ const server = http.createServer(async (req, res) => {
   const ext = path.extname(fullPath).toLowerCase();
   const mimeTypes = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon' };
 
-  fs.readFile(fullPath, 'utf8', (err, data) => {
+  // 判斷是否為二進位檔案（圖片等）
+  const binaryExts = ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.bmp', '.svg'];
+  const isBinary = binaryExts.includes(ext);
+
+  fs.readFile(fullPath, isBinary ? null : 'utf8', (err, data) => {
     if (err) {
       res.writeHead(404);
       res.end('Not Found');
@@ -614,7 +618,8 @@ const server = http.createServer(async (req, res) => {
           .replace(/>\s+</g, '><');
       }).join('').trim();
     }
-    res.setHeader('Content-Type', (mimeTypes[ext] || 'text/plain') + '; charset=utf-8');
+    const mime = mimeTypes[ext] || 'text/plain';
+    res.setHeader('Content-Type', isBinary ? mime : mime + '; charset=utf-8');
     res.writeHead(200);
     res.end(output);
   });
