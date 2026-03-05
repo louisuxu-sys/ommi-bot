@@ -208,6 +208,9 @@
       <button onclick="switchSport('basketball');closeSidebarMobile()" id="tab-basketball" class="sidebar-item active">
         <span class="s-icon">🏀</span><span>籃球</span>
       </button>
+      <button onclick="switchSport('wbc');closeSidebarMobile()" id="tab-wbc" class="sidebar-item">
+        <span class="s-icon">🏆</span><span>經典賽</span>
+      </button>
       <button onclick="switchSport('baseball');closeSidebarMobile()" id="tab-baseball" class="sidebar-item">
         <span class="s-icon">⚾</span><span>棒球</span>
       </button>
@@ -484,8 +487,10 @@ const PS_LEAGUES = {
     { psId: '92', name: '韓國職籃' },
     { psId: '97', name: '日本職籃' },
   ],
-  baseball: [
+  wbc: [
     { psId: '114', name: 'WBC經典賽' },
+  ],
+  baseball: [
     { psId: '1', name: 'MLB' },
     { psId: '2', name: '日本職棒' },
     { psId: '6', name: '中華職棒' },
@@ -505,6 +510,7 @@ const PS_LEAGUES = {
 // TheSportsDB 備援
 const TSDB_LEAGUES = {
   basketball: [{ id: '4387', name: 'NBA' }, { id: '4431', name: '歐洲職籃' }],
+  wbc: [],
   baseball: [{ id: '4424', name: 'MLB' }, { id: '4422', name: 'NPB 日職' }],
   soccer: [{ id: '4328', name: '英超' }, { id: '4335', name: '西甲' }, { id: '4331', name: '德甲' }, { id: '4332', name: '義甲' }, { id: '4334', name: '法甲' }, { id: '4480', name: '歐冠' }],
   hockey: [{ id: '4380', name: 'NHL' }],
@@ -1460,7 +1466,7 @@ function renderMatchList() {
   document.getElementById('match-count').textContent = filtered.length;
 
   if (filtered.length === 0) {
-    const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
+    const sportName = {'basketball':'籃球','wbc':'WBC經典賽','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
     container.innerHTML = `<div class="flex items-center justify-center py-16 text-center" style="grid-column:1/-1">
       <div>
         <p class="text-2xl mb-3">📭</p>
@@ -1955,7 +1961,7 @@ function updateTicker() {
   if (!ticker) return;
   const liveOrDone = allMatches.filter(m => m.status === 'live' || (m.status === 'finished' && m.homeScore !== null));
   if (liveOrDone.length === 0) {
-    const sportName = {'basketball':'籃球','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
+    const sportName = {'basketball':'籃球','wbc':'WBC經典賽','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
     ticker.innerHTML = `<span class="ticker-item"><span class="text-gray-500">${sportName} — 暫無進行中的賽事</span></span><span class="ticker-item"><span class="text-gray-500">${sportName} — 暫無進行中的賽事</span></span>`;
     return;
   }
