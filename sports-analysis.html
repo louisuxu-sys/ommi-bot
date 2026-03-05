@@ -61,7 +61,7 @@
     .sidebar-item:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
     .sidebar-item.active{background:rgba(59,130,246,.15);color:#60a5fa}
     .sidebar-item .s-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
-    .wbc-hot{background:linear-gradient(135deg,rgba(234,88,12,.15),rgba(220,38,38,.1)) !important;border:1px solid rgba(249,115,22,.4) !important;position:relative;overflow:hidden}
+    .wbc-hot{background:linear-gradient(135deg,rgba(234,88,12,.15),rgba(220,38,38,.1)) !important;border:1px solid rgba(249,115,22,.4) !important;position:relative;overflow:visible}
     .wbc-hot::before{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(249,115,22,.12) 0%,transparent 60%);pointer-events:none;animation:wbc-glow 2s ease-in-out infinite}
     .wbc-hot:hover{background:linear-gradient(135deg,rgba(234,88,12,.25),rgba(220,38,38,.18)) !important;border-color:rgba(249,115,22,.6) !important}
     .wbc-hot.active{background:linear-gradient(135deg,rgba(234,88,12,.25),rgba(220,38,38,.15)) !important;border-color:rgba(249,115,22,.7) !important;color:#fb923c !important}
@@ -213,7 +213,7 @@
     <nav class="sidebar-nav">
       <div class="text-[9px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1">運動賽事</div>
       <button onclick="switchSport('wbc');closeSidebarMobile()" id="tab-wbc" class="sidebar-item wbc-hot">
-        <span class="s-icon">�</span><span>經典賽</span><span class="wbc-fire">🔥</span>
+        <span class="s-icon"><img src="/logo/wcb.png" style="width:22px;height:22px;object-fit:contain"></span><span>經典賽</span><span class="wbc-fire">🔥</span>
       </button>
       <button onclick="switchSport('basketball');closeSidebarMobile()" id="tab-basketball" class="sidebar-item active">
         <span class="s-icon">�</span><span>籃球</span>
