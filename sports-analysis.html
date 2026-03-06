@@ -839,14 +839,26 @@ async function fetchFromPlaysport(psId, dateStr) {
       if (resp.ok) {
         const data = await resp.json();
         if (data.success && data.games && data.games.length > 0) {
-          // 日期防護：未來日期的賽事不可能是 live 或 finished
+          // 日期+時間防護：未來日期或尚未開賽的比賽不可能是 live 或 finished
           const todayLocal = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
           const isFuture = dateStr > todayLocal;
+          const isToday = dateStr === todayLocal;
+          const nowMs = Date.now();
           return data.games.map(g => {
             let st = g.status || 'upcoming';
             let hs = g.homeScore, as = g.awayScore, qs = g.quarterScores || null;
             if (isFuture && (st === 'live' || st === 'finished')) {
               st = 'upcoming'; hs = null; as = null; qs = null;
+            }
+            // 今天的比賽：用比賽時間判斷是否真的已開始
+            if (isToday && g.time && (st === 'live' || st === 'finished')) {
+              const [hh, mmm] = g.time.split(':').map(Number);
+              if (!isNaN(hh)) {
+                const gameMs = new Date(`${dateStr}T${String(hh).padStart(2,'0')}:${String(mmm||0).padStart(2,'0')}:00`).getTime();
+                if (nowMs < gameMs - 60000) {
+                  st = 'upcoming'; hs = null; as = null; qs = null;
+                }
+              }
             }
             return {
               id: g.id,
