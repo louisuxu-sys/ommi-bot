@@ -934,38 +934,66 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
     if (scoreAMatch) awayScore = parseInt(scoreAMatch[1]);
     if (scoreHMatch) homeScore = parseInt(scoreHMatch[1]);
 
-    // 2. 用 playsport.cc 的 class 判斷狀態
-    //    gamebox-end = 已結束（含 "gamebox-end" class）
-    //    gamebox-notend = 尚未結束（可能進行中或未開始）
-    if (status !== 'postponed') {
-      if (gbHtml.includes('gamebox-end') && !gbHtml.includes('gamebox-notend')) {
-        status = 'finished';
-      } else if (gbHtml.includes('gamebox-notend') && (homeScore !== null || awayScore !== null)) {
-        status = 'live'; // 有 notend + 有比分 = 進行中
-      }
-    }
-
-    // 3. 備援：用比賽時間判斷（當 class 無法判定時）
-    if (status === 'upcoming' && time) {
+    // 2. 時間防護：如果比賽時間還沒到，強制 upcoming（最優先判斷）
+    let gameNotStarted = false;
+    if (time && status !== 'postponed') {
       const now = new Date();
       const year = gamedate.substring(0, 4);
       const month = gamedate.substring(4, 6);
       const day = gamedate.substring(6, 8);
       const [hh, mm] = time.split(':').map(Number);
-      // playsport.cc 時間是台灣時間 (UTC+8)
       const gameTime = new Date(`${year}-${month}-${day}T${String(hh).padStart(2,'0')}:${String(mm||0).padStart(2,'0')}:00+08:00`);
       const diffMs = now - gameTime;
-      if (diffMs > 3.5 * 60 * 60 * 1000) {
-        status = 'finished'; // 超過 3.5 小時 → 已結束
-      } else if (diffMs > 0) {
-        status = 'live'; // 已開始但未超過 3.5 小時 → 進行中
+      if (diffMs < -60000) {
+        // 比賽時間還沒到（提前1分鐘容許），強制 upcoming
+        gameNotStarted = true;
+        status = 'upcoming';
+        homeScore = null;
+        awayScore = null;
       }
     }
 
-    // 4. 日期防護：如果賽事日期在未來，強制設為 upcoming（防止誤判 LIVE）
+    // 3. 用 playsport.cc 的 class 判斷狀態（僅在時間已到時才判斷）
+    //    gamebox-end = 已結束（含 "gamebox-end" class）
+    //    gamebox-notend = 尚未結束（可能進行中或未開始）
+    if (status !== 'postponed' && !gameNotStarted) {
+      if (gbHtml.includes('gamebox-end') && !gbHtml.includes('gamebox-notend')) {
+        status = 'finished';
+      } else if (gbHtml.includes('gamebox-notend') && (homeScore !== null || awayScore !== null)) {
+        // 額外檢查：0-0 且時間未超過開賽 5 分鐘 → 仍視為 upcoming
+        let suspiciousZero = false;
+        if (homeScore === 0 && awayScore === 0 && time) {
+          const now2 = new Date();
+          const year2 = gamedate.substring(0, 4), month2 = gamedate.substring(4, 6), day2 = gamedate.substring(6, 8);
+          const [hh2, mm2] = time.split(':').map(Number);
+          const gt2 = new Date(`${year2}-${month2}-${day2}T${String(hh2).padStart(2,'0')}:${String(mm2||0).padStart(2,'0')}:00+08:00`);
+          if (now2 - gt2 < 5 * 60 * 1000) suspiciousZero = true; // 開賽不到5分鐘且0:0
+        }
+        if (!suspiciousZero) {
+          status = 'live';
+        }
+      }
+    }
+
+    // 4. 備援：用比賽時間判斷（當 class 無法判定時，且未被時間防護攔截）
+    if (status === 'upcoming' && time && !gameNotStarted) {
+      const now = new Date();
+      const year = gamedate.substring(0, 4);
+      const month = gamedate.substring(4, 6);
+      const day = gamedate.substring(6, 8);
+      const [hh, mm] = time.split(':').map(Number);
+      const gameTime = new Date(`${year}-${month}-${day}T${String(hh).padStart(2,'0')}:${String(mm||0).padStart(2,'0')}:00+08:00`);
+      const diffMs = now - gameTime;
+      if (diffMs > 3.5 * 60 * 60 * 1000) {
+        status = 'finished';
+      } else if (diffMs > 5 * 60 * 1000) {
+        status = 'live'; // 開賽超過5分鐘才判為 live
+      }
+    }
+
+    // 5. 日期防護：如果賽事日期在未來，強制設為 upcoming（最後防線）
     if (status === 'live' || status === 'finished') {
       const now = new Date();
-      // 取得台灣時間的今天日期字串 YYYYMMDD
       const twNow = new Date(now.getTime() + (8 * 60 * 60 * 1000 - now.getTimezoneOffset() * 60 * 1000));
       const todayStr = twNow.toISOString().slice(0, 10).replace(/-/g, '');
       if (gamedate > todayStr) {
