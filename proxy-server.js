@@ -815,12 +815,32 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
       const ouMatch = previewHtml.match(/今日大小盤口[\s\S]*?class="datd_[lr]"[^>]*>([\s\S]*?)<\/td>/);
     }
 
-    // 從 js-gameOnbox 取得讓分盤口
+    // 從 js-gameOnbox 取得讓分盤口（data-aheadprice = 主隊讓分，正=主隊讓，負=客隊讓）
     const onboxRegex = new RegExp(`id="gamebox-${gameId}"[^>]*data-aheadprice="([^"]*)"[^>]*data-aheadodds="([^"]*)"`);
     const onboxMatch = html.match(onboxRegex);
     if (onboxMatch) {
       odds.spread = onboxMatch[1];
       odds.spreadOdds = onboxMatch[2];
+    }
+
+    // 從 gamebox HTML 提取國際盤讓分 (-X.5 格式) 和大小盤口
+    const gbStartSpread = html.indexOf(`id="outer-gamebox-${gameId}"`);
+    const gbEndSpread = html.indexOf('</div><!--outer-gamebox-->', gbStartSpread);
+    if (gbStartSpread > -1 && gbEndSpread > -1) {
+      const gbSpreadHtml = html.substring(gbStartSpread, gbEndSpread);
+      // 國際盤讓分（通常出現在 ±X.5）
+      const intlSpread = gbSpreadHtml.match(/([+-]\d+\.5)/);
+      if (intlSpread && !odds.spread) {
+        odds.spread = intlSpread[1];
+      }
+      if (intlSpread) {
+        odds.intlSpread = intlSpread[1];
+      }
+      // 大小盤口
+      const ouTotal = gbSpreadHtml.match(/大(\d+\.?\d*)/);
+      if (ouTotal) {
+        odds.total = ouTotal[1];
+      }
     }
 
     // HTML 標籤清除

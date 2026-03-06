@@ -1237,11 +1237,77 @@ function genQuarterScores(m) {
   return { hq, aq, periods };
 }
 
-/* ========== AI 快速推薦（基於讓分盤口） ========== */
-function getAITip(m) {
+/* ========== AI 快速推薦（基於讓分盤口）========== */
+/* 核心原則：推薦內容完全由不可變資料（隊名、日期、盤口）決定，
+   賽前賽後結果完全一致，不會因比分出現而改變推薦。 */
+
+// 產生固定推薦（不依賴比分，只用 immutable 資料）
+function _computePrediction(m) {
   const odds = m.odds || {};
   const spread = parseFloat(odds.spread);
   const hasSpread = !isNaN(spread) && spread !== 0;
+  const homeName = t(m.home), awayName = t(m.away);
+  // 固定 seed：只基於原始隊名（非翻譯後）+ 日期，確保不可變
+  const seed = Math.abs(hashCode(m.home + m.away + (m.date || ''))) % 100;
+
+  if (hasSpread) {
+    // spread > 0 = 主隊讓分（主隊強）; spread < 0 = 客隊讓分（客隊強）
+    const absSpread = Math.abs(spread);
+    const favTeam = spread > 0 ? homeName : awayName;
+    const dogTeam = spread > 0 ? awayName : homeName;
+    const favIsHome = spread > 0;
+    // 用 seed + 盤口大小決定推薦方向，不依賴 generateAnalysis
+    let pickFav;
+    if (absSpread >= 10) pickFav = seed < 35;       // 大讓分偏受讓
+    else if (absSpread >= 6) pickFav = seed < 45;
+    else if (absSpread >= 3) pickFav = seed < 55;
+    else pickFav = seed < 60;                         // 小讓分偏讓分方
+
+    if (pickFav) {
+      return { prediction: `${favTeam} 讓${absSpread}`, favIsHome, absSpread, type: 'spread-fav',
+        color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
+    } else {
+      return { prediction: `${dogTeam} 受讓${absSpread}`, favIsHome, absSpread, type: 'spread-dog',
+        color: 'text-blue-400', bg: 'bg-blue-900/20' };
+    }
+  }
+
+  // 無盤口：用 seed 模擬推薦方向
+  // 用 seed2 決定哪隊是強隊（基於隊名 hash，與 seed 不同）
+  const seed2 = Math.abs(hashCode(m.away + '#' + m.home)) % 100;
+  const homeStrong = seed2 >= 50;
+  const favTeam = homeStrong ? homeName : awayName;
+  const dogTeam = homeStrong ? awayName : homeName;
+  const favIsHome = homeStrong;
+  const favColor = homeStrong ? 'text-emerald-400' : 'text-blue-400';
+  const favBg = homeStrong ? 'bg-emerald-900/20' : 'bg-blue-900/20';
+  const dogColor = homeStrong ? 'text-blue-400' : 'text-emerald-400';
+  const dogBg = homeStrong ? 'bg-blue-900/20' : 'bg-emerald-900/20';
+
+  // seed3 決定推薦類型
+  const seed3 = Math.abs(hashCode(m.home + m.date + m.away)) % 100;
+  if (seed3 < 40) {
+    return { prediction: `獨贏 ${favTeam}`, favIsHome, absSpread: 0, type: 'moneyline',
+      color: favColor, bg: favBg };
+  } else if (seed3 < 70) {
+    // 虛擬讓分
+    const isBball = currentSport === 'basketball' || currentSport === 'wbc';
+    const vSpread = isBball ? (3 + (seed % 8)) : currentSport === 'soccer' ? [0.5, 1, 1.5][seed % 3] : (1 + (seed % 4));
+    return { prediction: `${favTeam} 讓${vSpread}`, favIsHome, absSpread: vSpread, type: 'vspread-fav',
+      color: favColor, bg: favBg };
+  } else if (seed3 < 90) {
+    const isBball = currentSport === 'basketball' || currentSport === 'wbc';
+    const vSpread = isBball ? (3 + (seed % 8)) : currentSport === 'soccer' ? [0.5, 1, 1.5][seed % 3] : (1 + (seed % 4));
+    return { prediction: `${dogTeam} 受讓${vSpread}`, favIsHome, absSpread: vSpread, type: 'vspread-dog',
+      color: dogColor, bg: dogBg };
+  } else {
+    return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
+      color: 'text-gray-400', bg: 'bg-gray-800/30' };
+  }
+}
+
+function getAITip(m) {
+  const pred = _computePrediction(m);
   const homeName = t(m.home), awayName = t(m.away);
 
   if (m.status === 'finished') {
@@ -1249,207 +1315,32 @@ function getAITip(m) {
     const hasScore = !isNaN(hs) && !isNaN(as);
     if (!hasScore) return { label: '已結束', color: 'text-gray-500', bg: 'bg-gray-800/30' };
 
-    const scoreDiff = hs - as; // 正=主勝, 負=客勝
+    const scoreDiff = hs - as;
     const winTeam = scoreDiff > 0 ? homeName : scoreDiff < 0 ? awayName : '平局';
-    const winMargin = Math.abs(scoreDiff);
-
-    // 先模擬「賽前預測」—— 用跟 upcoming 一樣的邏輯
-    let prediction = '', isCorrect = false;
-
-    if (hasSpread) {
-      const absSpread = Math.abs(spread);
-      const favTeam = spread > 0 ? homeName : awayName;
-      const dogTeam = spread > 0 ? awayName : homeName;
-      let pickSpread = true;
-      try {
-        const analysis = generateAnalysis(m);
-        const favWin = spread > 0 ? analysis.homeWin : analysis.awayWin;
-        const dogWin = spread > 0 ? analysis.awayWin : analysis.homeWin;
-        if (favWin > dogWin + 5 && absSpread <= 8) pickSpread = true;
-        else if (absSpread >= 7) pickSpread = false;
-        else pickSpread = favWin > 55;
-      } catch(e) {}
-      if (pickSpread) {
-        prediction = `${favTeam} 讓${absSpread}`;
-        // 讓分方需贏超過讓分數
-        const favIsHome = spread > 0;
-        isCorrect = favIsHome ? (scoreDiff > absSpread) : (-scoreDiff > absSpread);
-      } else {
-        prediction = `${dogTeam} 受讓${absSpread}`;
-        // 受讓方不輸超過讓分即算贏
-        const dogIsHome = spread < 0;
-        isCorrect = dogIsHome ? (scoreDiff > -absSpread) : (-scoreDiff > -absSpread);
-      }
-    } else {
-      // 無盤口：用分析引擎模擬推薦
-      try {
-        const analysis = generateAnalysis(m);
-        const diff = analysis.homeWin - analysis.awayWin;
-        const absDiff = Math.abs(diff);
-        const isSoccer = currentSport === 'soccer';
-        const isBball = currentSport === 'basketball';
-        const favTeam = diff > 0 ? homeName : awayName;
-        const dogTeam = diff > 0 ? awayName : homeName;
-        const favIsHome = diff > 0;
-        let vSpread = 0;
-        if (isSoccer) vSpread = absDiff > 12 ? 1.5 : absDiff > 6 ? 1 : 0.5;
-        else if (isBball) vSpread = Math.round(absDiff * 0.4);
-        else vSpread = Math.round(absDiff * 0.3);
-        const seed = Math.abs(hashCode(m.home + m.away + m.date)) % 100;
-
-        if (absDiff > 12) {
-          if (seed < 70) {
-            prediction = `獨贏 ${favTeam}`;
-            isCorrect = favIsHome ? scoreDiff > 0 : scoreDiff < 0;
-          } else {
-            prediction = `${favTeam} 讓${vSpread}`;
-            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
-          }
-        } else if (absDiff > 5) {
-          if (seed < 40) {
-            prediction = `${favTeam} 讓${vSpread}`;
-            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
-          } else if (seed < 70) {
-            prediction = `${dogTeam} 受讓${vSpread}`;
-            const dogIsHome = !favIsHome;
-            isCorrect = dogIsHome ? (scoreDiff > -vSpread) : (-scoreDiff > -vSpread);
-          } else {
-            prediction = `獨贏 ${favTeam}`;
-            isCorrect = favIsHome ? scoreDiff > 0 : scoreDiff < 0;
-          }
-        } else if (absDiff > 2) {
-          if (seed < 50) {
-            prediction = `${dogTeam} 受讓${vSpread}`;
-            const dogIsHome = !favIsHome;
-            isCorrect = dogIsHome ? (scoreDiff > -vSpread) : (-scoreDiff > -vSpread);
-          } else if (seed < 80) {
-            prediction = `${favTeam} 讓${vSpread}`;
-            isCorrect = favIsHome ? (scoreDiff > vSpread) : (-scoreDiff > vSpread);
-          } else {
-            prediction = '觀望';
-            isCorrect = null; // 不判定
-          }
-        } else {
-          prediction = '觀望';
-          isCorrect = null;
-        }
-      } catch(e) {
-        prediction = '—';
-        isCorrect = null;
-      }
-    }
-
     const resultText = scoreDiff === 0 ? '平局' : `${winTeam}勝 ${hs}:${as}`;
+
+    // 判斷推薦是否正確
+    let isCorrect = null;
+    if (pred.type === 'moneyline') {
+      isCorrect = pred.favIsHome ? scoreDiff > 0 : scoreDiff < 0;
+    } else if (pred.type === 'spread-fav' || pred.type === 'vspread-fav') {
+      // 讓分方需贏超過讓分數
+      isCorrect = pred.favIsHome ? (scoreDiff > pred.absSpread) : (-scoreDiff > pred.absSpread);
+    } else if (pred.type === 'spread-dog' || pred.type === 'vspread-dog') {
+      // 受讓方：不輸超過讓分即算贏
+      isCorrect = pred.favIsHome ? (-scoreDiff > -pred.absSpread) : (scoreDiff > -pred.absSpread);
+    }
+    // type === 'skip' → isCorrect stays null
+
     const mark = isCorrect === null ? '' : isCorrect ? ' ✓' : ' ✗';
     const markColor = isCorrect === null ? 'text-gray-400' : isCorrect ? 'text-emerald-400' : 'text-red-400';
     const markBg = isCorrect === null ? 'bg-gray-800/30' : isCorrect ? 'bg-emerald-900/20' : 'bg-red-900/20';
 
-    return {
-      label: prediction + mark,
-      result: resultText,
-      color: markColor,
-      bg: markBg
-    };
+    return { label: pred.prediction + mark, result: resultText, color: markColor, bg: markBg };
   }
 
-  // 未開始/進行中：用博彩術語推薦
-  const rec = m.record || {};
-  const homeAvg = parseAvgScore(rec.homeAvg);
-  const awayAvg = parseAvgScore(rec.awayAvg);
-
-  if (hasSpread) {
-    // 有讓分盤口：判斷推薦讓分方還是受讓方
-    const absSpread = Math.abs(spread);
-    const favTeam = spread > 0 ? homeName : awayName;
-    const dogTeam = spread > 0 ? awayName : homeName;
-    let pickSpread = true; // 預設推讓分方
-
-    // 根據分析判斷推薦讓分或受讓
-    try {
-      const analysis = generateAnalysis(m);
-      const favWin = spread > 0 ? analysis.homeWin : analysis.awayWin;
-      const dogWin = spread > 0 ? analysis.awayWin : analysis.homeWin;
-      // 讓分方勝率高且讓分不大 → 讓分；否則受讓
-      if (favWin > dogWin + 5 && absSpread <= 8) pickSpread = true;
-      else if (absSpread >= 7) pickSpread = false; // 大讓分偏受讓
-      else pickSpread = favWin > 55;
-    } catch(e) {}
-
-    if (pickSpread) {
-      return { label: `${favTeam} 讓${absSpread}`, color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
-    } else {
-      return { label: `${dogTeam} 受讓${absSpread}`, color: 'text-blue-400', bg: 'bg-blue-900/20' };
-    }
-  }
-
-  // 無讓分盤口：用分析引擎推薦（混合獨贏、讓分、受讓）
-  try {
-    const analysis = generateAnalysis(m);
-    let tipLabel = '';
-    let tipColor = 'text-emerald-400', tipBg = 'bg-emerald-900/20';
-
-    const diff = analysis.homeWin - analysis.awayWin;
-    const absDiff = Math.abs(diff);
-    const isSoccer = currentSport === 'soccer';
-    const isBball = currentSport === 'basketball';
-    const favTeam = diff > 0 ? homeName : awayName;
-    const dogTeam = diff > 0 ? awayName : homeName;
-    const favColor = diff > 0 ? 'text-emerald-400' : 'text-blue-400';
-    const favBg = diff > 0 ? 'bg-emerald-900/20' : 'bg-blue-900/20';
-    const dogColor = diff > 0 ? 'text-blue-400' : 'text-emerald-400';
-    const dogBg = diff > 0 ? 'bg-blue-900/20' : 'bg-emerald-900/20';
-
-    // 根據勝率差距推算虛擬讓分
-    let vSpread = 0;
-    if (isSoccer) vSpread = absDiff > 12 ? 1.5 : absDiff > 6 ? 1 : 0.5;
-    else if (isBball) vSpread = Math.round(absDiff * 0.4);
-    else vSpread = Math.round(absDiff * 0.3);
-
-    // 用 seed 決定推薦類型（讓分 vs 受讓 vs 獨贏），增加多樣性
-    const seed = Math.abs(hashCode(m.home + m.away + m.date)) % 100;
-
-    if (absDiff > 12) {
-      // 強勢方明顯：70% 獨贏、30% 讓分
-      if (seed < 70) {
-        tipLabel = `獨贏 ${favTeam}`;
-        tipColor = favColor; tipBg = favBg;
-      } else {
-        tipLabel = `${favTeam} 讓${isSoccer ? vSpread : vSpread}`;
-        tipColor = favColor; tipBg = favBg;
-      }
-    } else if (absDiff > 5) {
-      // 中等差距：40% 讓分、30% 受讓、30% 獨贏
-      if (seed < 40) {
-        tipLabel = `${favTeam} 讓${vSpread}`;
-        tipColor = favColor; tipBg = favBg;
-      } else if (seed < 70) {
-        tipLabel = `${dogTeam} 受讓${vSpread}`;
-        tipColor = dogColor; tipBg = dogBg;
-      } else {
-        tipLabel = `獨贏 ${favTeam}`;
-        tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
-      }
-    } else if (absDiff > 2) {
-      // 接近：50% 受讓、30% 讓分、20% 觀望
-      if (seed < 50) {
-        tipLabel = `${dogTeam} 受讓${vSpread}`;
-        tipColor = dogColor; tipBg = dogBg;
-      } else if (seed < 80) {
-        tipLabel = `${favTeam} 讓${vSpread}`;
-        tipColor = 'text-amber-400'; tipBg = 'bg-amber-900/20';
-      } else {
-        tipLabel = '觀望';
-        tipColor = 'text-gray-400'; tipBg = 'bg-gray-800/30';
-      }
-    } else {
-      // 實力接近
-      tipLabel = '觀望';
-      tipColor = 'text-gray-400'; tipBg = 'bg-gray-800/30';
-    }
-
-    return { label: tipLabel, color: tipColor, bg: tipBg };
-  } catch(e) {}
-  return { label: '分析中', color: 'text-gray-500', bg: 'bg-gray-800/30' };
+  // 未開始 / 進行中：直接回傳固定推薦
+  return { label: pred.prediction, color: pred.color, bg: pred.bg };
 }
 
 /* ========== 渲染賽事列表 ========== */
