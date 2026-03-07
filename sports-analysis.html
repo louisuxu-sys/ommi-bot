@@ -1322,17 +1322,48 @@ function _computePrediction(m) {
     homeScore += (hPct - aPct) * 10;
   }
 
+  // 5. 近十場平均得失分（如 "5.2 / 3.8"）— 反映近期攻防火力
+  const hRecentAvg = parseAvg(rec.homeRecentAvg), aRecentAvg = parseAvg(rec.awayRecentAvg);
+  if (hRecentAvg && aRecentAvg) {
+    const hNet = hRecentAvg.scored - hRecentAvg.allowed;
+    const aNet = aRecentAvg.scored - aRecentAvg.allowed;
+    homeScore += (hNet - aNet) * 3;
+  }
+
+  // 6. 主客場戰績（如 "15-8" vs "10-14"）— 主場龍/客場蟲效應
+  const hHA = parseWL(rec.homeHomeAway), aHA = parseWL(rec.awayHomeAway);
+  if (hHA && aHA) {
+    const hHAPct = hHA[0] / (hHA[0] + hHA[1] + 0.01);
+    const aHAPct = aHA[0] / (aHA[0] + aHA[1] + 0.01);
+    homeScore += (hHAPct - aHAPct) * 15;
+  }
+
+  // 7. 主場基本優勢加成（所有運動主場都有微幅優勢）
+  homeScore += 2;
+
   // 根據實力評分決定推薦
   const diff = homeScore;
   const absDiff = Math.abs(diff);
+  const hasRecordData = !!(hWL || aWL || hRecent || aRecent || hAvg || aAvg || hH2H || aH2H || hRecentAvg || aRecentAvg || hHA || aHA);
+
+  // 完全無數據：用 seed 產生固定推薦（避免全部觀望）
+  if (!hasRecordData) {
+    const pickHome = seed < 50;
+    const fTeam = pickHome ? homeName : awayName;
+    const fColor = pickHome ? 'text-emerald-400' : 'text-blue-400';
+    const fBg = pickHome ? 'bg-emerald-900/20' : 'bg-blue-900/20';
+    return { prediction: `獨贏 ${fTeam}`, favIsHome: pickHome, absSpread: 0, type: 'moneyline',
+      color: fColor, bg: fBg };
+  }
+
   const homeStrong = diff > 0;
   const favTeam = homeStrong ? homeName : awayName;
   const favIsHome = homeStrong;
   const favColor = homeStrong ? 'text-emerald-400' : 'text-blue-400';
   const favBg = homeStrong ? 'bg-emerald-900/20' : 'bg-blue-900/20';
 
-  if (absDiff < 3) {
-    // 實力接近 → 觀望
+  if (absDiff < 1) {
+    // 有數據但差距極小 → 觀望
     return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
       color: 'text-gray-400', bg: 'bg-gray-800/30' };
   }
@@ -1798,6 +1829,18 @@ function generateAnalysis(m) {
     }
   }
 
+  // 4b. 近十場平均得失分（近期火力趨勢）
+  const homeRecentAvg = parseAvgScore(rec.homeRecentAvg);
+  const awayRecentAvg = parseAvgScore(rec.awayRecentAvg);
+  if (homeRecentAvg && awayRecentAvg) {
+    lines.push(`【近期火力】${homeName} 近十場場均得 ${homeRecentAvg.scored} 失 ${homeRecentAvg.allowed} 分；${awayName} 近十場場均得 ${awayRecentAvg.scored} 失 ${awayRecentAvg.allowed} 分。`);
+    const hNet = homeRecentAvg.scored - homeRecentAvg.allowed;
+    const aNet = awayRecentAvg.scored - awayRecentAvg.allowed;
+    if (hNet > aNet + 3) { lines.push(`${homeName} 近期攻防效率明顯優於對手，狀態正佳。`); homeAdj += 5; }
+    else if (aNet > hNet + 3) { lines.push(`${awayName} 近期火力更旺，攻防兩端表現搶眼。`); awayAdj += 5; }
+    else { lines.push(`兩隊近期攻防數據接近，短期狀態相當。`); }
+  }
+
   // 5. 盤口分析
   if (hasSpread) {
     const favTeam = spread > 0 ? homeName : awayName;
@@ -1825,13 +1868,23 @@ function generateAnalysis(m) {
 
   // 如果沒有任何真實數據，給出基本分析
   if (lines.length === 0) {
-    const seed = Math.abs(hashCode(m.home + m.away + m.date));
+    const seed = Math.abs(hashCode(m.home + m.away + (m.date || '')));
     const adj = (seed % 30) - 12; // -12 ~ +17，微偏主場
     homeAdj += adj > 0 ? adj : 0;
     awayAdj += adj < 0 ? -adj : 0;
     homeAdj += 3; // 主場基本優勢
-    lines.push(`本場比賽 ${homeName}（主）迎戰 ${awayName}（客），主隊擁有主場優勢。`);
-    lines.push(`建議關注兩隊近期傷病動態與輪休情況，作為投注參考依據。`);
+
+    lines.push(`【基本面】本場比賽 ${homeName}（主）迎戰 ${awayName}（客）。`);
+    lines.push(`主隊在自家球場擁有場地熟悉度與球迷支持的先天優勢。`);
+
+    // 判斷是否為春訓/季前賽時期（2~3月）
+    const monthNum = m.date ? parseInt(m.date.split('-')[1] || '0') : 0;
+    if (currentSport === 'baseball' && (monthNum === 2 || monthNum === 3)) {
+      lines.push(`【特別提醒】目前處於春訓期間，各隊以調整狀態、測試陣容為主，主力球員上場時間有限，比賽結果參考性較低。`);
+      lines.push(`春訓勝負與正式賽季表現相關性不高，建議控制投注規模。`);
+    } else {
+      lines.push(`目前缺少詳細的戰績與盤口數據，建議關注兩隊近期傷病動態、先發陣容與輪休安排，綜合判斷後再做決策。`);
+    }
   }
 
   // 7. 總結建議
