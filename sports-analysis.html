@@ -1284,22 +1284,67 @@ function _computePrediction(m) {
     }
   }
 
-  // 無盤口：只推薦獨贏（不顯示虛擬讓分數字，避免與真實盤口衝突）
-  const seed2 = Math.abs(hashCode(m.away + '#' + m.home)) % 100;
-  const homeStrong = seed2 >= 50;
+  // WBC 無盤口：顯示觀望（等盤口出來再推薦）
+  if (currentSport === 'wbc') {
+    return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
+      color: 'text-gray-400', bg: 'bg-gray-800/30' };
+  }
+
+  // 其他賽事無盤口：參考過往比賽紀錄來判斷
+  const rec = m.record || {};
+  let homeScore = 0, awayScore = 0; // 實力評分（非比分）
+
+  // 1. 戰績（如 "主22-11" → 勝率 66%）
+  const parseWL = (s) => { const m2 = (s||'').match(/(\d+)\s*-\s*(\d+)/); return m2 ? [parseInt(m2[1]), parseInt(m2[2])] : null; };
+  const hWL = parseWL(rec.homeRecord), aWL = parseWL(rec.awayRecord);
+  if (hWL && aWL) {
+    const hPct = hWL[0] / (hWL[0] + hWL[1] + 0.01);
+    const aPct = aWL[0] / (aWL[0] + aWL[1] + 0.01);
+    homeScore += (hPct - aPct) * 30;
+  }
+
+  // 2. 近十場（如 "40-23" → 勝率 63%）
+  const hRecent = parseWL(rec.homeRecent), aRecent = parseWL(rec.awayRecent);
+  if (hRecent && aRecent) {
+    const hRPct = hRecent[0] / (hRecent[0] + hRecent[1] + 0.01);
+    const aRPct = aRecent[0] / (aRecent[0] + aRecent[1] + 0.01);
+    homeScore += (hRPct - aRPct) * 20;
+  }
+
+  // 3. 平均得失分（如 "116.4 / 112" → 淨勝 +4.4）
+  const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
+  const hAvg = parseAvg(rec.homeAvg), aAvg = parseAvg(rec.awayAvg);
+  if (hAvg && aAvg) {
+    const hNet = hAvg.scored - hAvg.allowed;
+    const aNet = aAvg.scored - aAvg.allowed;
+    homeScore += (hNet - aNet) * 2;
+  }
+
+  // 4. 對戰紀錄（如 "8-2, 5連勝"）
+  const hH2H = parseWL(rec.homeH2H), aH2H = parseWL(rec.awayH2H);
+  if (hH2H && aH2H) {
+    const hPct = hH2H[0] / (hH2H[0] + hH2H[1] + 0.01);
+    const aPct = aH2H[0] / (aH2H[0] + aH2H[1] + 0.01);
+    homeScore += (hPct - aPct) * 10;
+  }
+
+  // 根據實力評分決定推薦
+  const diff = homeScore;
+  const absDiff = Math.abs(diff);
+  const homeStrong = diff > 0;
   const favTeam = homeStrong ? homeName : awayName;
   const favIsHome = homeStrong;
   const favColor = homeStrong ? 'text-emerald-400' : 'text-blue-400';
   const favBg = homeStrong ? 'bg-emerald-900/20' : 'bg-blue-900/20';
 
-  const seed3 = Math.abs(hashCode(m.home + m.date + m.away)) % 100;
-  if (seed3 < 85) {
-    return { prediction: `獨贏 ${favTeam}`, favIsHome, absSpread: 0, type: 'moneyline',
-      color: favColor, bg: favBg };
-  } else {
+  if (absDiff < 3) {
+    // 實力接近 → 觀望
     return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
       color: 'text-gray-400', bg: 'bg-gray-800/30' };
   }
+  // 有明顯差距 → 獨贏推薦
+  return { prediction: `獨贏 ${favTeam}`, favIsHome, absSpread: 0, type: 'moneyline',
+    color: favColor, bg: favBg };
 }
 
 function getAITip(m) {
