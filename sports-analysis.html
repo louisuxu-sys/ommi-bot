@@ -1284,13 +1284,7 @@ function _computePrediction(m) {
     }
   }
 
-  // WBC 無盤口：顯示觀望（等盤口出來再推薦）
-  if (currentSport === 'wbc') {
-    return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
-      color: 'text-gray-400', bg: 'bg-gray-800/30' };
-  }
-
-  // 其他賽事無盤口：參考過往比賽紀錄來判斷
+  // 無盤口：參考過往比賽紀錄來判斷（適用所有賽事包含 WBC）
   const rec = m.record || {};
   let homeScore = 0, awayScore = 0; // 實力評分（非比分）
 

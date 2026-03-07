@@ -466,9 +466,68 @@ const server = http.createServer(async (req, res) => {
       '93':'美式足球',
     };
 
-    Promise.all([fetchPage(liveUrl), fetchPage(preUrl)])
-      .then(([liveHtml, preHtml]) => {
+    // 對特定聯賽，額外抓取 guess 頁面取得盤口（vueData）
+    // WBC(114) 的 livescore 沒有盤口，但 guess 頁面有完整讓分/大小/獨贏
+    const GUESS_ALLIANCES = { '114': true };
+    const guessUrl = GUESS_ALLIANCES[aid] ? `https://www.playsport.cc/guess/${aid}` : null;
+    const fetchPromises = [fetchPage(liveUrl), fetchPage(preUrl)];
+    if (guessUrl) fetchPromises.push(fetchPage(guessUrl).catch(() => ''));
+
+    Promise.all(fetchPromises)
+      .then(([liveHtml, preHtml, guessHtml]) => {
         try {
+          // 從 guess 頁面提取 vueData 盤口（用隊名配對，因為 gameid 與 livescore boxId 不同）
+          const guessOddsList = [];
+          if (guessHtml) {
+            try {
+              const vdMatch = guessHtml.match(/var vueData = ({[\s\S]*?});\s*<\/script>/);
+              if (vdMatch) {
+                const vd = JSON.parse(vdMatch[1]);
+                for (const games2 of Object.values(vd.betGamesList || {})) {
+                  for (const g of games2) {
+                    const gt = g.gametypes || {};
+                    const odds = {};
+                    let homeName = '', awayName = '';
+                    // gametypes[1] = 讓分(spread): threshold 負=主讓, 正=客讓
+                    if (gt['1'] && gt['1']['1']) {
+                      const home = gt['1']['1']; // 主
+                      const away = gt['1']['2']; // 客
+                      homeName = home.optionName || '';
+                      awayName = away.optionName || '';
+                      const spreadVal = parseFloat(home.threshold);
+                      if (!isNaN(spreadVal) && spreadVal !== 0) {
+                        // guess 頁面: 負=主隊讓分(-1.5=主讓1.5)
+                        // 我們的系統: 正=主隊讓分(與 data-aheadprice 一致)
+                        odds.spread = -spreadVal;  // 取反：-1.5 → 1.5（主隊讓）
+                        odds.spreadHome = `${home.optionName} ${home.threshold}`;
+                        odds.spreadAway = `${away.optionName} ${away.threshold}`;
+                        odds.spreadOddsHome = home.odds;
+                        odds.spreadOddsAway = away.odds;
+                      }
+                    }
+                    // gametypes[2] = 大小(total)
+                    if (gt['2'] && gt['2']['1']) {
+                      odds.total = gt['2']['1'].threshold;
+                    }
+                    // gametypes[3] = 獨贏(moneyline): 也可取隊名
+                    if (gt['3'] && gt['3']['1']) {
+                      odds.mlHome = gt['3']['1'].odds;
+                      odds.mlAway = gt['3']['2'] ? gt['3']['2'].odds : null;
+                      if (!homeName) homeName = gt['3']['1'].optionName || '';
+                      if (!awayName) awayName = gt['3']['2'] ? gt['3']['2'].optionName : '';
+                    }
+                    if (Object.keys(odds).length > 0 && (homeName || awayName)) {
+                      guessOddsList.push({ homeName, awayName, odds });
+                    }
+                  }
+                }
+                console.log(`[PARSE] guess page: ${guessOddsList.length} games with odds`);
+              }
+            } catch(ge) {
+              console.log(`[PARSE] guess parse error: ${ge.message}`);
+            }
+          }
+
           // 驗證 playsport 回傳的頁面是否為正確的運動
           const expectedSport = ALLIANCE_SPORT[aid];
           if (expectedSport) {
@@ -487,6 +546,37 @@ const server = http.createServer(async (req, res) => {
           const games = parsePlaySportHTML(preHtml, aid, gd);
           // 從預設模式取得比分和狀態
           const scoreData = parseScoresFromLiveHTML(liveHtml);
+
+          // 合併 guess 盤口到 games（用隊名配對）
+          if (guessOddsList.length > 0) {
+            for (const game of games) {
+              // 嘗試用隊名配對 guess 盤口
+              const gHome = (game.home || '').trim();
+              const gAway = (game.away || '').trim();
+              if (!gHome && !gAway) continue;
+              const matched = guessOddsList.find(go =>
+                (go.homeName && go.awayName && gHome && gAway &&
+                  (go.homeName === gHome || go.homeName.includes(gHome) || gHome.includes(go.homeName)) &&
+                  (go.awayName === gAway || go.awayName.includes(gAway) || gAway.includes(go.awayName)))
+              );
+              if (matched) {
+                if (!game.odds) game.odds = {};
+                const gOdds = matched.odds;
+                if (!game.odds.spread || parseFloat(game.odds.spread) === 0) {
+                  if (gOdds.spread) game.odds.spread = String(gOdds.spread);
+                }
+                if (gOdds.total && !game.odds.total) game.odds.total = gOdds.total;
+                if (gOdds.mlHome) game.odds.mlHome = gOdds.mlHome;
+                if (gOdds.mlAway) game.odds.mlAway = gOdds.mlAway;
+                if (gOdds.spreadHome) game.odds.spreadHome = gOdds.spreadHome;
+                if (gOdds.spreadAway) game.odds.spreadAway = gOdds.spreadAway;
+                if (gOdds.spreadOddsHome) game.odds.spreadOddsHome = gOdds.spreadOddsHome;
+                if (gOdds.spreadOddsAway) game.odds.spreadOddsAway = gOdds.spreadOddsAway;
+                console.log(`[PARSE] guess matched: ${gAway} vs ${gHome} → spread=${gOdds.spread}`);
+              }
+            }
+          }
+
           // 合併比分和隊名到 games
           // 計算台灣時間的今天日期字串 YYYYMMDD（用於日期防護）
           const _now = new Date();
