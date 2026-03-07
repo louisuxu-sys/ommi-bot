@@ -1284,34 +1284,18 @@ function _computePrediction(m) {
     }
   }
 
-  // 無盤口：用 seed 模擬推薦方向
-  // 用 seed2 決定哪隊是強隊（基於隊名 hash，與 seed 不同）
+  // 無盤口：只推薦獨贏（不顯示虛擬讓分數字，避免與真實盤口衝突）
   const seed2 = Math.abs(hashCode(m.away + '#' + m.home)) % 100;
   const homeStrong = seed2 >= 50;
   const favTeam = homeStrong ? homeName : awayName;
-  const dogTeam = homeStrong ? awayName : homeName;
   const favIsHome = homeStrong;
   const favColor = homeStrong ? 'text-emerald-400' : 'text-blue-400';
   const favBg = homeStrong ? 'bg-emerald-900/20' : 'bg-blue-900/20';
-  const dogColor = homeStrong ? 'text-blue-400' : 'text-emerald-400';
-  const dogBg = homeStrong ? 'bg-blue-900/20' : 'bg-emerald-900/20';
 
-  // seed3 決定推薦類型
   const seed3 = Math.abs(hashCode(m.home + m.date + m.away)) % 100;
-  if (seed3 < 40) {
+  if (seed3 < 85) {
     return { prediction: `獨贏 ${favTeam}`, favIsHome, absSpread: 0, type: 'moneyline',
       color: favColor, bg: favBg };
-  } else if (seed3 < 70) {
-    // 虛擬讓分
-    const isBball = currentSport === 'basketball' || currentSport === 'wbc';
-    const vSpread = isBball ? (3 + (seed % 8)) : currentSport === 'soccer' ? [0.5, 1, 1.5][seed % 3] : (1 + (seed % 4));
-    return { prediction: `${favTeam} 讓${vSpread}`, favIsHome, absSpread: vSpread, type: 'vspread-fav',
-      color: favColor, bg: favBg };
-  } else if (seed3 < 90) {
-    const isBball = currentSport === 'basketball' || currentSport === 'wbc';
-    const vSpread = isBball ? (3 + (seed % 8)) : currentSport === 'soccer' ? [0.5, 1, 1.5][seed % 3] : (1 + (seed % 4));
-    return { prediction: `${dogTeam} 受讓${vSpread}`, favIsHome, absSpread: vSpread, type: 'vspread-dog',
-      color: dogColor, bg: dogBg };
   } else {
     return { prediction: '觀望', favIsHome: true, absSpread: 0, type: 'skip',
       color: 'text-gray-400', bg: 'bg-gray-800/30' };
