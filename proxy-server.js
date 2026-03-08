@@ -487,18 +487,33 @@ const server = http.createServer(async (req, res) => {
                   for (const g of games2) {
                     const gt = g.gametypes || {};
                     const odds = {};
-                    let homeName = '', awayName = '';
+                    // 優先從頂層欄位取隊名（WBC 等國際賽 gametypes 內可能無隊名）
+                    let homeName = (g.home || g.homeShortName || '').trim();
+                    let awayName = (g.away || g.awayShortName || '').trim();
                     // gametypes[1] = 讓分(spread): threshold 負=主讓, 正=客讓
                     if (gt['1'] && gt['1']['1']) {
-                      const home = gt['1']['1']; // 主
-                      const away = gt['1']['2']; // 客
-                      homeName = home.optionName || '';
-                      awayName = away.optionName || '';
+                      const home = gt['1']['1'];
+                      const away = gt['1']['2'];
+                      if (!homeName) homeName = home.optionName || '';
+                      if (!awayName) awayName = away.optionName || '';
                       const spreadVal = parseFloat(home.threshold);
                       if (!isNaN(spreadVal) && spreadVal !== 0) {
-                        // guess 頁面: 負=主隊讓分(-1.5=主讓1.5)
-                        // 我們的系統: 正=主隊讓分(與 data-aheadprice 一致)
-                        odds.spread = -spreadVal;  // 取反：-1.5 → 1.5（主隊讓）
+                        odds.spread = -spreadVal;
+                        odds.spreadHome = `${home.optionName} ${home.threshold}`;
+                        odds.spreadAway = `${away.optionName} ${away.threshold}`;
+                        odds.spreadOddsHome = home.odds;
+                        odds.spreadOddsAway = away.odds;
+                      }
+                    }
+                    // gametypes[5] = 讓分(spread) — WBC 等國際賽用此 ID
+                    if (!odds.spread && gt['5'] && gt['5']['1']) {
+                      const home = gt['5']['1'];
+                      const away = gt['5']['2'];
+                      if (!homeName) homeName = home.optionName || '';
+                      if (!awayName) awayName = away.optionName || '';
+                      const spreadVal = parseFloat(home.threshold);
+                      if (!isNaN(spreadVal) && spreadVal !== 0) {
+                        odds.spread = -spreadVal;
                         odds.spreadHome = `${home.optionName} ${home.threshold}`;
                         odds.spreadAway = `${away.optionName} ${away.threshold}`;
                         odds.spreadOddsHome = home.odds;
@@ -509,7 +524,11 @@ const server = http.createServer(async (req, res) => {
                     if (gt['2'] && gt['2']['1']) {
                       odds.total = gt['2']['1'].threshold;
                     }
-                    // gametypes[3] = 獨贏(moneyline): 也可取隊名
+                    // gametypes[6] = 大小(total) — WBC 等國際賽用此 ID
+                    if (!odds.total && gt['6'] && gt['6']['1']) {
+                      odds.total = gt['6']['1'].threshold;
+                    }
+                    // gametypes[3] = 獨贏(moneyline)
                     if (gt['3'] && gt['3']['1']) {
                       odds.mlHome = gt['3']['1'].odds;
                       odds.mlAway = gt['3']['2'] ? gt['3']['2'].odds : null;
