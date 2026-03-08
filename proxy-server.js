@@ -466,12 +466,11 @@ const server = http.createServer(async (req, res) => {
       '93':'美式足球',
     };
 
-    // 對特定聯賽，額外抓取 guess 頁面取得盤口（vueData）
-    // WBC(114) 的 livescore 沒有盤口，但 guess 頁面有完整讓分/大小/獨贏
-    const GUESS_ALLIANCES = { '114': true };
-    const guessUrl = GUESS_ALLIANCES[aid] ? `https://www.playsport.cc/guess/${aid}` : null;
+    // 對所有聯賽都額外抓取 guess 頁面取得盤口（vueData）
+    // livescore 可能沒有盤口（WBC、國際賽等），guess 頁面有完整讓分/大小/獨贏
+    const guessUrl = `https://www.playsport.cc/guess/${aid}`;
     const fetchPromises = [fetchPage(liveUrl), fetchPage(preUrl)];
-    if (guessUrl) fetchPromises.push(fetchPage(guessUrl).catch(() => ''));
+    fetchPromises.push(fetchPage(guessUrl).catch(() => ''));
 
     Promise.all(fetchPromises)
       .then(([liveHtml, preHtml, guessHtml]) => {
