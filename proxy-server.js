@@ -675,12 +675,23 @@ const server = http.createServer(async (req, res) => {
           const timeMatch = chunk.match(/<h4>\s*(.*?)\s*<\/h4>/);
           const time = timeMatch ? timeMatch[1].trim() : '';
 
-          // 隊名：winnerteam 和 secondteam（在 td-teaminfo 的巢狀表格中）
+          // 隊名：已結束的用 winnerteam/secondteam class；未開始的用 td-teaminfo 內的 <a> 連結
           const teamRegex = /<td\s+class="(winnerteam|secondteam)">\s*([\s\S]*?)<\/td>/g;
           const teamList = [];
           let tm;
           while ((tm = teamRegex.exec(chunk))) {
             teamList.push({ type: tm[1], name: tm[2].replace(/<[^>]+>/g, '').trim() });
+          }
+          // 備援：未開始的比賽從 gamesData/teams 連結抓隊名
+          if (teamList.length < 2) {
+            const linkRegex = /<a\s+href="\/gamesData\/teams[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+            let lm;
+            while ((lm = linkRegex.exec(chunk)) && teamList.length < 2) {
+              const name = lm[1].replace(/<[^>]+>/g, '').trim();
+              if (name && !teamList.some(t => t.name === name)) {
+                teamList.push({ type: 'link', name });
+              }
+            }
           }
           const away = teamList[0] ? teamList[0].name : '';
           const home = teamList[1] ? teamList[1].name : '';
