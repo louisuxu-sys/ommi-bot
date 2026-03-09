@@ -90,7 +90,36 @@
     .filter-chip:hover{border-color:#30363d;color:#c9d1d9}
     .filter-chip.active{background:rgba(31,111,235,.12);border-color:#1f6feb;color:#58a6ff}
 
-    .match-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .match-grid{display:flex;flex-direction:column;gap:16px}
+    .league-section{display:flex;flex-direction:column;gap:0}
+    .league-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#1e293b;border-radius:10px;border:1px solid #2d3748}
+    .league-bar .league-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+    .league-bar .league-name{font-size:14px;font-weight:800;color:#e2e8f0}
+    .league-bar .league-count{font-size:12px;font-weight:700;color:#94a3b8;background:#334155;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center}
+    .game-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:6px}
+    .game-table thead th{font-size:11px;font-weight:700;color:#64748b;padding:6px 8px;text-align:center;border-bottom:1px solid #1e293b;white-space:nowrap}
+    .game-table thead th:first-child{text-align:left;padding-left:16px}
+    .game-table thead th.th-team{text-align:left;min-width:100px}
+    .game-table tbody tr{cursor:pointer;transition:background .15s}
+    .game-table tbody tr:hover{background:rgba(255,255,255,.03)}
+    .game-table tbody tr.row-away td{padding:8px 8px 2px;border-top:1px solid #1e293b}
+    .game-table tbody tr.row-home td{padding:2px 8px 8px}
+    .game-table tbody td{font-size:12px;color:#cbd5e1;text-align:center;vertical-align:middle}
+    .game-table tbody td:first-child{text-align:left;padding-left:16px}
+    .game-table tbody td.td-team{text-align:left;font-weight:700;font-size:13px}
+    .game-table tbody td.td-score{font-weight:900;font-size:15px;min-width:40px;text-align:center}
+    .game-table tbody td.td-spread{font-size:12px;font-weight:700}
+    .game-table .spread-val{color:#f59e0b}
+    .game-table .pct-val{font-size:11px;color:#64748b}
+    .game-table .odds-val{font-size:12px;color:#94a3b8}
+    .game-table .ai-tip{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap}
+    .game-table .ai-tip.tip-win{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+    .game-table .ai-tip.tip-loss{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+    .game-table .ai-tip.tip-pending{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+    .game-table .ai-tip.tip-skip{background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2)}
+    .game-table .result-icon{font-size:16px}
+    .game-table .time-cell{font-size:10px;color:#64748b;white-space:nowrap}
+    .game-table .date-row td{padding:4px 16px;font-size:11px;color:#64748b;font-weight:600;background:rgba(0,0,0,.15)}
     .match-card{background:#1e293b;border:1px solid #334155;border-radius:12px;transition:all .2s;cursor:pointer;overflow:hidden}
     .match-card:hover{border-color:#475569;background:#263550;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.2)}
     .match-card.expanded{border-color:rgba(59,130,246,.4);background:#1c2d4a}
@@ -101,8 +130,6 @@
     .card-team .team-info{display:flex;align-items:center;gap:8px}
     .card-team .team-score{font-size:20px;font-weight:900;min-width:30px;text-align:right}
     .card-footer{padding:8px 14px;border-top:1px solid rgba(33,38,45,.5);display:flex;align-items:center;justify-content:space-between}
-    .league-divider{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:4px 2px;margin-top:8px}
-    .league-divider:first-child{margin-top:0}
 
     .q-score{min-width:28px;text-align:center;font-size:12px;padding:2px 4px;border-radius:4px}
     .match-row{background:#161b22;border:1px solid #21262d;border-radius:10px;transition:all .15s;cursor:pointer}
@@ -112,7 +139,7 @@
     .sidebar-toggle{display:none;background:none;border:none;color:#c9d1d9;cursor:pointer;padding:4px}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:45;backdrop-filter:blur(2px)}
 
-    @media (max-width: 1200px) { .match-grid{grid-template-columns:1fr} }
+    @media (max-width: 1200px) { .game-table{font-size:11px} .game-table tbody td.td-team{font-size:12px} }
     @media (max-width: 768px) {
       .sidebar{position:fixed;left:-240px;transition:left .3s ease;z-index:50;height:100vh}
       .sidebar.open{left:0}
@@ -1188,6 +1215,39 @@ async function fetchAllData(showLoading = true) {
     }
   }
 
+  // 額外抓取 predict 盤口數據並合併
+  if (allMatches.length > 0 && useLocalProxy) {
+    const fetchedLeagues = [...new Set(allMatches.map(m => m.leagueId))];
+    for (const lid of fetchedLeagues) {
+      try {
+        const pResp = await fetch(`${LOCAL_PROXY}/predict?allianceid=${lid}`, { signal: AbortSignal.timeout(12000) });
+        if (pResp.ok) {
+          const pData = await pResp.json();
+          if (pData.success && pData.games) {
+            for (const pg of pData.games) {
+              // 用隊名配對
+              const matched = allMatches.find(m => m.leagueId === lid &&
+                ((t(m.away).includes(pg.away) || pg.away.includes(t(m.away))) &&
+                 (t(m.home).includes(pg.home) || pg.home.includes(t(m.home)))));
+              if (matched) {
+                matched.predict = pg.predict;
+                // 如果 predict 有更完整的賠率，補充到 odds
+                if (!matched.odds) matched.odds = {};
+                if (pg.predict.bankML && pg.predict.bankML.odds) {
+                  matched.odds.mlHome = pg.predict.bankML.odds;
+                }
+                if (pg.predict.bankML2 && pg.predict.bankML2.odds) {
+                  matched.odds.mlAway = pg.predict.bankML2.odds;
+                }
+              }
+            }
+            console.log(`[PREDICT] merged ${pData.games.length} predict games for league ${lid}`);
+          }
+        }
+      } catch(e) { console.warn(`[PREDICT] ${lid} error:`, e.message); }
+    }
+  }
+
   // 排序
   const statusOrder = { live: 0, upcoming: 1, postponed: 2, finished: 3 };
   allMatches.sort((a, b) => {
@@ -1409,15 +1469,19 @@ function getAITip(m) {
   return { label: pred.prediction, color: pred.color, bg: pred.bg };
 }
 
+// 聯賽圖標對照
+const LEAGUE_ICONS = {
+  '3': '🏀', '8': '🏀', '89': '🏀', '92': '🏀', '97': '🏀',
+  '114': '⚾', '1': '⚾', '2': '⚾', '6': '⚾', '9': '⚾',
+  '4': '⚽', '91': '🏒', '21': '🎾',
+};
+
 /* ========== 渲染賽事列表 ========== */
 function renderMatchList() {
   const container = document.getElementById('match-list');
+  const leagues = SPORT_LEAGUES[currentSport] || [];
   let filtered = allMatches;
 
-  // 聯賽篩選
-  if (currentLeague !== 'all') {
-    filtered = filtered.filter(m => m.leagueId === currentLeague);
-  }
   // 狀態篩選
   if (currentFilter !== 'all') {
     filtered = filtered.filter(m => m.status === currentFilter);
@@ -1427,97 +1491,174 @@ function renderMatchList() {
     filtered = filtered.filter(m => m.date === currentDate);
   }
 
+  // 聯賽篩選
+  if (currentLeague !== 'all') {
+    filtered = filtered.filter(m => m.leagueId === currentLeague);
+  }
+
   document.getElementById('match-count').textContent = filtered.length;
 
-  if (filtered.length === 0) {
+  // 按聯賽分組
+  const groups = {};
+  filtered.forEach(m => {
+    const key = m.leagueId || m.league;
+    if (!groups[key]) groups[key] = { name: m.league, matches: [] };
+    groups[key].matches.push(m);
+  });
+
+  // 構建所有聯賽列表（含沒賽事的）
+  let html = '';
+  const shownLeagues = new Set();
+
+  // 先渲染有賽事的聯賽
+  for (const [key, group] of Object.entries(groups)) {
+    shownLeagues.add(key);
+    html += renderLeagueSection(group.name, key, group.matches);
+  }
+
+  // 再渲染沒有賽事的聯賽（顯示 0）
+  if (currentLeague === 'all') {
+    for (const l of leagues) {
+      if (!shownLeagues.has(l.psId)) {
+        html += renderLeagueSection(l.name, l.psId, []);
+      }
+    }
+  }
+
+  if (html === '') {
     const sportName = {'basketball':'籃球','wbc':'WBC經典賽','baseball':'棒球','soccer':'足球','hockey':'冰球','tennis':'網球'}[currentSport] || '';
-    container.innerHTML = `<div class="flex items-center justify-center py-16 text-center" style="grid-column:1/-1">
+    html = `<div class="flex items-center justify-center py-16 text-center">
       <div>
         <p class="text-2xl mb-3">📭</p>
         <p class="text-sm font-bold text-gray-500 mb-1">${fmtDate(currentDate)} ${sportName} 今日無賽事</p>
         <p class="text-xs text-gray-700">請切換日期或運動類型</p>
       </div>
     </div>`;
-    return;
   }
 
-  container.innerHTML = renderRows(filtered);
+  container.innerHTML = html;
   if (window.lucide) window.lucide.createIcons();
 }
 
-function renderRows(list) {
-  const groups = {};
-  list.forEach(m => {
-    if (!groups[m.league]) groups[m.league] = [];
-    groups[m.league].push(m);
-  });
+function renderLeagueSection(leagueName, leagueId, matches) {
+  const icon = LEAGUE_ICONS[leagueId] || '🏆';
+  const count = matches.length;
 
-  let html = '';
-  for (const [league, matches] of Object.entries(groups)) {
-    html += `<div class="league-divider">
-      <span class="text-[11px] font-bold text-blue-400">${league}</span>
-      <span class="flex-1 border-t border-gray-800/60"></span>
-      <span class="text-[10px] text-gray-600">${matches.length} 場</span>
+  let html = `<div class="league-section">
+    <div class="league-bar">
+      <span class="league-icon">${icon}</span>
+      <span class="league-name">${leagueName}</span>
+      <span class="league-count">${count}</span>
     </div>`;
 
-    for (const m of matches) {
-      const isExpanded = expandedId === m.id;
-      const tip = getAITip(m);
-      const hasScore = m.homeScore !== null && m.homeScore !== undefined;
-      const isLive = m.status === 'live';
-      const scoreColor = isLive ? 'text-red-400' : 'text-white';
-
-      let statusHtml;
-      if (m.status === 'postponed') statusHtml = `<span class="text-[10px] font-bold text-yellow-500">⚠ 延期</span>`;
-      else if (isLive) statusHtml = `<span class="flex items-center gap-1 text-[10px] font-bold text-red-400"><span class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></span>LIVE</span>`;
-      else if (m.status === 'upcoming') statusHtml = `<span class="text-[10px] font-bold text-blue-400">未開始</span>`;
-      else statusHtml = `<span class="text-[10px] font-bold text-gray-500">已結束</span>`;
-
-      const hBadge = m.homeBadge ? `<img src="${m.homeBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
-      const aBadge = m.awayBadge ? `<img src="${m.awayBadge}" class="w-5 h-5 object-contain" onerror="this.style.display='none'"/>` : '';
-
-      const isRealTip = tip.label && tip.label !== '觀望' && tip.label !== '分析中' && tip.label !== '已結束' && tip.label !== '—';
-      const tipPrefix = isRealTip ? '推薦：' : '';
-      const tipHtml = m.status === 'finished' && tip.result
-        ? `<div class="flex items-center gap-1.5"><span style="font-size:13px;font-weight:800" class="${tip.color}">${tipPrefix}${tip.label}</span><span class="text-[11px] text-gray-600">${tip.result}</span></div>`
-        : `<span style="font-size:13px;font-weight:800" class="${tip.color} ${tip.bg} px-2 py-0.5 rounded-md">${tipPrefix}${tip.label}</span>`;
-
-      html += `
-        <div class="match-card ${isExpanded ? 'expanded' : ''} ${isLive ? 'live-card' : ''} anim-slide" onclick="toggleExpand('${m.id}')">
-          <div class="card-header">
-            <div class="flex items-center gap-2">
-              ${statusHtml}
-              <span class="text-[10px] text-gray-600">${m.time ? m.time.slice(0,5) : ''}</span>
-            </div>
-            ${tipHtml}
-          </div>
-          <div class="card-teams">
-            <div class="card-team">
-              <div class="team-info">
-                <span class="text-[9px] font-bold text-red-400 bg-red-900/20 px-1 py-0.5 rounded leading-none">主</span>
-                ${hBadge}
-                <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.homeScore) > parseInt(m.awayScore) ? 'text-white' : 'text-gray-300'}">${t(m.home)}</span>
-              </div>
-              <span class="team-score ${hasScore ? scoreColor : 'text-gray-600'}">${hasScore ? m.homeScore : '-'}</span>
-            </div>
-            <div class="h-px bg-gray-800/30 my-0.5"></div>
-            <div class="card-team">
-              <div class="team-info">
-                <span class="text-[9px] font-bold text-blue-400 bg-blue-900/20 px-1 py-0.5 rounded leading-none">客</span>
-                ${aBadge}
-                <span class="team-name text-[13px] font-bold truncate ${hasScore && parseInt(m.awayScore) > parseInt(m.homeScore) ? 'text-white' : 'text-gray-300'}">${t(m.away)}</span>
-              </div>
-              <span class="team-score ${hasScore ? scoreColor : 'text-gray-600'}">${hasScore ? m.awayScore : '-'}</span>
-            </div>
-          </div>
-          <div class="card-footer">
-            <span class="text-[9px] text-gray-600">${m.date}</span>
-            <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5 text-gray-600"></i>
-          </div>
-          ${isExpanded ? renderExpandedPanel(m) : ''}
-        </div>`;
-    }
+  if (count === 0) {
+    html += `</div>`;
+    return html;
   }
+
+  // 表頭
+  html += `<div style="overflow-x:auto"><table class="game-table"><thead><tr>
+    <th class="th-team">客隊 / 主隊</th>
+    <th>最終得分</th>
+    <th>讓分盤</th>
+    <th>勝率</th>
+    <th>期望值</th>
+    <th>賠率</th>
+    <th>AI推薦</th>
+    <th>是否過關</th>
+  </tr></thead><tbody>`;
+
+  // 按日期+時間分組
+  let lastDate = '';
+  for (const m of matches) {
+    const dateKey = m.date + ' ' + (m.time ? m.time.slice(0,5) : '');
+    if (dateKey !== lastDate) {
+      const timeStr = m.time ? m.time.slice(0,5) : '';
+      let statusLabel = '';
+      if (m.status === 'live') statusLabel = `<span style="color:#ef4444;font-weight:800">LIVE</span>`;
+      else if (m.status === 'finished') statusLabel = `<span style="color:#64748b">已結束</span>`;
+      else if (m.status === 'upcoming') statusLabel = `<span style="color:#3b82f6">未開始</span>`;
+      html += `<tr class="date-row"><td colspan="8">${m.date.slice(5)} ${timeStr} ${statusLabel}</td></tr>`;
+      lastDate = dateKey;
+    }
+
+    const tip = getAITip(m);
+    const pred = _computePrediction(m);
+    const hasScore = m.homeScore !== null && m.homeScore !== undefined;
+    const isLive = m.status === 'live';
+    const odds = m.odds || {};
+    const spread = odds.spread ? parseFloat(odds.spread) : NaN;
+    const hasSpread = !isNaN(spread) && spread !== 0;
+
+    // 讓分盤顯示
+    const absSpread = hasSpread ? Math.abs(spread) : 0;
+    const spreadSide = hasSpread ? (spread > 0 ? '主' : '客') : '';
+    const spreadSign = hasSpread ? (spread > 0 ? '+' : '-') : '';
+
+    // 勝率計算
+    const analysis = generateAnalysis(m);
+    const homeWin = analysis.homeWin || 50;
+    const awayWin = analysis.awayWin || 50;
+
+    // 期望值（簡單計算：勝率 × 賠率 - 1）
+    const mlOdds = odds.mlHome ? parseFloat(odds.mlHome) : (odds.spreadOddsHome ? parseFloat(odds.spreadOddsHome) : 1.9);
+    const favWin = pred.favIsHome ? homeWin : awayWin;
+    const ev = ((favWin / 100) * mlOdds - 1) * 100;
+
+    // AI推薦
+    let tipClass = 'tip-pending';
+    if (m.status === 'finished') {
+      if (tip.color.includes('emerald')) tipClass = 'tip-win';
+      else if (tip.color.includes('red')) tipClass = 'tip-loss';
+      else tipClass = 'tip-skip';
+    } else if (tip.label === '觀望') {
+      tipClass = 'tip-skip';
+    }
+
+    // 是否過關（已結束才顯示）
+    let resultIcon = '';
+    if (m.status === 'finished' && tip.label) {
+      if (tip.label.includes('✓')) resultIcon = `<span class="result-icon" style="color:#34d399">✅</span>`;
+      else if (tip.label.includes('✗')) resultIcon = `<span class="result-icon" style="color:#f87171">⭕</span>`;
+      else resultIcon = `<span class="result-icon" style="color:#64748b">—</span>`;
+    }
+
+    // 客隊行
+    const awayWinner = hasScore && parseInt(m.awayScore) > parseInt(m.homeScore);
+    const homeWinner = hasScore && parseInt(m.homeScore) > parseInt(m.awayScore);
+    const scoreColor = isLive ? 'color:#ef4444' : '';
+
+    html += `<tr class="row-away" onclick="toggleExpand('${m.id}')">
+      <td class="td-team">
+        <div class="flex items-center gap-1.5">
+          <span style="font-size:9px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,.15);padding:1px 4px;border-radius:3px">客</span>
+          <span style="${awayWinner ? 'color:#fff' : 'color:#cbd5e1'}">${t(m.away)}</span>
+        </div>
+      </td>
+      <td class="td-score" style="${scoreColor}${awayWinner ? ';color:#fff' : ''}">${hasScore ? m.awayScore : '-'}</td>
+      <td class="td-spread">${hasSpread && spread < 0 ? `<span class="spread-val">${spreadSign}${absSpread}</span>` : ''}</td>
+      <td><span class="pct-val">${awayWin}%</span></td>
+      <td rowspan="2" style="vertical-align:middle"><span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span></td>
+      <td rowspan="2" style="vertical-align:middle"><span class="odds-val">${mlOdds.toFixed(1)}</span></td>
+      <td rowspan="2" style="vertical-align:middle"><span class="ai-tip ${tipClass}">${tip.label.replace(/\s*[✓✗]$/, '')}</span></td>
+      <td rowspan="2" style="vertical-align:middle">${resultIcon}</td>
+    </tr>`;
+
+    // 主隊行
+    html += `<tr class="row-home" onclick="toggleExpand('${m.id}')">
+      <td class="td-team">
+        <div class="flex items-center gap-1.5">
+          <span style="font-size:9px;font-weight:700;color:#f87171;background:rgba(239,68,68,.12);padding:1px 4px;border-radius:3px">主</span>
+          <span style="${homeWinner ? 'color:#fff' : 'color:#cbd5e1'}">${t(m.home)}</span>
+        </div>
+      </td>
+      <td class="td-score" style="${scoreColor}${homeWinner ? ';color:#fff' : ''}">${hasScore ? m.homeScore : '-'}</td>
+      <td class="td-spread">${hasSpread && spread > 0 ? `<span class="spread-val">+${absSpread}</span>` : ''}</td>
+      <td><span class="pct-val">${homeWin}%</span></td>
+    </tr>`;
+  }
+
+  html += `</tbody></table></div></div>`;
   return html;
 }
 

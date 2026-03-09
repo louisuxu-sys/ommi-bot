@@ -638,6 +638,125 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // /predict?allianceid=3 — 從 playsport.cc/predict/games 抓取盤口預測資料
+  if (parsed.pathname === '/predict' && parsed.query.allianceid) {
+    const aid = parsed.query.allianceid;
+    const targetUrl = `https://www.playsport.cc/predict/games?allianceid=${aid}`;
+    console.log(`[PREDICT] ${new Date().toLocaleTimeString()} → ${targetUrl}`);
+    const fetchOpts = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'identity',
+      },
+      timeout: 15000,
+    };
+    const fetchPage = (url) => new Promise((resolve, reject) => {
+      https.get(url, fetchOpts, (r) => {
+        let d = ''; r.setEncoding('utf8');
+        r.on('data', c => { d += c; }); r.on('end', () => resolve(d));
+      }).on('error', reject);
+    });
+    fetchPage(targetUrl).then(html => {
+      try {
+        const games = [];
+        // 解析 <tr gameid="..."> 每兩行一組（客隊 + 主隊）
+        const rowRegex = /<tr\s+gameid="(\d+)">([\s\S]*?)<\/tr>\s*<tr>([\s\S]*?)<\/tr>/g;
+        let rm;
+        while ((rm = rowRegex.exec(html)) !== null) {
+          const gameId = rm[1];
+          const row1 = rm[2]; // 第一行（含賽事資訊、球隊資訊、盤口）
+          const row2 = rm[3]; // 第二行（第二隊的盤口）
+
+          // 時間
+          const timeMatch = row1.match(/<h4>\s*(.*?)\s*<\/h4>/);
+          const time = timeMatch ? timeMatch[1].trim() : '';
+
+          // 比分
+          const scoreMatch = row1.match(/class="scores"[\s\S]*?<li[^>]*>\s*(\d+)\s*<\/li>[\s\S]*?<li[^>]*>\s*(\d+)\s*<\/li>/);
+          const score1 = scoreMatch ? scoreMatch[1].trim() : null;
+          const score2 = scoreMatch ? scoreMatch[2].trim() : null;
+
+          // 隊名（第一隊 = winnerteam/第一個 team, 第二隊 = secondteam）
+          const team1Match = row1.match(/class="winnerteam"[\s\S]*?>([\s\S]*?)<\/a>/);
+          const team2Match = row1.match(/class="secondteam"[\s\S]*?>([\s\S]*?)<\/a>/);
+          const team1 = team1Match ? team1Match[1].replace(/<[^>]+>/g, '').trim() : '';
+          const team2 = team2Match ? team2Match[1].replace(/<[^>]+>/g, '').trim() : '';
+
+          // 國際盤讓分 (td-universal-bet01)
+          const uniSpreadMatch = row1.match(/class="td-universal-bet01"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>(.*?)<\/span>)?/);
+          const uniSpreadSide = uniSpreadMatch ? uniSpreadMatch[1].trim() : '';
+          const uniSpreadVal = uniSpreadMatch ? (uniSpreadMatch[2] || '').trim() : '';
+          const uniSpreadPct = uniSpreadMatch ? (uniSpreadMatch[3] || '').trim() : '';
+
+          // 國際盤大小 (td-universal-bet02)
+          const uniTotalMatch = row1.match(/class="td-universal-bet02"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>(.*?)<\/span>)?/);
+          const uniTotalSide = uniTotalMatch ? uniTotalMatch[1].trim() : '';
+          const uniTotalVal = uniTotalMatch ? (uniTotalMatch[2] || '').trim() : '';
+          const uniTotalPct = uniTotalMatch ? (uniTotalMatch[3] || '').trim() : '';
+
+          // 運彩盤讓分 (td-bank-bet01)
+          const bankSpreadMatch = row1.match(/class="td-bank-bet01"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>[,\s]*([\d.]+)<\/span>)?/);
+          const bankSpreadSide = bankSpreadMatch ? bankSpreadMatch[1].trim() : '';
+          const bankSpreadVal = bankSpreadMatch ? (bankSpreadMatch[2] || '').trim() : '';
+          const bankSpreadOdds = bankSpreadMatch ? (bankSpreadMatch[3] || '').trim() : '';
+
+          // 運彩不讓分 (td-bank-bet03)
+          const bankMLMatch = row1.match(/class="td-bank-bet03"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>[,\s]*([\d.]+)<\/span>)?/);
+          const bankMLSide = bankMLMatch ? bankMLMatch[1].trim() : '';
+          const bankMLOdds = bankMLMatch ? (bankMLMatch[3] || '').trim() : '';
+
+          // 運彩大小 (td-bank-bet02)
+          const bankTotalMatch = row1.match(/class="td-bank-bet02"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>[,\s]*([\d.]+)<\/span>)?/);
+          const bankTotalSide = bankTotalMatch ? bankTotalMatch[1].trim() : '';
+          const bankTotalVal = bankTotalMatch ? (bankTotalMatch[2] || '').trim() : '';
+          const bankTotalOdds = bankTotalMatch ? (bankTotalMatch[3] || '').trim() : '';
+
+          // 第二行也可能有盤口資訊（row2）
+          const bankSpread2 = row2.match(/class="td-bank-bet01"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>[,\s]*([\d.]+)<\/span>)?/);
+          const bankML2 = row2.match(/class="td-bank-bet03"[\s\S]*?class="team-side[^"]*">(.*?)<\/strong>(?:[\s\S]*?<strong>(.*?)<\/strong>)?(?:[\s\S]*?<span>[,\s]*([\d.]+)<\/span>)?/);
+
+          // 判斷是否有 result-w class（表示贏）
+          const uniSpreadWin = row1.includes('td-universal-bet01') && row1.match(/td-universal-bet01[\s\S]*?result-w/);
+          const bankSpreadWin = row1.includes('td-bank-bet01') && row1.match(/td-bank-bet01[\s\S]*?result-w/);
+          const bankMLWin = row1.includes('td-bank-bet03') && row1.match(/td-bank-bet03[\s\S]*?result-w/);
+
+          games.push({
+            gameId,
+            time,
+            away: team1,  // predict 頁面第一隊通常是客隊
+            home: team2,
+            awayScore: score1,
+            homeScore: score2,
+            predict: {
+              intlSpread: { side: uniSpreadSide, value: uniSpreadVal, pct: uniSpreadPct, win: !!uniSpreadWin },
+              intlTotal: { side: uniTotalSide, value: uniTotalVal, pct: uniTotalPct },
+              bankSpread: { side: bankSpreadSide, value: bankSpreadVal, odds: bankSpreadOdds, win: !!bankSpreadWin },
+              bankSpread2: bankSpread2 ? { side: bankSpread2[1]?.trim(), value: (bankSpread2[2]||'').trim(), odds: (bankSpread2[3]||'').trim() } : null,
+              bankML: { side: bankMLSide, odds: bankMLOdds, win: !!bankMLWin },
+              bankML2: bankML2 ? { side: bankML2[1]?.trim(), odds: (bankML2[3]||'').trim() } : null,
+              bankTotal: { side: bankTotalSide, value: bankTotalVal, odds: bankTotalOdds },
+            },
+          });
+        }
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, count: games.length, games, source: 'playsport.cc/predict' }));
+        console.log(`[PREDICT] ✓ ${games.length} games found`);
+      } catch(e) {
+        console.error(`[PREDICT] parse error:`, e.message);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }).catch(err => {
+      console.error(`[PREDICT] ✗ ${err.message}`);
+      res.writeHead(502);
+      res.end(JSON.stringify({ error: err.message }));
+    });
+    return;
+  }
+
   // /check-dates?allianceid=3&dates=20260207,20260208,20260209
   // 快速檢查哪些日期有賽事（用 data-oid 日期驗證）
   if (parsed.pathname === '/check-dates' && parsed.query.allianceid && parsed.query.dates) {
