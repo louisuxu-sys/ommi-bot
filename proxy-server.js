@@ -831,7 +831,7 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
 請確保分析內容專業、有數據支撐，避免模糊的說法。`;
 
         // 呼叫 Gemini API（支援模型 fallback）
-        const models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
         const callGemini = (modelIdx) => {
           const model = models[modelIdx] || models[0];
           const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
@@ -840,8 +840,8 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
           };
-          // google_search grounding 只支援部分模型
-          if (model === 'gemini-2.0-flash') payloadObj.tools = [{ google_search: {} }];
+          // google_search grounding
+          if (model.includes('2.5') || model === 'gemini-2.0-flash') payloadObj.tools = [{ google_search: {} }];
           const payload = JSON.stringify(payloadObj);
 
           const geminiReq = https.request(geminiUrl, {
