@@ -1771,26 +1771,69 @@ function renderExpandedPanel(m) {
         </div>
       </div>
 
-      <!-- 分析建議 -->
+      <!-- AI 賽前分析（自動載入） -->
       <div class="bg-[#0d1117] rounded-lg p-3 border border-emerald-900/20">
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-[10px] text-emerald-400 font-bold">📊 AI 賽前分析</p>
-          <button onclick="event.stopPropagation();openAIModal('${m.id}')" class="flex items-center gap-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[11px] font-bold rounded-lg border border-emerald-800/40 transition-all">
-            <i data-lucide="sparkles" class="w-3 h-3"></i> 詳細 AI 分析
-          </button>
+        <p class="text-[10px] text-emerald-400 font-bold mb-2">📊 AI 賽前分析</p>
+        <div id="ai-inline-${m.id}" class="text-xs text-gray-300 leading-relaxed">
+          <div class="flex items-center gap-2 py-2">
+            <div class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-gray-500">正在分析中...</span>
+          </div>
         </div>
-        <div class="text-xs text-gray-300 leading-relaxed space-y-1.5">${analysis.suggestion.split('\n').map(line =>
-          line.startsWith('【') ? `<p class="text-emerald-500/80 font-bold mt-2">${line}</p>`
-          : line.startsWith('📌') ? `<p class="text-amber-400 font-bold mt-2 pt-2 border-t border-gray-800/40">${line}</p>`
-          : `<p>${line}</p>`
-        ).join('')}</div>
       </div>
     </div>`;
 }
 
+const aiCache = {};
 function toggleExpand(id) {
   expandedId = expandedId === id ? null : id;
   renderMatchList();
+  // 自動觸發 AI 分析
+  if (expandedId) {
+    setTimeout(() => fetchInlineAI(expandedId), 100);
+  }
+}
+
+function fetchInlineAI(id) {
+  const container = document.getElementById('ai-inline-' + id);
+  if (!container) return;
+  // 已有快取
+  if (aiCache[id]) {
+    container.innerHTML = `<div class="space-y-1.5">${md2html(aiCache[id])}</div>`;
+    return;
+  }
+  const m = allMatches.find(x => x.id === id);
+  if (!m) return;
+  const odds = m.odds || {};
+  const payload = {
+    home: m.home, away: m.away,
+    league: m.league, date: m.date, time: m.time,
+    spread: odds.spread || null,
+    homeScore: m.homeScore, awayScore: m.awayScore,
+    status: m.status,
+    record: m.record || {},
+  };
+  fetch(`${LOCAL_PROXY}/ai-analysis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(90000),
+  })
+  .then(r => r.json())
+  .then(data => {
+    const el = document.getElementById('ai-inline-' + id);
+    if (!el) return;
+    if (data.error) {
+      el.innerHTML = `<p class="text-red-400 text-[11px]">⚠ ${data.error}</p>`;
+      return;
+    }
+    aiCache[id] = data.analysis;
+    el.innerHTML = `<div class="space-y-1.5">${md2html(data.analysis)}</div>`;
+  })
+  .catch(err => {
+    const el = document.getElementById('ai-inline-' + id);
+    if (el) el.innerHTML = `<p class="text-red-400 text-[11px]">⚠ ${err.message}</p>`;
+  });
 }
 
 /* ========== AI 分析彈窗 ========== */
