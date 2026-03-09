@@ -92,16 +92,17 @@
 
     .match-grid{display:flex;flex-direction:column;gap:16px}
     .league-section{display:flex;flex-direction:column;gap:0}
+    .league-section.has-body .league-bar{border-radius:10px 10px 0 0}
+    .league-section.collapsed-section .league-bar{border-radius:10px}
     .league-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#1e293b;border-radius:10px;border:1px solid #2d3748;cursor:pointer;user-select:none;transition:background .15s}
     .league-bar:hover{background:#253347}
     .league-bar .league-chevron{margin-left:auto;font-size:14px;color:#64748b;transition:transform .25s}
     .league-bar .league-chevron.collapsed{transform:rotate(-90deg)}
-    .league-body{overflow:hidden;transition:max-height .3s ease}
-    .league-body.collapsed{max-height:0 !important;overflow:hidden}
+    .league-body{border:1px solid #2d3748;border-top:none;border-radius:0 0 10px 10px;background:#0f172a;overflow:hidden;padding-bottom:8px}
     .league-bar .league-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
     .league-bar .league-name{font-size:14px;font-weight:800;color:#e2e8f0}
     .league-bar .league-count{font-size:12px;font-weight:700;color:#94a3b8;background:#334155;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center}
-    .game-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:6px}
+    .game-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:0}
     .game-table thead th{font-size:11px;font-weight:700;color:#64748b;padding:6px 8px;text-align:center;border-bottom:1px solid #1e293b;white-space:nowrap}
     .game-table thead th:first-child{text-align:left;padding-left:16px}
     .game-table thead th.th-team{text-align:left;min-width:100px}
@@ -120,7 +121,7 @@
     .game-table .ai-tip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;background:transparent}
     .game-table .ai-tip.tip-win{color:#34d399;border:1.5px solid #34d399}
     .game-table .ai-tip.tip-loss{color:#475569;border:1.5px solid #334155}
-    .game-table .ai-tip.tip-pending{color:#60a5fa;border:1.5px solid #3b82f6}
+    .game-table .ai-tip.tip-pending{color:#34d399;border:1.5px solid #34d399}
     .game-table .ai-tip.tip-skip{color:#64748b;border:1.5px solid #334155}
     .game-table .result-circle{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:14px}
     .game-table .result-circle.pass{background:#34d399;color:#fff}
@@ -1561,7 +1562,8 @@ function renderLeagueSection(leagueName, leagueId, matches) {
   const isCollapsed = collapsedLeagues.has(leagueId);
   const chevronCls = isCollapsed ? 'collapsed' : '';
 
-  let html = `<div class="league-section">
+  const sectionCls = (count === 0 || isCollapsed) ? 'collapsed-section' : 'has-body';
+  let html = `<div class="league-section ${sectionCls}">
     <div class="league-bar" onclick="toggleLeague('${leagueId}')">
       <span class="league-icon">${icon}</span>
       <span class="league-name">${leagueName}</span>
