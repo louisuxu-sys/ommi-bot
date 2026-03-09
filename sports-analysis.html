@@ -1601,7 +1601,18 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     const awayWin = analysis.awayWin || 50;
 
     // 期望值（簡單計算：勝率 × 賠率 - 1）
-    const mlOdds = odds.mlHome ? parseFloat(odds.mlHome) : (odds.spreadOddsHome ? parseFloat(odds.spreadOddsHome) : 1.9);
+    let mlOdds = 0;
+    if (odds.mlHome) mlOdds = parseFloat(odds.mlHome);
+    else if (odds.spreadOddsHome) mlOdds = parseFloat(odds.spreadOddsHome);
+    else if (odds.spreadOdds) mlOdds = parseFloat(odds.spreadOdds);
+    // predict 合併的賠率
+    if ((!mlOdds || mlOdds <= 0) && m.predict) {
+      const bp = m.predict.bankML || {};
+      if (bp.odds) mlOdds = parseFloat(bp.odds);
+    }
+    // spreadOdds 可能是百分比格式(如 "-50", "50")，轉為十進位賠率
+    if (mlOdds && Math.abs(mlOdds) > 10) mlOdds = 0; // 非十進位賠率，忽略
+    if (!mlOdds || mlOdds <= 0) mlOdds = 1.9; // 預設
     const favWin = pred.favIsHome ? homeWin : awayWin;
     const ev = ((favWin / 100) * mlOdds - 1) * 100;
 
