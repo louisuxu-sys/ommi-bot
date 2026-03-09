@@ -1645,6 +1645,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     </tr>`;
 
     // 主隊行
+    const isExpanded = expandedId === m.id;
     html += `<tr class="row-home" onclick="toggleExpand('${m.id}')">
       <td class="td-team">
         <div class="flex items-center gap-1.5">
@@ -1656,6 +1657,11 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-spread">${hasSpread && spread > 0 ? `<span class="spread-val">+${absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${homeWin}%</span></td>
     </tr>`;
+
+    // 展開面板行
+    if (isExpanded) {
+      html += `<tr><td colspan="8" style="padding:0;border-top:1px solid #1e293b">${renderExpandedPanel(m)}</td></tr>`;
+    }
   }
 
   html += `</tbody></table></div></div>`;
