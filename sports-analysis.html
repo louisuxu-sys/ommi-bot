@@ -1717,9 +1717,6 @@ function renderExpandedPanel(m) {
         <span class="text-[10px] text-gray-500">📅 ${m.date} ${m.time || ''}</span>
         ${odds.spread ? `<span class="text-[10px] px-2 py-0.5 bg-amber-900/20 text-amber-400 rounded border border-amber-800/30">讓分 ${odds.spread}</span>` : ''}
         ${m.teamCodes ? `<span class="text-[10px] text-gray-600">${m.teamCodes}</span>` : ''}
-        <button onclick="event.stopPropagation();openAIModal('${m.id}')" class="ml-auto flex items-center gap-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[11px] font-bold rounded-lg border border-emerald-800/40 transition-all">
-          <i data-lucide="sparkles" class="w-3 h-3"></i> 詳細 AI 分析
-        </button>
       </div>
 
       ${hasRealData ? `
@@ -1776,7 +1773,12 @@ function renderExpandedPanel(m) {
 
       <!-- 分析建議 -->
       <div class="bg-[#0d1117] rounded-lg p-3 border border-emerald-900/20">
-        <p class="text-[10px] text-emerald-400 font-bold mb-2">📊 AI 賽前分析</p>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[10px] text-emerald-400 font-bold">📊 AI 賽前分析</p>
+          <button onclick="event.stopPropagation();openAIModal('${m.id}')" class="flex items-center gap-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[11px] font-bold rounded-lg border border-emerald-800/40 transition-all">
+            <i data-lucide="sparkles" class="w-3 h-3"></i> 詳細 AI 分析
+          </button>
+        </div>
         <div class="text-xs text-gray-300 leading-relaxed space-y-1.5">${analysis.suggestion.split('\n').map(line =>
           line.startsWith('【') ? `<p class="text-emerald-500/80 font-bold mt-2">${line}</p>`
           : line.startsWith('📌') ? `<p class="text-amber-400 font-bold mt-2 pt-2 border-t border-gray-800/40">${line}</p>`
@@ -1833,7 +1835,7 @@ function openAIModal(id) {
     <!-- Loading -->
     <div id="ai-loading" class="flex flex-col items-center justify-center py-10 gap-3">
       <div class="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-xs text-gray-500">Gemini AI 正在蒐集資料並進行分析...</p>
+      <p class="text-xs text-gray-500">正在蒐集資料並進行分析...</p>
       <p class="text-[10px] text-gray-700">傷病名單 · 先發陣容 · 近況分析 · 對戰歷史</p>
     </div>
     <div id="ai-result" class="hidden"></div>`;
@@ -1876,24 +1878,11 @@ function openAIModal(id) {
 
     let html = `<div class="bg-[#0d1117] rounded-lg p-4 border border-gray-800/40">
       <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-800/40">
-        <span class="text-base">🤖</span>
-        <p class="text-xs font-bold text-emerald-400">Gemini AI 深度分析</p>
-        <span class="ml-auto text-[9px] text-gray-700">Powered by Google Gemini</span>
+        <span class="text-base">📊</span>
+        <p class="text-xs font-bold text-emerald-400">AI 深度分析</p>
       </div>
       <div class="text-xs text-gray-300 leading-relaxed gemini-content">${md2html(data.analysis)}</div>
     </div>`;
-
-    // 資料來源
-    if (data.sources && data.sources.length > 0) {
-      html += `<div class="mt-3">
-        <p class="text-[10px] text-gray-600 mb-1.5">📎 資料來源</p>
-        <div class="flex flex-wrap gap-1.5">
-          ${data.sources.slice(0, 8).map(s =>
-            `<a href="${s.uri}" target="_blank" rel="noopener" class="text-[9px] px-2 py-1 bg-[#0d1117] border border-gray-800/40 rounded text-blue-400 hover:text-blue-300 hover:border-blue-800/40 transition-colors truncate" style="max-width:200px" title="${s.title}">${s.title || new URL(s.uri).hostname}</a>`
-          ).join('')}
-        </div>
-      </div>`;
-    }
 
     resultEl.innerHTML = html;
   })
