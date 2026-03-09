@@ -1792,21 +1792,29 @@ function toggleExpand(id) {
 }
 
 /* ========== AI 分析彈窗 ========== */
+// 簡易 Markdown → HTML 轉換
+function md2html(md) {
+  return md
+    .replace(/^### (.+)$/gm, '<h3 class="text-sm font-black text-emerald-400 mt-4 mb-2">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-sm font-black text-emerald-400 mt-5 mb-2 pb-1 border-b border-gray-800/40">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-base font-black text-white mt-4 mb-2">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-•] (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul class="space-y-1 my-1">${m}</ul>`)
+    .replace(/\n{2,}/g, '</p><p class="mt-2">')
+    .replace(/\n/g, '<br>')
+    .replace(/^/, '<p>').replace(/$/, '</p>');
+}
+
 function openAIModal(id) {
   const m = allMatches.find(x => x.id === id);
   if (!m) return;
-  const analysis = generateAnalysis(m);
-  const homeForm = generateForm(m.home);
-  const awayForm = generateForm(m.away);
-  const seed = hashCode(m.home + m.away + 'h2h');
-  const h2h = [];
-  for (let i = 0; i < 5; i++) {
-    const hs = (seed >> (i*4)) % (currentSport === 'basketball' ? 30 : 4) + (currentSport === 'basketball' ? 90 : 0);
-    const as = (seed >> (i*4+2)) % (currentSport === 'basketball' ? 30 : 4) + (currentSport === 'basketball' ? 90 : 0);
-    h2h.push({ hs, as, date: `${2025-i}-${String(1+(seed>>i)%12).padStart(2,'0')}-${String(1+(seed>>(i+1))%28).padStart(2,'0')}` });
-  }
+  const odds = m.odds || {};
 
-  document.getElementById('ai-modal-body').innerHTML = `
+  // 顯示對戰標題 + loading
+  const modalBody = document.getElementById('ai-modal-body');
+  modalBody.innerHTML = `
     <!-- 對戰標題 -->
     <div class="flex items-center justify-around text-center py-2">
       <div class="space-y-1">
@@ -1822,51 +1830,84 @@ function openAIModal(id) {
         <p class="text-sm font-black text-white">${t(m.away)}</p>
       </div>
     </div>
-
-    <!-- 勝率 -->
-    <div class="grid grid-cols-3 gap-3">
-      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">主勝</p><p class="text-2xl font-black ${analysis.homeWin>45?'text-emerald-400':'text-gray-400'}">${analysis.homeWin}%</p></div>
-      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">${currentSport==='basketball'?'—':'平局'}</p><p class="text-2xl font-black text-yellow-400">${analysis.draw}%</p></div>
-      <div class="bg-[#0d1117] rounded-lg p-4 text-center"><p class="text-[10px] text-gray-500">客勝</p><p class="text-2xl font-black ${analysis.awayWin>45?'text-blue-400':'text-gray-400'}">${analysis.awayWin}%</p></div>
+    <!-- Loading -->
+    <div id="ai-loading" class="flex flex-col items-center justify-center py-10 gap-3">
+      <div class="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs text-gray-500">Gemini AI 正在蒐集資料並進行分析...</p>
+      <p class="text-[10px] text-gray-700">傷病名單 · 先發陣容 · 近況分析 · 對戰歷史</p>
     </div>
-
-    <!-- 信心 + 分析 -->
-    <div class="bg-[#0d1117] rounded-lg p-4 border border-gray-800/40">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="text-center flex-shrink-0"><p class="text-[10px] text-gray-500">信心指數</p><p class="text-xl font-black ${analysis.confidence>=70?'text-emerald-400':analysis.confidence>=50?'text-yellow-400':'text-orange-400'}">${analysis.confidence}%</p></div>
-        <div class="h-10 w-px bg-gray-700/50"></div>
-        <p class="text-[10px] text-emerald-400 font-bold">📊 AI 賽前分析</p>
-      </div>
-      <div class="text-xs text-gray-300 leading-relaxed space-y-1.5">${analysis.suggestion.split('\n').map(line =>
-        line.startsWith('【') ? `<p class="text-emerald-500/80 font-bold mt-2">${line}</p>`
-        : line.startsWith('📌') ? `<p class="text-amber-400 font-bold mt-2 pt-2 border-t border-gray-800/40">${line}</p>`
-        : `<p>${line}</p>`
-      ).join('')}</div>
-    </div>
-
-    <!-- 近期戰績 -->
-    <div class="grid grid-cols-2 gap-4">
-      <div><p class="text-[10px] text-gray-500 mb-2">${t(m.home)} 近 5 場</p><div class="flex gap-1.5">${homeForm.map(f=>formBadge(f)).join('')}</div></div>
-      <div><p class="text-[10px] text-gray-500 mb-2">${t(m.away)} 近 5 場</p><div class="flex gap-1.5">${awayForm.map(f=>formBadge(f)).join('')}</div></div>
-    </div>
-
-    <!-- 交鋒記錄 -->
-    <div>
-      <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">歷史交鋒 (近 5 場)</p>
-      <div class="space-y-1.5">
-        ${h2h.map(r => `<div class="flex items-center justify-between bg-[#0d1117] rounded-lg px-3 py-2">
-          <span class="text-[10px] text-gray-600 w-20">${r.date}</span>
-          <span class="text-xs font-bold ${r.hs>r.as?'text-emerald-400':'text-gray-400'}">${t(m.home)}</span>
-          <span class="text-sm font-black text-white">${r.hs} : ${r.as}</span>
-          <span class="text-xs font-bold ${r.as>r.hs?'text-blue-400':'text-gray-400'}">${t(m.away)}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
+    <div id="ai-result" class="hidden"></div>`;
 
   const modal = document.getElementById('ai-modal');
   modal.classList.remove('hidden');
   modal.classList.add('flex');
-  if (window.lucide) window.lucide.createIcons();
+
+  // 呼叫後端 Gemini API
+  const payload = {
+    home: m.home, away: m.away,
+    league: m.league, date: m.date, time: m.time,
+    spread: odds.spread || null,
+    homeScore: m.homeScore, awayScore: m.awayScore,
+    status: m.status,
+    record: m.record || {},
+  };
+
+  fetch('/ai-analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => {
+    const loadingEl = document.getElementById('ai-loading');
+    const resultEl = document.getElementById('ai-result');
+    if (!loadingEl || !resultEl) return;
+    loadingEl.classList.add('hidden');
+    resultEl.classList.remove('hidden');
+
+    if (data.error) {
+      resultEl.innerHTML = `<div class="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-center">
+        <p class="text-red-400 text-sm font-bold mb-1">⚠ AI 分析失敗</p>
+        <p class="text-xs text-gray-500">${data.error}</p>
+      </div>`;
+      return;
+    }
+
+    let html = `<div class="bg-[#0d1117] rounded-lg p-4 border border-gray-800/40">
+      <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-800/40">
+        <span class="text-base">🤖</span>
+        <p class="text-xs font-bold text-emerald-400">Gemini AI 深度分析</p>
+        <span class="ml-auto text-[9px] text-gray-700">Powered by Google Gemini</span>
+      </div>
+      <div class="text-xs text-gray-300 leading-relaxed gemini-content">${md2html(data.analysis)}</div>
+    </div>`;
+
+    // 資料來源
+    if (data.sources && data.sources.length > 0) {
+      html += `<div class="mt-3">
+        <p class="text-[10px] text-gray-600 mb-1.5">📎 資料來源</p>
+        <div class="flex flex-wrap gap-1.5">
+          ${data.sources.slice(0, 8).map(s =>
+            `<a href="${s.uri}" target="_blank" rel="noopener" class="text-[9px] px-2 py-1 bg-[#0d1117] border border-gray-800/40 rounded text-blue-400 hover:text-blue-300 hover:border-blue-800/40 transition-colors truncate" style="max-width:200px" title="${s.title}">${s.title || new URL(s.uri).hostname}</a>`
+          ).join('')}
+        </div>
+      </div>`;
+    }
+
+    resultEl.innerHTML = html;
+  })
+  .catch(err => {
+    const loadingEl = document.getElementById('ai-loading');
+    const resultEl = document.getElementById('ai-result');
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (resultEl) {
+      resultEl.classList.remove('hidden');
+      resultEl.innerHTML = `<div class="bg-red-900/20 border border-red-800/30 rounded-lg p-4 text-center">
+        <p class="text-red-400 text-sm font-bold mb-1">⚠ 連線失敗</p>
+        <p class="text-xs text-gray-500">${err.message}</p>
+      </div>`;
+    }
+  });
 }
 
 function closeModal() {

@@ -769,6 +769,130 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // /ai-analysis — 呼叫 Gemini API 進行專業賽事分析
+  if (parsed.pathname === '/ai-analysis' && req.method === 'POST') {
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_KEY) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }));
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const { home, away, league, date, time, spread, homeScore, awayScore, status, record } = data;
+        const rec = record || {};
+
+        // 構建豐富的上下文
+        let context = `聯賽: ${league}\n日期: ${date} ${time || ''}\n`;
+        context += `主隊: ${home}\n客隊: ${away}\n`;
+        if (status === 'finished' && homeScore !== null) {
+          context += `最終比分: ${home} ${homeScore} - ${awayScore} ${away}\n`;
+        } else if (status === 'live' && homeScore !== null) {
+          context += `即時比分: ${home} ${homeScore} - ${awayScore} ${away} (進行中)\n`;
+        }
+        if (spread) context += `讓分盤: ${spread}\n`;
+        if (rec.homeRecord) context += `${home} 戰績: ${rec.homeRecord}\n`;
+        if (rec.awayRecord) context += `${away} 戰績: ${rec.awayRecord}\n`;
+        if (rec.homeRecent) context += `${home} 近十場: ${rec.homeRecent}\n`;
+        if (rec.awayRecent) context += `${away} 近十場: ${rec.awayRecent}\n`;
+        if (rec.homeAvg) context += `${home} 平均得失分: ${rec.homeAvg}\n`;
+        if (rec.awayAvg) context += `${away} 平均得失分: ${rec.awayAvg}\n`;
+        if (rec.homeH2H) context += `${home} 對戰紀錄: ${rec.homeH2H}\n`;
+        if (rec.awayH2H) context += `${away} 對戰紀錄: ${rec.awayH2H}\n`;
+
+        const prompt = `你是一位頂尖的職業體育分析師，擅長運動博弈分析。請針對以下比賽進行深度專業分析。
+
+${context}
+
+請搜尋最新的網路資料，並提供以下分析（使用繁體中文）：
+
+## 1. 🏥 傷病名單
+分別列出兩隊目前的傷病球員、傷勢狀態（Out/Doubtful/Questionable/Probable），以及該球員的重要性。
+
+## 2. 📋 預計先發陣容
+列出兩隊可能的先發陣容或先發投手（根據運動類型），並簡要評價。
+
+## 3. 📊 近期狀態分析
+分析兩隊最近 5-10 場比賽的表現趨勢，包括進攻火力、防守表現、主客場差異。
+
+## 4. ⚔️ 對戰歷史
+分析兩隊近期交手的結果和趨勢。
+
+## 5. 🎯 盤口分析
+${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有價值。` : '分析兩隊實力差距。'}
+
+## 6. 💡 綜合推薦
+給出明確的推薦方向（獨贏/讓分/大小分），並說明理由和信心程度。
+
+請確保分析內容專業、有數據支撐，避免模糊的說法。`;
+
+        // 呼叫 Gemini API
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+        const payload = JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4096,
+          },
+          tools: [{ google_search: {} }],
+        });
+
+        const geminiReq = https.request(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+          },
+          timeout: 60000,
+        }, (geminiRes) => {
+          let responseData = '';
+          geminiRes.on('data', chunk => { responseData += chunk; });
+          geminiRes.on('end', () => {
+            try {
+              const result = JSON.parse(responseData);
+              if (result.error) {
+                console.error(`[GEMINI] API error:`, result.error.message);
+                res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ error: result.error.message }));
+                return;
+              }
+              const text = result.candidates?.[0]?.content?.parts
+                ?.filter(p => p.text)
+                ?.map(p => p.text)
+                ?.join('\n') || '無法生成分析結果';
+              // 提取 grounding 搜尋來源
+              const sources = result.candidates?.[0]?.groundingMetadata?.groundingChunks
+                ?.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' }))
+                ?.filter(s => s.uri) || [];
+              console.log(`[GEMINI] ✓ analysis generated (${text.length} chars, ${sources.length} sources)`);
+              res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify({ success: true, analysis: text, sources }));
+            } catch(e) {
+              console.error(`[GEMINI] parse error:`, e.message);
+              res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify({ error: 'Failed to parse Gemini response' }));
+            }
+          });
+        });
+        geminiReq.on('error', (e) => {
+          console.error(`[GEMINI] request error:`, e.message);
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: e.message }));
+        });
+        geminiReq.write(payload);
+        geminiReq.end();
+      } catch(e) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Invalid request body' }));
+      }
+    });
+    return;
+  }
+
   // /check-dates?allianceid=3&dates=20260207,20260208,20260209
   // 快速檢查哪些日期有賽事（用 data-oid 日期驗證）
   if (parsed.pathname === '/check-dates' && parsed.query.allianceid && parsed.query.dates) {
