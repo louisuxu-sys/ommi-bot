@@ -820,7 +820,7 @@ ${spread ? `讓分盤 ${spread}，` : ''}給出明確推薦方向和理由。
 總共 200 字以內。`;
 
         // 呼叫 Gemini API（支援模型 fallback）
-        const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
         const callGemini = (modelIdx) => {
           const model = models[modelIdx] || models[0];
           const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
@@ -850,8 +850,9 @@ ${spread ? `讓分盤 ${spread}，` : ''}給出明確推薦方向和理由。
                     return;
                   }
                   console.error(`[GEMINI] API error:`, errMsg.slice(0, 200));
+                  const friendlyErr = errMsg.includes('quota') ? 'AI 分析次數已達上限，請稍後再試（約 1 分鐘）' : 'AI 分析失敗，請稍後再試';
                   res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-                  res.end(JSON.stringify({ error: errMsg }));
+                  res.end(JSON.stringify({ error: friendlyErr }));
                   return;
                 }
                 let text = result.candidates?.[0]?.content?.parts
