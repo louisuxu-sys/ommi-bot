@@ -92,7 +92,12 @@
 
     .match-grid{display:flex;flex-direction:column;gap:16px}
     .league-section{display:flex;flex-direction:column;gap:0}
-    .league-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#1e293b;border-radius:10px;border:1px solid #2d3748}
+    .league-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#1e293b;border-radius:10px;border:1px solid #2d3748;cursor:pointer;user-select:none;transition:background .15s}
+    .league-bar:hover{background:#253347}
+    .league-bar .league-chevron{margin-left:auto;font-size:14px;color:#64748b;transition:transform .25s}
+    .league-bar .league-chevron.collapsed{transform:rotate(-90deg)}
+    .league-body{overflow:hidden;transition:max-height .3s ease}
+    .league-body.collapsed{max-height:0 !important;overflow:hidden}
     .league-bar .league-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
     .league-bar .league-name{font-size:14px;font-weight:800;color:#e2e8f0}
     .league-bar .league-count{font-size:12px;font-weight:700;color:#94a3b8;background:#334155;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center}
@@ -1540,24 +1545,34 @@ function renderMatchList() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+const collapsedLeagues = new Set();
+function toggleLeague(leagueId) {
+  if (collapsedLeagues.has(leagueId)) collapsedLeagues.delete(leagueId);
+  else collapsedLeagues.add(leagueId);
+  renderMatchList();
+}
+
 function renderLeagueSection(leagueName, leagueId, matches) {
   const icon = LEAGUE_ICONS[leagueId] || '🏆';
   const count = matches.length;
+  const isCollapsed = collapsedLeagues.has(leagueId);
+  const chevronCls = isCollapsed ? 'collapsed' : '';
 
   let html = `<div class="league-section">
-    <div class="league-bar">
+    <div class="league-bar" onclick="toggleLeague('${leagueId}')">
       <span class="league-icon">${icon}</span>
       <span class="league-name">${leagueName}</span>
       <span class="league-count">${count}</span>
+      <span class="league-chevron ${chevronCls}">▼</span>
     </div>`;
 
-  if (count === 0) {
+  if (count === 0 || isCollapsed) {
     html += `</div>`;
     return html;
   }
 
   // 表頭
-  html += `<div style="overflow-x:auto"><table class="game-table"><thead><tr>
+  html += `<div class="league-body"><div style="overflow-x:auto"><table class="game-table"><thead><tr>
     <th class="th-team">客隊 / 主隊</th>
     <th>最終得分</th>
     <th>讓分盤</th>
@@ -1647,7 +1662,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
         </div>
       </td>
       <td class="td-score" style="${scoreColor}${awayWinner ? ';color:#fff' : ''}">${hasScore ? m.awayScore : '-'}</td>
-      <td class="td-spread">${hasSpread && spread < 0 ? `<span class="spread-val">${spreadSign}${absSpread}</span>` : ''}</td>
+      <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${awayWin}%</span></td>
       <td rowspan="2" style="vertical-align:middle"><span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span></td>
       <td rowspan="2" style="vertical-align:middle"><span class="odds-val">${mlOdds.toFixed(1)}</span></td>
@@ -1665,7 +1680,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
         </div>
       </td>
       <td class="td-score" style="${scoreColor}${homeWinner ? ';color:#fff' : ''}">${hasScore ? m.homeScore : '-'}</td>
-      <td class="td-spread">${hasSpread && spread > 0 ? `<span class="spread-val">+${absSpread}</span>` : ''}</td>
+      <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread > 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${homeWin}%</span></td>
     </tr>`;
 
@@ -1675,7 +1690,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     }
   }
 
-  html += `</tbody></table></div></div>`;
+  html += `</tbody></table></div></div></div>`;
   return html;
 }
 
