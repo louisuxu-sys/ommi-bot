@@ -817,7 +817,7 @@ ${context}
 ## 推薦
 ${spread ? `讓分盤 ${spread}，` : ''}給出明確推薦方向和理由。
 
-總共 200 字以內。`;
+總共 500 字以內。`;
 
         // 呼叫 Gemini API（支援模型 fallback）
         const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
@@ -827,7 +827,7 @@ ${spread ? `讓分盤 ${spread}，` : ''}給出明確推薦方向和理由。
           console.log(`[GEMINI] trying model: ${model}`);
           const payloadObj = {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.5, maxOutputTokens: 600 },
+            generationConfig: { temperature: 0.5, maxOutputTokens: 1000 },
           };
           const payload = JSON.stringify(payloadObj);
 
