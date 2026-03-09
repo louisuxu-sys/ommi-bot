@@ -1852,10 +1852,11 @@ function openAIModal(id) {
     record: m.record || {},
   };
 
-  fetch('/ai-analysis', {
+  fetch(`${LOCAL_PROXY}/ai-analysis`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(90000),
   })
   .then(r => r.json())
   .then(data => {
