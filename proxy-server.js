@@ -804,31 +804,20 @@ const server = http.createServer(async (req, res) => {
         if (rec.homeH2H) context += `${home} 對戰紀錄: ${rec.homeH2H}\n`;
         if (rec.awayH2H) context += `${away} 對戰紀錄: ${rec.awayH2H}\n`;
 
-        const prompt = `你是一位頂尖的職業體育分析師。請針對以下比賽提供精簡的總結分析。
+        const prompt = `請用繁體中文提供精簡賽前分析。不要開場白，直接分析。
 
 ${context}
 
-請搜尋最新的網路資料，用繁體中文提供精簡分析。
+## 傷病重點
+各列 1-2 名關鍵傷兵及影響。
 
-⚠ 重要規則：
-- 不要寫任何開場白、前言、免責聲明
-- 直接開始分析，內容要精簡扼要
-- 只用純文字，不要使用特殊符號或 emoji
-- 每個段落用 2-3 句話總結重點即可
+## 近況
+各 1-2 句總結近期表現。
 
-## 傷病與陣容
-列出兩隊關鍵傷兵（最多各3人），簡要說明影響。
+## 推薦
+${spread ? `讓分盤 ${spread}，` : ''}給出明確推薦方向和理由。
 
-## 近況與對戰
-用 2-3 句話總結兩隊近期狀態和交手紀錄。
-
-## 盤口分析
-${spread ? `讓分盤 ${spread}，分析這個盤口是否合理。` : '分析兩隊實力差距。'}
-
-## 總結推薦
-給出明確推薦方向（獨贏/讓分），說明理由和信心程度（高/中/低）。
-
-總字數控制在 500 字以內。`;
+總共 200 字以內。`;
 
         // 呼叫 Gemini API（支援模型 fallback）
         const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
@@ -838,10 +827,8 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理。` : '分析�
           console.log(`[GEMINI] trying model: ${model}`);
           const payloadObj = {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+            generationConfig: { temperature: 0.5, maxOutputTokens: 600 },
           };
-          // google_search grounding
-          if (model.includes('2.5') || model === 'gemini-2.0-flash') payloadObj.tools = [{ google_search: {} }];
           const payload = JSON.stringify(payloadObj);
 
           const geminiReq = https.request(geminiUrl, {
