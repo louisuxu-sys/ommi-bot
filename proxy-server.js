@@ -869,10 +869,13 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
                   res.end(JSON.stringify({ error: errMsg }));
                   return;
                 }
-                const text = result.candidates?.[0]?.content?.parts
+                let text = result.candidates?.[0]?.content?.parts
                   ?.filter(p => p.text)
                   ?.map(p => p.text)
                   ?.join('\n') || '無法生成分析結果';
+                // 去除開場白：從第一個 ## 標題開始
+                const firstHeading = text.search(/^##\s/m);
+                if (firstHeading > 0) text = text.slice(firstHeading);
                 const sources = result.candidates?.[0]?.groundingMetadata?.groundingChunks
                   ?.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' }))
                   ?.filter(s => s.uri) || [];
