@@ -319,7 +319,7 @@
     <!-- ===== 主內容（卡片網格） ===== -->
     <div class="app-scroll main-content">
       <div id="match-list" class="match-grid">
-        <div class="flex items-center justify-center py-16" style="grid-column:1/-1">
+        <div class="flex items-center justify-center py-16">
           <div class="text-center text-gray-600">
             <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
             <p class="text-sm">正在載入賽事資料...</p>
@@ -1153,7 +1153,7 @@ async function fetchAllData(showLoading = true) {
 
   if (showLoading) {
     document.getElementById('match-list').innerHTML = `
-      <div class="flex items-center justify-center py-12" style="grid-column:1/-1">
+      <div class="flex items-center justify-center py-12">
         <div class="text-center text-gray-600">
           <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
           <p class="text-xs" id="fetch-status">正在讀取 ${leagues[0]?.name || ''} 資料...</p>
