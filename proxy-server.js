@@ -804,33 +804,31 @@ const server = http.createServer(async (req, res) => {
         if (rec.homeH2H) context += `${home} 對戰紀錄: ${rec.homeH2H}\n`;
         if (rec.awayH2H) context += `${away} 對戰紀錄: ${rec.awayH2H}\n`;
 
-        const prompt = `你是一位頂尖的職業體育分析師，擅長運動博弈分析。請針對以下比賽進行深度專業分析。
+        const prompt = `你是一位頂尖的職業體育分析師。請針對以下比賽提供精簡的總結分析。
 
 ${context}
 
-請搜尋最新的網路資料，並提供以下分析（使用繁體中文）。
+請搜尋最新的網路資料，用繁體中文提供精簡分析。
 
-⚠ 重要規則：不要寫任何開場白、自我介紹、前言、免責聲明或日期說明。直接從第一個分析段落開始，不要有任何多餘的文字。
+⚠ 重要規則：
+- 不要寫任何開場白、前言、免責聲明
+- 直接開始分析，內容要精簡扼要
+- 只用純文字，不要使用特殊符號或 emoji
+- 每個段落用 2-3 句話總結重點即可
 
-## 1. 🏥 傷病名單
-分別列出兩隊目前的傷病球員、傷勢狀態（Out/Doubtful/Questionable/Probable），以及該球員的重要性。
+## 傷病與陣容
+列出兩隊關鍵傷兵（最多各3人），簡要說明影響。
 
-## 2. 📋 預計先發陣容
-列出兩隊可能的先發陣容或先發投手（根據運動類型），並簡要評價。
+## 近況與對戰
+用 2-3 句話總結兩隊近期狀態和交手紀錄。
 
-## 3. 📊 近期狀態分析
-分析兩隊最近 5-10 場比賽的表現趨勢，包括進攻火力、防守表現、主客場差異。
+## 盤口分析
+${spread ? `讓分盤 ${spread}，分析這個盤口是否合理。` : '分析兩隊實力差距。'}
 
-## 4. ⚔️ 對戰歷史
-分析兩隊近期交手的結果和趨勢。
+## 總結推薦
+給出明確推薦方向（獨贏/讓分），說明理由和信心程度（高/中/低）。
 
-## 5. 🎯 盤口分析
-${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有價值。` : '分析兩隊實力差距。'}
-
-## 6. 💡 綜合推薦
-給出明確的推薦方向（獨贏/讓分/大小分），並說明理由和信心程度。
-
-請確保分析內容專業、有數據支撐，避免模糊的說法。`;
+總字數控制在 500 字以內。`;
 
         // 呼叫 Gemini API（支援模型 fallback）
         const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
@@ -840,7 +838,7 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
           console.log(`[GEMINI] trying model: ${model}`);
           const payloadObj = {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
           };
           // google_search grounding
           if (model.includes('2.5') || model === 'gemini-2.0-flash') payloadObj.tools = [{ google_search: {} }];
@@ -876,6 +874,8 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
                 // 去除開場白：從第一個 ## 標題開始
                 const firstHeading = text.search(/^##\s/m);
                 if (firstHeading > 0) text = text.slice(firstHeading);
+                // 移除可能導致亂碼的特殊 Unicode 字元（保留常見中日韓字元和 emoji）
+                text = text.replace(/[\uFFF0-\uFFFF]/g, '').replace(/[\u200B-\u200F\u2028-\u202F\uFEFF]/g, '');
                 const sources = result.candidates?.[0]?.groundingMetadata?.groundingChunks
                   ?.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' }))
                   ?.filter(s => s.uri) || [];
