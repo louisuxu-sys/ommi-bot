@@ -117,12 +117,15 @@
     .game-table .spread-val{color:#f59e0b}
     .game-table .pct-val{font-size:11px;color:#64748b}
     .game-table .odds-val{font-size:12px;color:#94a3b8}
-    .game-table .ai-tip{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap}
-    .game-table .ai-tip.tip-win{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)}
-    .game-table .ai-tip.tip-loss{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-    .game-table .ai-tip.tip-pending{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
-    .game-table .ai-tip.tip-skip{background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2)}
-    .game-table .result-icon{font-size:16px}
+    .game-table .ai-tip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;background:transparent}
+    .game-table .ai-tip.tip-win{color:#34d399;border:1.5px solid #34d399}
+    .game-table .ai-tip.tip-loss{color:#475569;border:1.5px solid #334155}
+    .game-table .ai-tip.tip-pending{color:#60a5fa;border:1.5px solid #3b82f6}
+    .game-table .ai-tip.tip-skip{color:#64748b;border:1.5px solid #334155}
+    .game-table .result-circle{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:14px}
+    .game-table .result-circle.pass{background:#34d399;color:#fff}
+    .game-table .result-circle.fail{background:transparent;border:2px solid #334155;color:#334155}
+    .game-table .result-circle.none{background:transparent;border:2px solid #1e293b;color:#1e293b}
     .game-table .time-cell{font-size:10px;color:#64748b;white-space:nowrap}
     .game-table .date-row td{padding:4px 16px;font-size:11px;color:#64748b;font-weight:600;background:rgba(0,0,0,.15)}
     .match-card{background:#1e293b;border:1px solid #334155;border-radius:12px;transition:all .2s;cursor:pointer;overflow:hidden}
@@ -1644,9 +1647,11 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     // 是否過關（已結束才顯示）
     let resultIcon = '';
     if (m.status === 'finished' && tip.label) {
-      if (tip.label.includes('✓')) resultIcon = `<span class="result-icon" style="color:#34d399">✅</span>`;
-      else if (tip.label.includes('✗')) resultIcon = `<span class="result-icon" style="color:#f87171">⭕</span>`;
-      else resultIcon = `<span class="result-icon" style="color:#64748b">—</span>`;
+      if (tip.label.includes('✓')) resultIcon = `<span class="result-circle pass">✓</span>`;
+      else if (tip.label.includes('✗')) resultIcon = `<span class="result-circle fail"></span>`;
+      else resultIcon = `<span class="result-circle none"></span>`;
+    } else if (m.status === 'upcoming' || m.status === 'live') {
+      resultIcon = `<span class="result-circle none"></span>`;
     }
 
     // 客隊行
