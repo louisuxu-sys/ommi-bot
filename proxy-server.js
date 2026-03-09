@@ -830,61 +830,69 @@ ${spread ? `讓分盤 ${spread}，分析這個盤口是否合理，哪一方有�
 
 請確保分析內容專業、有數據支撐，避免模糊的說法。`;
 
-        // 呼叫 Gemini API
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-        const payload = JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096,
-          },
-          tools: [{ google_search: {} }],
-        });
+        // 呼叫 Gemini API（支援模型 fallback）
+        const models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        const callGemini = (modelIdx) => {
+          const model = models[modelIdx] || models[0];
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
+          console.log(`[GEMINI] trying model: ${model}`);
+          const payloadObj = {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+          };
+          // google_search grounding 只支援部分模型
+          if (model === 'gemini-2.0-flash') payloadObj.tools = [{ google_search: {} }];
+          const payload = JSON.stringify(payloadObj);
 
-        const geminiReq = https.request(geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload),
-          },
-          timeout: 60000,
-        }, (geminiRes) => {
-          let responseData = '';
-          geminiRes.on('data', chunk => { responseData += chunk; });
-          geminiRes.on('end', () => {
-            try {
-              const result = JSON.parse(responseData);
-              if (result.error) {
-                console.error(`[GEMINI] API error:`, result.error.message);
+          const geminiReq = https.request(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+            timeout: 60000,
+          }, (geminiRes) => {
+            let responseData = '';
+            geminiRes.on('data', chunk => { responseData += chunk; });
+            geminiRes.on('end', () => {
+              try {
+                const result = JSON.parse(responseData);
+                if (result.error) {
+                  const errMsg = result.error.message || '';
+                  // 如果 quota exceeded 且還有備用模型，嘗試下一個
+                  if (errMsg.includes('quota') && modelIdx < models.length - 1) {
+                    console.log(`[GEMINI] ${model} quota exceeded, trying next model...`);
+                    setTimeout(() => callGemini(modelIdx + 1), 2000);
+                    return;
+                  }
+                  console.error(`[GEMINI] API error:`, errMsg.slice(0, 200));
+                  res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+                  res.end(JSON.stringify({ error: errMsg }));
+                  return;
+                }
+                const text = result.candidates?.[0]?.content?.parts
+                  ?.filter(p => p.text)
+                  ?.map(p => p.text)
+                  ?.join('\n') || '無法生成分析結果';
+                const sources = result.candidates?.[0]?.groundingMetadata?.groundingChunks
+                  ?.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' }))
+                  ?.filter(s => s.uri) || [];
+                console.log(`[GEMINI] ✓ ${model} analysis (${text.length} chars, ${sources.length} sources)`);
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ success: true, analysis: text, sources, model }));
+              } catch(e) {
+                console.error(`[GEMINI] parse error:`, e.message);
                 res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({ error: result.error.message }));
-                return;
+                res.end(JSON.stringify({ error: 'Failed to parse Gemini response' }));
               }
-              const text = result.candidates?.[0]?.content?.parts
-                ?.filter(p => p.text)
-                ?.map(p => p.text)
-                ?.join('\n') || '無法生成分析結果';
-              // 提取 grounding 搜尋來源
-              const sources = result.candidates?.[0]?.groundingMetadata?.groundingChunks
-                ?.map(c => ({ title: c.web?.title || '', uri: c.web?.uri || '' }))
-                ?.filter(s => s.uri) || [];
-              console.log(`[GEMINI] ✓ analysis generated (${text.length} chars, ${sources.length} sources)`);
-              res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-              res.end(JSON.stringify({ success: true, analysis: text, sources }));
-            } catch(e) {
-              console.error(`[GEMINI] parse error:`, e.message);
-              res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-              res.end(JSON.stringify({ error: 'Failed to parse Gemini response' }));
-            }
+            });
           });
-        });
-        geminiReq.on('error', (e) => {
-          console.error(`[GEMINI] request error:`, e.message);
-          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ error: e.message }));
-        });
-        geminiReq.write(payload);
-        geminiReq.end();
+          geminiReq.on('error', (e) => {
+            console.error(`[GEMINI] request error:`, e.message);
+            res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: e.message }));
+          });
+          geminiReq.write(payload);
+          geminiReq.end();
+        };
+        callGemini(0);
       } catch(e) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: 'Invalid request body' }));
