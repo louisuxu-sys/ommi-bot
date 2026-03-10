@@ -1235,14 +1235,20 @@ async function fetchAllData(showLoading = true) {
         if (pResp.ok) {
           const pData = await pResp.json();
           if (pData.success && pData.games) {
+            let mergedCount = 0;
             for (const pg of pData.games) {
-              // 用隊名配對
-              const matched = allMatches.find(m => m.leagueId === lid &&
-                ((t(m.away).includes(pg.away) || pg.away.includes(t(m.away))) &&
-                 (t(m.home).includes(pg.home) || pg.home.includes(t(m.home)))));
+              // 用隊名配對（支援中英文、縮寫、包含關係）
+              const matched = allMatches.find(m => m.leagueId === lid && (
+                // 翻譯後名稱匹配
+                (t(m.away).includes(pg.away) || pg.away.includes(t(m.away))) &&
+                (t(m.home).includes(pg.home) || pg.home.includes(t(m.home)))
+              ) || (m.leagueId === lid && (
+                // 原始名稱匹配
+                (m.away.includes(pg.away) || pg.away.includes(m.away)) &&
+                (m.home.includes(pg.home) || pg.home.includes(m.home))
+              )));
               if (matched) {
                 matched.predict = pg.predict;
-                // 如果 predict 有更完整的賠率，補充到 odds
                 if (!matched.odds) matched.odds = {};
                 if (pg.predict.bankML && pg.predict.bankML.odds) {
                   matched.odds.mlHome = pg.predict.bankML.odds;
@@ -1250,9 +1256,16 @@ async function fetchAllData(showLoading = true) {
                 if (pg.predict.bankML2 && pg.predict.bankML2.odds) {
                   matched.odds.mlAway = pg.predict.bankML2.odds;
                 }
+                // 同時合併讓分盤賠率
+                if (pg.predict.bankSpread && pg.predict.bankSpread.odds) {
+                  matched.odds.spreadOdds = pg.predict.bankSpread.odds;
+                }
+                mergedCount++;
+              } else {
+                console.warn(`[PREDICT] unmatched: ${pg.away} vs ${pg.home}`);
               }
             }
-            console.log(`[PREDICT] merged ${pData.games.length} predict games for league ${lid}`);
+            console.log(`[PREDICT] league ${lid}: merged ${mergedCount}/${pData.games.length} games`);
           }
         }
       } catch(e) { console.warn(`[PREDICT] ${lid} error:`, e.message); }
@@ -1417,9 +1430,10 @@ function _computePrediction(m) {
   const absDiff = Math.abs(diff);
   const hasRecordData = !!(hWL || aWL || hRecent || aRecent || hAvg || aAvg || hH2H || aH2H || hRecentAvg || aRecentAvg || hHA || aHA);
 
-  // 完全無數據：用 seed 產生固定推薦（避免全部觀望）
+  // 完全無數據：用 generateAnalysis 勝率來決定推薦方向
   if (!hasRecordData) {
-    const pickHome = seed < 50;
+    const analysis = generateAnalysis(m);
+    const pickHome = analysis.homeWin >= analysis.awayWin;
     const fTeam = pickHome ? homeName : awayName;
     const fColor = pickHome ? 'text-emerald-400' : 'text-blue-400';
     const fBg = pickHome ? 'bg-emerald-900/20' : 'bg-blue-900/20';
@@ -1448,17 +1462,6 @@ function getAITip(m) {
   // 如果尚未鎖定，計算並鎖定推薦（使用當前盤口）
   if (!lockedTips[id]) {
     const pred = _computePrediction(m);
-    // 鎖定賠率
-    const odds = m.odds || {};
-    let lockedOdds = 0;
-    if (odds.mlHome) lockedOdds = parseFloat(odds.mlHome);
-    else if (odds.spreadOddsHome) lockedOdds = parseFloat(odds.spreadOddsHome);
-    else if (odds.spreadOdds) lockedOdds = parseFloat(odds.spreadOdds);
-    if ((!lockedOdds || lockedOdds <= 0) && m.predict) {
-      const bp = m.predict.bankML || {};
-      if (bp.odds) lockedOdds = parseFloat(bp.odds);
-    }
-    if (lockedOdds && Math.abs(lockedOdds) > 10) lockedOdds = 0;
     lockedTips[id] = {
       prediction: pred.prediction,
       type: pred.type,
@@ -1466,9 +1469,23 @@ function getAITip(m) {
       absSpread: pred.absSpread,
       color: pred.color,
       bg: pred.bg,
-      spread: odds.spread || null,
-      mlOdds: lockedOdds || 0,
+      spread: (m.odds || {}).spread || null,
+      mlOdds: 0,
     };
+  }
+  // 賠率允許更新（predict API 可能較晚合併），一旦有值就鎖定
+  if (!lockedTips[id].mlOdds) {
+    const odds = m.odds || {};
+    let lo = 0;
+    if (odds.mlHome) lo = parseFloat(odds.mlHome);
+    else if (odds.spreadOddsHome) lo = parseFloat(odds.spreadOddsHome);
+    else if (odds.spreadOdds) lo = parseFloat(odds.spreadOdds);
+    if ((!lo || lo <= 0) && m.predict) {
+      const bp = m.predict.bankML || {};
+      if (bp.odds) lo = parseFloat(bp.odds);
+    }
+    if (lo && Math.abs(lo) > 10) lo = 0;
+    if (lo > 0) lockedTips[id].mlOdds = lo;
   }
   const locked = lockedTips[id];
   const homeName = t(m.home), awayName = t(m.away);
