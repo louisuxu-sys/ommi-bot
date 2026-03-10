@@ -1263,6 +1263,8 @@ async function fetchAllData(showLoading = true) {
                 // 讓分盤賠率 — bankSpread = 客隊列, bankSpread2 = 主隊列
                 if (pg.predict.bankSpread && pg.predict.bankSpread.odds) {
                   matched.odds.spreadOddsAway = pg.predict.bankSpread.odds;
+                  // 讓分值（如 "+3.5"），空字串表示無真正讓分盤（如MLB只有run line）
+                  if (pg.predict.bankSpread.value) matched.odds.spreadValue = pg.predict.bankSpread.value;
                 }
                 if (pg.predict.bankSpread2 && pg.predict.bankSpread2.odds) {
                   matched.odds.spreadOddsHome = pg.predict.bankSpread2.odds;
@@ -1373,8 +1375,14 @@ function _computePrediction(m) {
   const mlGap = hasML ? Math.abs(mlHome - mlAway) : 0;
   const mlDominant = hasML && mlGap >= 1.5;
 
-  // ===== 優先級 1：讓分盤（有讓分值，且獨贏未壓倒性優勢）=====
-  if (hasSpread && !mlDominant) {
+  // 真正的讓分盤需要 predict API 確認（spreadOddsHome/Away 為真正的賠率 > 1.0，
+  // 且 spreadValue 非空）。livescore 的 spread 可能只是 run line（如 MLB spread=1）
+  const spreadOddsH = parseFloat(odds.spreadOddsHome);
+  const spreadOddsA = parseFloat(odds.spreadOddsAway);
+  const hasRealSpreadOdds = (spreadOddsH > 1 || spreadOddsA > 1) && !!odds.spreadValue;
+
+  // ===== 優先級 1：讓分盤（有真正的讓分盤口+賠率，且獨贏未壓倒性優勢）=====
+  if (hasSpread && hasRealSpreadOdds && !mlDominant) {
     const absSpread = Math.abs(spread);
     const favTeam = spread > 0 ? homeName : awayName;
     const dogTeam = spread > 0 ? awayName : homeName;
@@ -1395,8 +1403,13 @@ function _computePrediction(m) {
     }
   }
 
-  // ===== 優先級 2：大小分盤（有大小分線，且獨贏未壓倒性優勢）=====
-  if (hasTotalLine && !mlDominant) {
+  // 真正的大小分盤需要 predict API 確認（totalOver/Under 為真正的賠率 > 1.0，且有 totalValue）
+  const totalOverOdds = parseFloat(odds.totalOver);
+  const totalUnderOdds = parseFloat(odds.totalUnder);
+  const hasRealTotalOdds = (totalOverOdds > 1 || totalUnderOdds > 1) && !!odds.totalValue;
+
+  // ===== 優先級 2：大小分盤（有真正的大小盤口+賠率，且獨贏未壓倒性優勢）=====
+  if (hasTotalLine && hasRealTotalOdds && !mlDominant) {
     const rec = m.record || {};
     const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
     const hAvgChk = parseAvg(rec.homeAvg), aAvgChk = parseAvg(rec.awayAvg);
