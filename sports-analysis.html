@@ -1678,13 +1678,16 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     const homeML = locked.mlHome || 0;
     const awaySP = locked.spreadOddsAway || 0;
     const homeSP = locked.spreadOddsHome || 0;
+    // 根據推薦類型決定顯示哪種賠率
+    const isSpreadTip = locked.type === 'spread-fav' || locked.type === 'spread-dog' || locked.type === 'vspread-fav' || locked.type === 'vspread-dog';
+    const awayOddsShow = isSpreadTip ? (awaySP || awayML) : (awayML || awaySP);
+    const homeOddsShow = isSpreadTip ? (homeSP || homeML) : (homeML || homeSP);
     // 期望值：用推薦方的賠率
-    let favOdds = 0;
-    if (locked.type === 'moneyline') favOdds = locked.favIsHome ? homeML : awayML;
-    else if (locked.type === 'spread-fav' || locked.type === 'spread-dog') favOdds = locked.favIsHome ? homeSP : awaySP;
-    if (!favOdds) favOdds = locked.favIsHome ? homeML : awayML;
+    const favOdds = locked.favIsHome ? homeOddsShow : awayOddsShow;
     const favWin = locked.favIsHome ? homeWin : awayWin;
     const ev = (hasRealOdds && favOdds > 0) ? ((favWin / 100) * favOdds - 1) * 100 : 0;
+    // 賠率欄標籤（讓分盤 or 獨贏）
+    const oddsLabel = isSpreadTip ? '讓分' : '獨贏';
 
     // AI推薦
     let tipClass = 'tip-pending';
@@ -1722,7 +1725,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${awayWin}%</span></td>
       <td rowspan="2" style="vertical-align:middle">${(hasRealOdds && favOdds > 0) ? `<span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
-      <td>${hasRealOdds && awayML > 0 ? `<span class="odds-val">${awayML.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
+      <td>${hasRealOdds && awayOddsShow > 0 ? `<span class="odds-val">${awayOddsShow.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
       <td rowspan="2" style="vertical-align:middle"><span class="ai-tip ${tipClass}">${tip.label.replace(/\s*[✓✗]$/, '')}</span></td>
       <td rowspan="2" style="vertical-align:middle">${resultIcon}</td>
     </tr>`;
@@ -1739,7 +1742,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-score" style="${scoreColor}${homeWinner ? ';color:#fff' : ''}">${hasScore ? m.homeScore : '-'}</td>
       <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread > 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${homeWin}%</span></td>
-      <td>${hasRealOdds && homeML > 0 ? `<span class="odds-val">${homeML.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
+      <td>${hasRealOdds && homeOddsShow > 0 ? `<span class="odds-val">${homeOddsShow.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
     </tr>`;
 
     // 展開面板行
