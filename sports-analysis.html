@@ -1231,7 +1231,10 @@ async function fetchAllData(showLoading = true) {
     const fetchedLeagues = [...new Set(allMatches.map(m => m.leagueId))];
     for (const lid of fetchedLeagues) {
       try {
-        const pResp = await fetch(`${LOCAL_PROXY}/predict?allianceid=${lid}&gameday=today`, { signal: AbortSignal.timeout(12000) });
+        // 判斷 gameday 參數：根據 currentDate 與今天的比較
+        const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+        const gd = currentDate === todayStr ? 'today' : (currentDate > todayStr ? 'tomorrow' : 'yesterday');
+        const pResp = await fetch(`${LOCAL_PROXY}/predict?allianceid=${lid}&gameday=${gd}`, { signal: AbortSignal.timeout(12000) });
         if (pResp.ok) {
           const pData = await pResp.json();
           if (pData.success && pData.games) {
@@ -1264,10 +1267,13 @@ async function fetchAllData(showLoading = true) {
                 if (pg.predict.bankSpread2 && pg.predict.bankSpread2.odds) {
                   matched.odds.spreadOddsHome = pg.predict.bankSpread2.odds;
                 }
-                // 大小分賠率
+                // 大小分賠率（客隊列=大，主隊列=小）
                 if (pg.predict.bankTotal && pg.predict.bankTotal.odds) {
-                  matched.odds.totalOdds = pg.predict.bankTotal.odds;
+                  matched.odds.totalOver = pg.predict.bankTotal.odds;
                   matched.odds.totalValue = pg.predict.bankTotal.value;
+                }
+                if (pg.predict.bankTotal2 && pg.predict.bankTotal2.odds) {
+                  matched.odds.totalUnder = pg.predict.bankTotal2.odds;
                 }
                 mergedCount++;
               } else {
@@ -1379,8 +1385,33 @@ function _computePrediction(m) {
     }
   }
 
-  // 無盤口：參考過往比賽紀錄來判斷（適用所有賽事包含 WBC）
+  // 大小分推薦：如果有大小分盤口且有得分數據，用歷史數據判斷大小
+  const totalLine = parseFloat(odds.totalValue);
+  const hasTotalLine = !isNaN(totalLine) && totalLine > 0 && !!(odds.totalOver || odds.totalUnder);
   const rec = m.record || {};
+  const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
+  const hAvgChk = parseAvg(rec.homeAvg), aAvgChk = parseAvg(rec.awayAvg);
+  const hRecentAvgChk = parseAvg(rec.homeRecentAvg), aRecentAvgChk = parseAvg(rec.awayRecentAvg);
+  if (hasTotalLine && (hAvgChk || hRecentAvgChk) && (aAvgChk || aRecentAvgChk)) {
+    // 優先用近十場平均，其次用全季平均
+    const hScored = (hRecentAvgChk || hAvgChk).scored;
+    const aScored = (aRecentAvgChk || aAvgChk).scored;
+    const expectedTotal = hScored + aScored;
+    const diff = expectedTotal - totalLine;
+    // 差距 > 3 分才推薦大小，否則跳過進入獨贏邏輯
+    if (Math.abs(diff) > 3) {
+      const isOver = diff > 0;
+      return {
+        prediction: isOver ? `大 ${totalLine}` : `小 ${totalLine}`,
+        favIsHome: true, absSpread: 0,
+        type: isOver ? 'total-over' : 'total-under',
+        color: isOver ? 'text-orange-400' : 'text-cyan-400',
+        bg: isOver ? 'bg-orange-900/20' : 'bg-cyan-900/20',
+      };
+    }
+  }
+
+  // 無盤口或大小分不明顯：參考過往比賽紀錄來判斷獨贏
   let homeScore = 0, awayScore = 0; // 實力評分（非比分）
 
   // 1. 戰績（如 "主22-11" → 勝率 66%）
@@ -1400,8 +1431,7 @@ function _computePrediction(m) {
     homeScore += (hRPct - aRPct) * 20;
   }
 
-  // 3. 平均得失分（如 "116.4 / 112" → 淨勝 +4.4）
-  const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
+  // 3. 平均得失分（如 "116.4 / 112" → 淨勝 +4.4）— 複用上方 parseAvg
   const hAvg = parseAvg(rec.homeAvg), aAvg = parseAvg(rec.awayAvg);
   if (hAvg && aAvg) {
     const hNet = hAvg.scored - hAvg.allowed;
@@ -1486,13 +1516,14 @@ function getAITip(m) {
   // 賠率允許更新（predict API 可能較晚合併），一旦有值就鎖定
   if (!lockedTips[id].oddsLocked) {
     const odds = m.odds || {};
-    const hasAny = odds.mlHome || odds.mlAway || odds.spreadOddsHome || odds.spreadOddsAway;
+    const hasAny = odds.mlHome || odds.mlAway || odds.spreadOddsHome || odds.spreadOddsAway || odds.totalOver;
     if (hasAny) {
       lockedTips[id].mlHome = parseFloat(odds.mlHome) || 0;
       lockedTips[id].mlAway = parseFloat(odds.mlAway) || 0;
       lockedTips[id].spreadOddsHome = parseFloat(odds.spreadOddsHome) || 0;
       lockedTips[id].spreadOddsAway = parseFloat(odds.spreadOddsAway) || 0;
-      lockedTips[id].totalOdds = parseFloat(odds.totalOdds) || 0;
+      lockedTips[id].totalOver = parseFloat(odds.totalOver) || 0;
+      lockedTips[id].totalUnder = parseFloat(odds.totalUnder) || 0;
       lockedTips[id].totalValue = odds.totalValue || '';
       lockedTips[id].oddsLocked = true;
     }
@@ -1680,16 +1711,30 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     const homeML = locked.mlHome || 0;
     const awaySP = locked.spreadOddsAway || 0;
     const homeSP = locked.spreadOddsHome || 0;
+    const totalOver = locked.totalOver || 0;
+    const totalUnder = locked.totalUnder || 0;
     // 根據推薦類型決定顯示哪種賠率
-    const isSpreadTip = locked.type === 'spread-fav' || locked.type === 'spread-dog' || locked.type === 'vspread-fav' || locked.type === 'vspread-dog';
-    const awayOddsShow = isSpreadTip ? (awaySP || awayML) : (awayML || awaySP);
-    const homeOddsShow = isSpreadTip ? (homeSP || homeML) : (homeML || homeSP);
+    const isSpreadTip = locked.type === 'spread-fav' || locked.type === 'spread-dog';
+    const isTotalTip = locked.type === 'total-over' || locked.type === 'total-under';
+    let awayOddsShow, homeOddsShow;
+    if (isTotalTip) {
+      awayOddsShow = totalOver;   // 客隊行顯示「大」賠率
+      homeOddsShow = totalUnder;  // 主隊行顯示「小」賠率
+    } else if (isSpreadTip) {
+      awayOddsShow = awaySP || awayML;
+      homeOddsShow = homeSP || homeML;
+    } else {
+      awayOddsShow = awayML || awaySP;
+      homeOddsShow = homeML || homeSP;
+    }
     // 期望值：用推薦方的賠率
-    const favOdds = locked.favIsHome ? homeOddsShow : awayOddsShow;
+    let favOdds = 0;
+    if (isTotalTip) favOdds = locked.type === 'total-over' ? totalOver : totalUnder;
+    else favOdds = locked.favIsHome ? homeOddsShow : awayOddsShow;
     const favWin = locked.favIsHome ? homeWin : awayWin;
     const ev = (hasRealOdds && favOdds > 0) ? ((favWin / 100) * favOdds - 1) * 100 : 0;
-    // 賠率欄標籤（讓分盤 or 獨贏）
-    const oddsLabel = isSpreadTip ? '讓分' : '獨贏';
+    // 賠率欄標籤
+    const oddsLabel = isTotalTip ? '大小' : (isSpreadTip ? '讓分' : '獨贏');
 
     // AI推薦
     let tipClass = 'tip-pending';

@@ -703,53 +703,47 @@ const server = http.createServer(async (req, res) => {
           const awayScore = scores[0] || null;
           const homeScore = scores[1] || null;
 
-          // 盤口解析輔助函數
-          const parseOddsCell = (cls) => {
-            const re = new RegExp(`class="${cls}"[\\s\\S]*?<div([^>]*)>[\\s\\S]*?class="team-side[^"]*">([^<]*)</strong>(?:[\\s\\S]*?<strong>([^<]*)</strong>)?(?:[\\s\\S]*?<span>([^<]*)</span>)?[\\s\\S]*?</div>`);
-            const m = chunk.match(re);
-            if (!m) return { side: '', value: '', extra: '', win: false };
-            const divAttr = m[1] || '';
+          // 將 chunk 拆成第一行(客隊)和第二行(主隊)
+          const secondTrIdx = chunk.indexOf(`gameid="${gameId}"`, 10);
+          const row1 = secondTrIdx > 0 ? chunk.slice(0, secondTrIdx) : chunk;
+          const row2 = secondTrIdx > 0 ? chunk.slice(secondTrIdx) : '';
+
+          // 盤口解析：從指定 HTML 片段中提取某個 class 的 cell
+          const parseCell = (src, cls) => {
+            const re = new RegExp(`class="${cls}"[\\s\\S]*?<div([^>]*)>[\\s\\S]*?class="team-side[^"]*">([^<]*)</strong>(?:[\\s\\S]*?<strong>([^<]*)</strong>)?(?:[\\s\\S]*?<span[^>]*>([^<]*)</span>)?[\\s\\S]*?</div>`);
+            const m = src.match(re);
+            if (!m) return null;
             return {
               side: (m[2] || '').trim(),
               value: (m[3] || '').trim(),
-              extra: (m[4] || '').replace(/^[,\s]+/, '').trim(),
-              win: divAttr.includes('result-w') || false,
+              odds: (m[4] || '').replace(/^[,\s]+/, '').trim(),
+              win: (m[1] || '').includes('result-w') || false,
             };
           };
 
-          // 第一行盤口（通常是客隊那列）
-          const uniSpread1 = parseOddsCell('td-universal-bet01');
-          const uniTotal1 = parseOddsCell('td-universal-bet02');
-          const bankSpread1 = parseOddsCell('td-bank-bet01');
-          const bankML1 = parseOddsCell('td-bank-bet03');
-          const bankTotal1 = parseOddsCell('td-bank-bet02');
+          // 客隊行 (row1) 盤口
+          const awaySpread = parseCell(row1, 'td-bank-bet01');
+          const awayML = parseCell(row1, 'td-bank-bet03');
+          const awayTotal = parseCell(row1, 'td-bank-bet02');
+          const awayIntlSpread = parseCell(row1, 'td-universal-bet01');
+          const awayIntlTotal = parseCell(row1, 'td-universal-bet02');
 
-          // 第二行盤口（主隊那列）— 出現在第二個 <tr gameid> 內
-          // 在 chunk 中找第二個 gameid 出現位置後再解析
-          const secondTrIdx = chunk.indexOf(`gameid="${gameId}"`, 10);
-          let bankSpread2 = null, bankML2 = null;
-          if (secondTrIdx > 0) {
-            const chunk2 = chunk.slice(secondTrIdx);
-            const parse2 = (cls) => {
-              const re = new RegExp(`class="${cls}"[\\s\\S]*?<div([^>]*)>[\\s\\S]*?class="team-side[^"]*">([^<]*)</strong>(?:[\\s\\S]*?<strong>([^<]*)</strong>)?(?:[\\s\\S]*?<span>([^<]*)</span>)?[\\s\\S]*?</div>`);
-              const m = chunk2.match(re);
-              if (!m) return null;
-              return { side: (m[2]||'').trim(), value: (m[3]||'').trim(), odds: (m[4]||'').replace(/^[,\s]+/,'').trim(), win: (m[1]||'').includes('result-w') };
-            };
-            bankSpread2 = parse2('td-bank-bet01');
-            bankML2 = parse2('td-bank-bet03');
-          }
+          // 主隊行 (row2) 盤口
+          const homeSpread = parseCell(row2, 'td-bank-bet01');
+          const homeML = parseCell(row2, 'td-bank-bet03');
+          const homeTotal = parseCell(row2, 'td-bank-bet02');
 
           games.push({
             gameId, time, away, home, awayScore, homeScore,
             predict: {
-              intlSpread: { side: uniSpread1.side, value: uniSpread1.value, pct: uniSpread1.extra, win: uniSpread1.win },
-              intlTotal: { side: uniTotal1.side, value: uniTotal1.value, pct: uniTotal1.extra },
-              bankSpread: { side: bankSpread1.side, value: bankSpread1.value, odds: bankSpread1.extra, win: bankSpread1.win },
-              bankSpread2,
-              bankML: { side: bankML1.side, odds: bankML1.extra, win: bankML1.win },
-              bankML2,
-              bankTotal: { side: bankTotal1.side, value: bankTotal1.value, odds: bankTotal1.extra },
+              intlSpread: awayIntlSpread || { side: '', value: '', odds: '' },
+              intlTotal: awayIntlTotal || { side: '', value: '', odds: '' },
+              bankSpread: awaySpread,   // 客隊讓分
+              bankSpread2: homeSpread,  // 主隊讓分
+              bankML: awayML,           // 客隊不讓分(獨贏)
+              bankML2: homeML,          // 主隊不讓分(獨贏)
+              bankTotal: awayTotal,     // 客隊大小(大)
+              bankTotal2: homeTotal,    // 主隊大小(小)
             },
           });
         }
