@@ -1361,11 +1361,9 @@ function _computePrediction(m) {
 
   const spread = parseFloat(odds.spread);
   const hasSpread = !isNaN(spread) && spread !== 0;
-  const hasSpreadOdds = !!(odds.spreadOddsHome || odds.spreadOddsAway);
 
   const totalLine = parseFloat(odds.totalValue || odds.total);
   const hasTotalLine = !isNaN(totalLine) && totalLine > 0;
-  const hasTotalOdds = !!(odds.totalOver || odds.totalUnder);
 
   const mlHome = parseFloat(odds.mlHome);
   const mlAway = parseFloat(odds.mlAway);
@@ -1375,8 +1373,8 @@ function _computePrediction(m) {
   const mlGap = hasML ? Math.abs(mlHome - mlAway) : 0;
   const mlDominant = hasML && mlGap >= 1.5;
 
-  // ===== 優先級 1：讓分盤（有讓分值+讓分賠率，且獨贏未壓倒性優勢）=====
-  if (hasSpread && hasSpreadOdds && !mlDominant) {
+  // ===== 優先級 1：讓分盤（有讓分值，且獨贏未壓倒性優勢）=====
+  if (hasSpread && !mlDominant) {
     const absSpread = Math.abs(spread);
     const favTeam = spread > 0 ? homeName : awayName;
     const dogTeam = spread > 0 ? awayName : homeName;
@@ -1397,8 +1395,8 @@ function _computePrediction(m) {
     }
   }
 
-  // ===== 優先級 2：大小分盤（有大小分線+賠率，且獨贏未壓倒性優勢）=====
-  if (hasTotalLine && hasTotalOdds && !mlDominant) {
+  // ===== 優先級 2：大小分盤（有大小分線，且獨贏未壓倒性優勢）=====
+  if (hasTotalLine && !mlDominant) {
     const rec = m.record || {};
     const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
     const hAvgChk = parseAvg(rec.homeAvg), aAvgChk = parseAvg(rec.awayAvg);
