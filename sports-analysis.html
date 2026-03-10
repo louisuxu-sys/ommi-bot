@@ -1348,70 +1348,35 @@ function genQuarterScores(m) {
   return { hq, aq, periods };
 }
 
-/* ========== AI 快速推薦（基於讓分盤口）========== */
-/* 核心原則：推薦內容完全由不可變資料（隊名、日期、盤口）決定，
+/* ========== AI 快速推薦（獨贏）========== */
+/* 核心原則：系統顯示的是獨贏賠率，推薦也用獨贏格式。
+   推薦內容完全由不可變資料（隊名、日期、賠率）決定，
    賽前賽後結果完全一致，不會因比分出現而改變推薦。 */
 
 // 產生固定推薦（不依賴比分，只用 immutable 資料）
 function _computePrediction(m) {
   const odds = m.odds || {};
-  const spread = parseFloat(odds.spread);
-  const hasSpread = !isNaN(spread) && spread !== 0;
-  // 只有運彩盤有讓分賠率時才推讓分（不能只靠 livescore 的讓分值）
-  const hasSpreadOdds = !!(odds.spreadOddsHome || odds.spreadOddsAway);
   const homeName = t(m.home), awayName = t(m.away);
-  // 固定 seed：只基於原始隊名（非翻譯後）+ 日期，確保不可變
-  const seed = Math.abs(hashCode(m.home + m.away + (m.date || ''))) % 100;
 
-  if (hasSpread && hasSpreadOdds) {
-    // spread > 0 = 主隊讓分（主隊強）; spread < 0 = 客隊讓分（客隊強）
-    const absSpread = Math.abs(spread);
-    const favTeam = spread > 0 ? homeName : awayName;
-    const dogTeam = spread > 0 ? awayName : homeName;
-    const favIsHome = spread > 0;
-    // 用 seed + 盤口大小決定推薦方向，不依賴 generateAnalysis
-    let pickFav;
-    if (absSpread >= 10) pickFav = seed < 35;       // 大讓分偏受讓
-    else if (absSpread >= 6) pickFav = seed < 45;
-    else if (absSpread >= 3) pickFav = seed < 55;
-    else pickFav = seed < 60;                         // 小讓分偏讓分方
+  // 獨贏賠率判斷：賠率較低 = 被看好的一方
+  const mlHome = parseFloat(odds.mlHome);
+  const mlAway = parseFloat(odds.mlAway);
+  const hasML = mlHome > 0 && mlAway > 0;
 
-    if (pickFav) {
-      return { prediction: `${favTeam} 讓${absSpread}`, favIsHome, absSpread, type: 'spread-fav',
-        color: 'text-emerald-400', bg: 'bg-emerald-900/20' };
-    } else {
-      return { prediction: `${dogTeam} 受讓${absSpread}`, favIsHome, absSpread, type: 'spread-dog',
-        color: 'text-blue-400', bg: 'bg-blue-900/20' };
-    }
+  if (hasML) {
+    // 賠率低的是熱門（被看好的一方）
+    const homeStrong = mlHome < mlAway;
+    const favTeam = homeStrong ? homeName : awayName;
+    const favIsHome = homeStrong;
+    const favColor = homeStrong ? 'text-emerald-400' : 'text-blue-400';
+    const favBg = homeStrong ? 'bg-emerald-900/20' : 'bg-blue-900/20';
+    return { prediction: `獨贏 ${favTeam}`, favIsHome, absSpread: 0, type: 'moneyline',
+      color: favColor, bg: favBg };
   }
 
-  // 大小分推薦：如果有大小分盤口且有得分數據，用歷史數據判斷大小
-  const totalLine = parseFloat(odds.totalValue);
-  const hasTotalLine = !isNaN(totalLine) && totalLine > 0 && !!(odds.totalOver || odds.totalUnder);
+  // 無獨贏賠率：參考過往比賽紀錄來判斷
   const rec = m.record || {};
   const parseAvg = (s) => { const m2 = (s||'').match(/([\d.]+)\s*\/\s*([\d.]+)/); return m2 ? { scored: parseFloat(m2[1]), allowed: parseFloat(m2[2]) } : null; };
-  const hAvgChk = parseAvg(rec.homeAvg), aAvgChk = parseAvg(rec.awayAvg);
-  const hRecentAvgChk = parseAvg(rec.homeRecentAvg), aRecentAvgChk = parseAvg(rec.awayRecentAvg);
-  if (hasTotalLine && (hAvgChk || hRecentAvgChk) && (aAvgChk || aRecentAvgChk)) {
-    // 優先用近十場平均，其次用全季平均
-    const hScored = (hRecentAvgChk || hAvgChk).scored;
-    const aScored = (aRecentAvgChk || aAvgChk).scored;
-    const expectedTotal = hScored + aScored;
-    const diff = expectedTotal - totalLine;
-    // 差距 > 3 分才推薦大小，否則跳過進入獨贏邏輯
-    if (Math.abs(diff) > 3) {
-      const isOver = diff > 0;
-      return {
-        prediction: isOver ? `大 ${totalLine}` : `小 ${totalLine}`,
-        favIsHome: true, absSpread: 0,
-        type: isOver ? 'total-over' : 'total-under',
-        color: isOver ? 'text-orange-400' : 'text-cyan-400',
-        bg: isOver ? 'bg-orange-900/20' : 'bg-cyan-900/20',
-      };
-    }
-  }
-
-  // 無盤口或大小分不明顯：參考過往比賽紀錄來判斷獨贏
   let homeScore = 0, awayScore = 0; // 實力評分（非比分）
 
   // 1. 戰績（如 "主22-11" → 勝率 66%）
@@ -1540,14 +1505,10 @@ function getAITip(m) {
     const winTeam = scoreDiff > 0 ? homeName : scoreDiff < 0 ? awayName : '平局';
     const resultText = scoreDiff === 0 ? '平局' : `${winTeam}勝 ${hs}:${as}`;
 
-    // 用鎖定的推薦判斷是否正確
+    // 用鎖定的推薦判斷是否正確（獨贏：推薦隊伍獲勝即過關）
     let isCorrect = null;
     if (locked.type === 'moneyline') {
       isCorrect = locked.favIsHome ? scoreDiff > 0 : scoreDiff < 0;
-    } else if (locked.type === 'spread-fav' || locked.type === 'vspread-fav') {
-      isCorrect = locked.favIsHome ? (scoreDiff > locked.absSpread) : (-scoreDiff > locked.absSpread);
-    } else if (locked.type === 'spread-dog' || locked.type === 'vspread-dog') {
-      isCorrect = locked.favIsHome ? (-scoreDiff > -locked.absSpread) : (scoreDiff > -locked.absSpread);
     }
 
     const mark = isCorrect === null ? '' : isCorrect ? ' ✓' : ' ✗';
@@ -1713,28 +1674,14 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     const homeSP = locked.spreadOddsHome || 0;
     const totalOver = locked.totalOver || 0;
     const totalUnder = locked.totalUnder || 0;
-    // 根據推薦類型決定顯示哪種賠率
-    const isSpreadTip = locked.type === 'spread-fav' || locked.type === 'spread-dog';
-    const isTotalTip = locked.type === 'total-over' || locked.type === 'total-under';
-    let awayOddsShow, homeOddsShow;
-    if (isTotalTip) {
-      awayOddsShow = totalOver;   // 客隊行顯示「大」賠率
-      homeOddsShow = totalUnder;  // 主隊行顯示「小」賠率
-    } else if (isSpreadTip) {
-      awayOddsShow = awaySP || awayML;
-      homeOddsShow = homeSP || homeML;
-    } else {
-      awayOddsShow = awayML || awaySP;
-      homeOddsShow = homeML || homeSP;
-    }
-    // 期望值：用推薦方的賠率
-    let favOdds = 0;
-    if (isTotalTip) favOdds = locked.type === 'total-over' ? totalOver : totalUnder;
-    else favOdds = locked.favIsHome ? homeOddsShow : awayOddsShow;
+    // 賠率一律顯示獨贏賠率
+    let awayOddsShow = awayML || awaySP;
+    let homeOddsShow = homeML || homeSP;
+    // 期望值：用推薦方的獨贏賠率
+    const favOdds = locked.favIsHome ? homeOddsShow : awayOddsShow;
     const favWin = locked.favIsHome ? homeWin : awayWin;
     const ev = (hasRealOdds && favOdds > 0) ? ((favWin / 100) * favOdds - 1) * 100 : 0;
-    // 賠率欄標籤
-    const oddsLabel = isTotalTip ? '大小' : (isSpreadTip ? '讓分' : '獨贏');
+    const oddsLabel = '獨贏';
 
     // AI推薦
     let tipClass = 'tip-pending';
