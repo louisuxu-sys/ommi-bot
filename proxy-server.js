@@ -1249,11 +1249,17 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
       odds.spreadOdds = onboxMatch[2];
     }
 
-    // 從 gamebox HTML 提取國際盤讓分 (-X.5 格式) 和大小盤口
-    const gbStartSpread = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    const gbEndSpread = html.indexOf('</div><!--outer-gamebox-->', gbStartSpread);
-    if (gbStartSpread > -1 && gbEndSpread > -1) {
-      const gbSpreadHtml = html.substring(gbStartSpread, gbEndSpread);
+    // 計算 gamebox 邊界（足球等運動 mode=2 可能沒有 <!--outer-gamebox--> 結尾註解）
+    const boxStart2 = html.indexOf(`id="outer-gamebox-${gameId}"`);
+    let boxEnd2 = html.indexOf('</div><!--outer-gamebox-->', boxStart2);
+    if (boxEnd2 < 0 && boxStart2 > -1) {
+      boxEnd2 = html.indexOf('id="outer-gamebox-', boxStart2 + 20);
+      if (boxEnd2 < 0) boxEnd2 = html.length;
+    }
+
+    // 從 gamebox HTML 提取國際盤讓分 (-X.5 格式) 和大小盤口（複用 boxStart2/boxEnd2 邊界）
+    if (boxStart2 > -1 && boxEnd2 > -1) {
+      const gbSpreadHtml = html.substring(boxStart2, boxEnd2);
       // 國際盤讓分（通常出現在 ±X.5）
       const intlSpread = gbSpreadHtml.match(/([+-]\d+\.5)/);
       if (intlSpread && !odds.spread) {
@@ -1296,13 +1302,6 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
     }
 
     // 從 onBox 的 data-nameh/data-namea 取得（總是嘗試，取較長的）
-    const boxStart2 = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    let boxEnd2 = html.indexOf('</div><!--outer-gamebox-->', boxStart2);
-    // 足球等運動的 mode=2 可能沒有 <!--outer-gamebox--> 結尾註解，改用下一個 outer-gamebox 當邊界
-    if (boxEnd2 < 0 && boxStart2 > -1) {
-      boxEnd2 = html.indexOf('id="outer-gamebox-', boxStart2 + 20);
-      if (boxEnd2 < 0) boxEnd2 = html.length;
-    }
     if (boxStart2 > -1 && boxEnd2 > -1) {
       const boxHtml = html.substring(boxStart2, boxEnd2);
       const nhMatch = boxHtml.match(/data-nameh="([^"]*)"/);
