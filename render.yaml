@@ -2,7 +2,7 @@ services:
   - type: web
     name: sportiq-proxy
     runtime: node
-    buildCommand: ""
+    buildCommand: "npm install"
     startCommand: node proxy-server.js
     envVars:
       - key: NODE_ENV
