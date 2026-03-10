@@ -1097,9 +1097,13 @@ function parseScoresFromLiveHTML(html) {
     }
 
     // 判斷狀態：用 gamebox class 區分已結束 vs 進行中
-    // 找到此 gamebox 的 HTML 範圍
+    // 找到此 gamebox 的 HTML 範圍（足球等運動可能沒有 <!--outer-gamebox--> 結尾註解）
     const gbLiveStart = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    const gbLiveEnd = html.indexOf('<!--outer-gamebox-->', gbLiveStart);
+    let gbLiveEnd = html.indexOf('<!--outer-gamebox-->', gbLiveStart);
+    if (gbLiveEnd < 0 && gbLiveStart > -1) {
+      gbLiveEnd = html.indexOf('id="outer-gamebox-', gbLiveStart + 20);
+      if (gbLiveEnd < 0) gbLiveEnd = html.length;
+    }
     const gbLiveHtml = (gbLiveStart > -1 && gbLiveEnd > -1) ? html.substring(gbLiveStart, gbLiveEnd) : '';
 
     if (awayScore !== null && homeScore !== null) {
