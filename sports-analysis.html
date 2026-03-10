@@ -1277,6 +1277,10 @@ async function fetchAllData(showLoading = true) {
                 if (pg.predict.bankTotal2 && pg.predict.bankTotal2.odds) {
                   matched.odds.totalUnder = pg.predict.bankTotal2.odds;
                 }
+                // 和局賠率（足球專用）
+                if (pg.predict.bankDraw && pg.predict.bankDraw.odds) {
+                  matched.odds.drawOdds = pg.predict.bankDraw.odds;
+                }
                 mergedCount++;
               } else {
                 console.warn(`[PREDICT] unmatched: ${pg.away} vs ${pg.home}`);

@@ -620,10 +620,19 @@ const server = http.createServer(async (req, res) => {
               game.quarterScores = null;
             }
           }
+          // 去重：相同隊名的比賽只保留第一筆（避免 livescore 重複解析）
+          const seen = new Set();
+          const dedupGames = games.filter(g => {
+            const key = `${(g.away||'').trim()}_${(g.home||'').trim()}`;
+            if (seen.has(key)) { console.log(`[PARSE] dedup: ${g.away} vs ${g.home}`); return false; }
+            seen.add(key);
+            return true;
+          });
+
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
           res.writeHead(200);
-          res.end(JSON.stringify({ success: true, count: games.length, games, source: 'playsport.cc', date: gd }));
-          console.log(`[PARSE] ✓ ${games.length} games found (scores: ${Object.keys(scoreData).length})`);
+          res.end(JSON.stringify({ success: true, count: dedupGames.length, games: dedupGames, source: 'playsport.cc', date: gd }));
+          console.log(`[PARSE] ✓ ${dedupGames.length} games found (dedup from ${games.length}, scores: ${Object.keys(scoreData).length})`);
         } catch(e) {
           console.error(`[PARSE] parse error:`, e.message);
           res.writeHead(500);
@@ -676,14 +685,15 @@ const server = http.createServer(async (req, res) => {
           const timeMatch = chunk.match(/<h4>\s*(.*?)\s*<\/h4>/);
           const time = timeMatch ? timeMatch[1].trim() : '';
 
-          // 隊名：已結束的用 winnerteam/secondteam class；未開始的用 td-teaminfo 內的 <a> 連結
-          const teamRegex = /<td\s+class="(winnerteam|secondteam)">\s*([\s\S]*?)<\/td>/g;
+          // 隊名：多種策略依序嘗試
           const teamList = [];
           let tm;
+          // 策略1：已結束 → winnerteam/secondteam class
+          const teamRegex = /<td\s+class="(winnerteam|secondteam)">\s*([\s\S]*?)<\/td>/g;
           while ((tm = teamRegex.exec(chunk))) {
             teamList.push({ type: tm[1], name: tm[2].replace(/<[^>]+>/g, '').trim() });
           }
-          // 備援：未開始的比賽從 gamesData/teams 連結抓隊名
+          // 策略2：未開始 → gamesData/teams 連結
           if (teamList.length < 2) {
             const linkRegex = /<a\s+href="\/gamesData\/teams[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
             let lm;
@@ -691,6 +701,17 @@ const server = http.createServer(async (req, res) => {
               const name = lm[1].replace(/<[^>]+>/g, '').trim();
               if (name && !teamList.some(t => t.name === name)) {
                 teamList.push({ type: 'link', name });
+              }
+            }
+          }
+          // 策略3：足球等 → td-teaminfo 內的 <h3>隊名</h3>
+          if (teamList.length < 2) {
+            const h3Regex = /<td\s+class="td-teaminfo">[\s\S]*?<h3>([^<]+)<\/h3>/g;
+            let h3m;
+            while ((h3m = h3Regex.exec(chunk)) && teamList.length < 2) {
+              const name = h3m[1].trim();
+              if (name && !teamList.some(t => t.name === name)) {
+                teamList.push({ type: 'h3', name });
               }
             }
           }
@@ -703,22 +724,59 @@ const server = http.createServer(async (req, res) => {
           const awayScore = scores[0] || null;
           const homeScore = scores[1] || null;
 
-          // 將 chunk 拆成第一行(客隊)和第二行(主隊)
-          const secondTrIdx = chunk.indexOf(`gameid="${gameId}"`, 10);
-          const row1 = secondTrIdx > 0 ? chunk.slice(0, secondTrIdx) : chunk;
-          const row2 = secondTrIdx > 0 ? chunk.slice(secondTrIdx) : '';
+          // 將 chunk 拆成各行（籃球/棒球2行，足球3行：客/主/和）
+          const allTrPositions = [];
+          let searchFrom = 0;
+          while (true) {
+            const pos = chunk.indexOf(`gameid="${gameId}"`, searchFrom);
+            if (pos < 0) break;
+            allTrPositions.push(pos);
+            searchFrom = pos + 1;
+          }
+          const row1 = allTrPositions.length >= 2 ? chunk.slice(0, allTrPositions[1]) : chunk;
+          const row2 = allTrPositions.length >= 2 ? chunk.slice(allTrPositions[1], allTrPositions[2] || chunk.length) : '';
+          const row3 = allTrPositions.length >= 3 ? chunk.slice(allTrPositions[2]) : '';
 
           // 盤口解析：從指定 HTML 片段中提取某個 class 的 cell
           const parseCell = (src, cls) => {
-            const re = new RegExp(`class="${cls}"[\\s\\S]*?<div([^>]*)>[\\s\\S]*?class="team-side[^"]*">([^<]*)</strong>(?:[\\s\\S]*?<strong>([^<]*)</strong>)?(?:[\\s\\S]*?<span[^>]*>([^<]*)</span>)?[\\s\\S]*?</div>`);
-            const m = src.match(re);
-            if (!m) return null;
-            return {
-              side: (m[2] || '').trim(),
-              value: (m[3] || '').trim(),
-              odds: (m[4] || '').replace(/^[,\s]+/, '').trim(),
-              win: (m[1] || '').includes('result-w') || false,
-            };
+            // 找到該 td cell 的完整內容
+            const tdIdx = src.indexOf(`class="${cls}"`);
+            if (tdIdx < 0) return null;
+            const tdEnd = src.indexOf('</td>', tdIdx);
+            if (tdEnd < 0) return null;
+            const cell = src.slice(tdIdx, tdEnd);
+            // 提取 side（客/主/大/小）
+            const sideM = cell.match(/class="team-side[^"]*">([^<]*)<\/strong>/);
+            const side = sideM ? sideM[1].trim() : '';
+            if (!side) return null; // 空 cell
+            // 提取 div 屬性判斷是否贏盤
+            const divM = cell.match(/<div([^>]*)>/);
+            const win = divM ? (divM[1] || '').includes('result-w') : false;
+            // 提取所有 <strong> 和 <span> 內的文字值（排除 team-side 本身）
+            const texts = [];
+            const tagRe = /<(?:strong|span)[^>]*>([^<]*)<\/(?:strong|span)>/g;
+            let tm;
+            while ((tm = tagRe.exec(cell))) {
+              const v = tm[1].trim();
+              if (v && v !== side) texts.push(v);
+            }
+            // 從 texts 中分離：value（盤口值如 +3.5, 227.5）和 odds（賠率如 1.7, 2.1）
+            let value = '', odds = '';
+            for (const txt of texts) {
+              const clean = txt.replace(/^[,\s]+/, '');
+              if (!clean) continue;
+              // 帶 +/- 符號的是讓分值，純數字 < 10 的通常是賠率，>= 50 的是大小分盤口值
+              if (/^[+-]/.test(clean)) { value = clean; }
+              else if (/^\d/.test(clean)) {
+                const num = parseFloat(clean);
+                if (!isNaN(num)) {
+                  if (num >= 50) value = clean; // 大小分盤口值（如 227.5）
+                  else if (!odds) odds = clean;  // 賠率（如 1.7）
+                }
+              } else if (/^\d+分/.test(clean)) { value = clean; } // 國際盤格式
+              else { value = value || clean; }
+            }
+            return { side, value, odds, win };
           };
 
           // 客隊行 (row1) 盤口
@@ -733,17 +791,21 @@ const server = http.createServer(async (req, res) => {
           const homeML = parseCell(row2, 'td-bank-bet03');
           const homeTotal = parseCell(row2, 'td-bank-bet02');
 
+          // 足球第三行 (row3)：和局賠率（td-bank-bet01 內 side="和"）
+          const drawCell = parseCell(row3, 'td-bank-bet01');
+
           games.push({
             gameId, time, away, home, awayScore, homeScore,
             predict: {
               intlSpread: awayIntlSpread || { side: '', value: '', odds: '' },
               intlTotal: awayIntlTotal || { side: '', value: '', odds: '' },
-              bankSpread: awaySpread,   // 客隊讓分
+              bankSpread: awaySpread,   // 客隊讓分（足球時為null，和局在draw）
               bankSpread2: homeSpread,  // 主隊讓分
               bankML: awayML,           // 客隊不讓分(獨贏)
               bankML2: homeML,          // 主隊不讓分(獨贏)
               bankTotal: awayTotal,     // 客隊大小(大)
               bankTotal2: homeTotal,    // 主隊大小(小)
+              bankDraw: drawCell,       // 和局賠率（足球專用）
             },
           });
         }
