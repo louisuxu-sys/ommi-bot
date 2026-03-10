@@ -1292,7 +1292,12 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
 
     // 從 onBox 的 data-nameh/data-namea 取得（總是嘗試，取較長的）
     const boxStart2 = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    const boxEnd2 = html.indexOf('</div><!--outer-gamebox-->', boxStart2);
+    let boxEnd2 = html.indexOf('</div><!--outer-gamebox-->', boxStart2);
+    // 足球等運動的 mode=2 可能沒有 <!--outer-gamebox--> 結尾註解，改用下一個 outer-gamebox 當邊界
+    if (boxEnd2 < 0 && boxStart2 > -1) {
+      boxEnd2 = html.indexOf('id="outer-gamebox-', boxStart2 + 20);
+      if (boxEnd2 < 0) boxEnd2 = html.length;
+    }
     if (boxStart2 > -1 && boxEnd2 > -1) {
       const boxHtml = html.substring(boxStart2, boxEnd2);
       const nhMatch = boxHtml.match(/data-nameh="([^"]*)"/);
@@ -1301,17 +1306,9 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
       if (naMatch && stripTags(naMatch[1]).length > away.length) away = stripTags(naMatch[1]);
     }
 
-    // 從完整 HTML 搜尋 data-nameh / data-namea（範圍更廣）
-    const fullNameH = html.match(new RegExp(`outer-gamebox-${gameId}[\\s\\S]{0,5000}data-nameh="([^"]*)"`));
-    const fullNameA = html.match(new RegExp(`outer-gamebox-${gameId}[\\s\\S]{0,5000}data-namea="([^"]*)"`));
-    if (fullNameH && stripTags(fullNameH[1]).length > home.length) home = stripTags(fullNameH[1]);
-    if (fullNameA && stripTags(fullNameA[1]).length > away.length) away = stripTags(fullNameA[1]);
-
-    // 從 <h6> 標籤取隊名（足球等運動使用此格式）
-    const gbStartH6 = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    const gbEndH6 = html.indexOf('<!--outer-gamebox-->', gbStartH6);
-    if (gbStartH6 > -1 && gbEndH6 > -1) {
-      const gbFullHtml = html.substring(gbStartH6, gbEndH6);
+    // 從 <h6> 標籤取隊名（足球等運動使用此格式）— 複用 boxStart2/boxEnd2 邊界
+    if (boxStart2 > -1 && boxEnd2 > -1) {
+      const gbFullHtml = html.substring(boxStart2, boxEnd2);
       const h6Matches = gbFullHtml.match(/<h6[^>]*>([\s\S]*?)<\/h6>/gi);
       if (h6Matches && h6Matches.length >= 2) {
         const h6Away = h6Matches[0].replace(/<[^>]+>/g, '').trim();
@@ -1339,10 +1336,8 @@ function parsePlaySportHTML(html, allianceid, gamedate) {
     let status = 'upcoming';
     let homeScore = null, awayScore = null;
 
-    // 找到此 gamebox 的完整 HTML 範圍
-    const gbStart = html.indexOf(`id="outer-gamebox-${gameId}"`);
-    const gbEnd = html.indexOf('</div><!--outer-gamebox-->', gbStart);
-    const gbHtml = (gbStart > -1 && gbEnd > -1) ? html.substring(gbStart, gbEnd) : '';
+    // 找到此 gamebox 的完整 HTML 範圍（複用 boxStart2/boxEnd2 邊界，已處理足球無結尾註解）
+    const gbHtml = (boxStart2 > -1 && boxEnd2 > -1) ? html.substring(boxStart2, boxEnd2) : '';
 
     // 0. 檢查延期（PPD / 延期 / 延賽 / Postponed）
     if (/PPD|延期|延賽|改期|Postponed|postponed/i.test(gbHtml)) {
