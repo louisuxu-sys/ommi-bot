@@ -1448,6 +1448,17 @@ function getAITip(m) {
   // 如果尚未鎖定，計算並鎖定推薦（使用當前盤口）
   if (!lockedTips[id]) {
     const pred = _computePrediction(m);
+    // 鎖定賠率
+    const odds = m.odds || {};
+    let lockedOdds = 0;
+    if (odds.mlHome) lockedOdds = parseFloat(odds.mlHome);
+    else if (odds.spreadOddsHome) lockedOdds = parseFloat(odds.spreadOddsHome);
+    else if (odds.spreadOdds) lockedOdds = parseFloat(odds.spreadOdds);
+    if ((!lockedOdds || lockedOdds <= 0) && m.predict) {
+      const bp = m.predict.bankML || {};
+      if (bp.odds) lockedOdds = parseFloat(bp.odds);
+    }
+    if (lockedOdds && Math.abs(lockedOdds) > 10) lockedOdds = 0;
     lockedTips[id] = {
       prediction: pred.prediction,
       type: pred.type,
@@ -1455,7 +1466,8 @@ function getAITip(m) {
       absSpread: pred.absSpread,
       color: pred.color,
       bg: pred.bg,
-      spread: (m.odds || {}).spread || null, // 鎖定盤口
+      spread: odds.spread || null,
+      mlOdds: lockedOdds || 0,
     };
   }
   const locked = lockedTips[id];
@@ -1635,21 +1647,11 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     const homeWin = analysis.homeWin || 50;
     const awayWin = analysis.awayWin || 50;
 
-    // 期望值（簡單計算：勝率 × 賠率 - 1）
-    let mlOdds = 0;
-    if (odds.mlHome) mlOdds = parseFloat(odds.mlHome);
-    else if (odds.spreadOddsHome) mlOdds = parseFloat(odds.spreadOddsHome);
-    else if (odds.spreadOdds) mlOdds = parseFloat(odds.spreadOdds);
-    // predict 合併的賠率
-    if ((!mlOdds || mlOdds <= 0) && m.predict) {
-      const bp = m.predict.bankML || {};
-      if (bp.odds) mlOdds = parseFloat(bp.odds);
-    }
-    // spreadOdds 可能是百分比格式(如 "-50", "50")，轉為十進位賠率
-    if (mlOdds && Math.abs(mlOdds) > 10) mlOdds = 0; // 非十進位賠率，忽略
-    if (!mlOdds || mlOdds <= 0) mlOdds = 1.9; // 預設
+    // 期望值（使用鎖定的賠率）
+    const mlOdds = locked.mlOdds || 0;
+    const hasRealOdds = mlOdds > 0;
     const favWin = locked.favIsHome ? homeWin : awayWin;
-    const ev = ((favWin / 100) * mlOdds - 1) * 100;
+    const ev = hasRealOdds ? ((favWin / 100) * mlOdds - 1) * 100 : 0;
 
     // AI推薦
     let tipClass = 'tip-pending';
@@ -1686,8 +1688,8 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-score" style="${scoreColor}${awayWinner ? ';color:#fff' : ''}">${hasScore ? m.awayScore : '-'}</td>
       <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${awayWin}%</span></td>
-      <td rowspan="2" style="vertical-align:middle"><span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span></td>
-      <td rowspan="2" style="vertical-align:middle"><span class="odds-val">${mlOdds.toFixed(1)}</span></td>
+      <td rowspan="2" style="vertical-align:middle">${hasRealOdds ? `<span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
+      <td rowspan="2" style="vertical-align:middle">${hasRealOdds ? `<span class="odds-val">${mlOdds.toFixed(1)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
       <td rowspan="2" style="vertical-align:middle"><span class="ai-tip ${tipClass}">${tip.label.replace(/\s*[✓✗]$/, '')}</span></td>
       <td rowspan="2" style="vertical-align:middle">${resultIcon}</td>
     </tr>`;
