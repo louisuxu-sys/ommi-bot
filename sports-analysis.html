@@ -1795,7 +1795,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
         </div>
       </td>
       <td class="td-score" style="${scoreColor}${awayWinner ? ';color:#fff' : ''}">${hasScore ? m.awayScore : '-'}</td>
-      <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
+      <td class="td-spread">${(hasSpread && isSpreadTip) ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${awayWin}%</span></td>
       <td rowspan="2" style="vertical-align:middle">${(hasRealOdds && favOdds > 0) ? `<span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span>` : ''}</td>
       <td>${hasRealOdds && awayOddsShow > 0 ? `<span class="odds-val">${awayOddsShow.toFixed(2)}</span>` : ''}</td>
@@ -1813,7 +1813,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
         </div>
       </td>
       <td class="td-score" style="${scoreColor}${homeWinner ? ';color:#fff' : ''}">${hasScore ? m.homeScore : '-'}</td>
-      <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread > 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
+      <td class="td-spread">${(hasSpread && isSpreadTip) ? `<span class="spread-val">${spread > 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${homeWin}%</span></td>
       <td>${hasRealOdds && homeOddsShow > 0 ? `<span class="odds-val">${homeOddsShow.toFixed(2)}</span>` : ''}</td>
     </tr>`;
