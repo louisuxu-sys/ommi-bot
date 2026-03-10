@@ -1379,18 +1379,33 @@ function _computePrediction(m) {
   const mlGap = hasML ? Math.abs(mlHome - mlAway) : 0;
   const mlDominant = hasML && mlGap >= 1.5;
 
-  // 真正的讓分盤需要 predict API 確認（spreadOddsHome/Away 為真正的賠率 > 1.0，
-  // 且 spreadValue 非空）。livescore 的 spread 可能只是 run line（如 MLB spread=1）
+  // 真正的讓分盤需要確認有實際讓分值（spreadValue 來自 predict API 或 guess 頁面）
+  // livescore 的 spread 可能只是 run line（如 MLB spread=1，無 spreadValue）
+  // 也可以用國際盤 intlSpread 當讓分值
   const spreadOddsH = parseFloat(odds.spreadOddsHome);
   const spreadOddsA = parseFloat(odds.spreadOddsAway);
   const hasRealSpreadOdds = (spreadOddsH > 1 || spreadOddsA > 1) && !!odds.spreadValue;
+  // 國際盤讓分備援（如 intlSpread="-3.5"）
+  const intlSpread = parseFloat(odds.intlSpread);
+  const hasIntlSpread = !isNaN(intlSpread) && intlSpread !== 0;
 
-  // ===== 優先級 1：讓分盤（有真正的讓分盤口+賠率，且獨贏未壓倒性優勢）=====
-  if (hasSpread && hasRealSpreadOdds && !mlDominant) {
-    const absSpread = Math.abs(spread);
-    const favTeam = spread > 0 ? homeName : awayName;
-    const dogTeam = spread > 0 ? awayName : homeName;
-    const favIsHome = spread > 0;
+  // ===== 優先級 1：讓分盤（運彩盤有讓分+賠率，或國際盤有讓分，且獨贏未壓倒性優勢）=====
+  const canSpread = (hasSpread && hasRealSpreadOdds) || hasIntlSpread;
+  if (canSpread && !mlDominant) {
+    // 優先用運彩盤讓分值，無則用國際盤
+    const useSpread = (hasSpread && hasRealSpreadOdds) ? spread : intlSpread;
+    const absSpread = Math.abs(useSpread);
+    // 國際盤 intlSpread 負=客讓（如 -3.5 = 客隊讓3.5），需要反轉判斷
+    // 運彩盤 spread 正=主讓
+    let favIsHome, favTeam, dogTeam;
+    if (hasSpread && hasRealSpreadOdds) {
+      favIsHome = spread > 0;
+    } else {
+      // intlSpread 負值=主隊讓分（主隊強，如 -3.5 = 主讓3.5）→ favIsHome=true
+      favIsHome = intlSpread < 0;
+    }
+    favTeam = favIsHome ? homeName : awayName;
+    dogTeam = favIsHome ? awayName : homeName;
     // seed + 盤口大小決定推薦方向
     let pickFav;
     if (absSpread >= 10) pickFav = seed < 35;
@@ -1782,8 +1797,8 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-score" style="${scoreColor}${awayWinner ? ';color:#fff' : ''}">${hasScore ? m.awayScore : '-'}</td>
       <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread < 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${awayWin}%</span></td>
-      <td rowspan="2" style="vertical-align:middle">${(hasRealOdds && favOdds > 0) ? `<span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
-      <td>${hasRealOdds && awayOddsShow > 0 ? `<span class="odds-val">${awayOddsShow.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
+      <td rowspan="2" style="vertical-align:middle">${(hasRealOdds && favOdds > 0) ? `<span class="${ev > 0 ? 'text-emerald-400' : ev < -10 ? 'text-red-400' : 'text-gray-500'}" style="font-size:12px;font-weight:700">${ev > 0 ? '+' : ''}${ev.toFixed(0)}</span>` : ''}</td>
+      <td>${hasRealOdds && awayOddsShow > 0 ? `<span class="odds-val">${awayOddsShow.toFixed(2)}</span>` : ''}</td>
       <td rowspan="2" style="vertical-align:middle"><span class="ai-tip ${tipClass}">${tip.label.replace(/\s*[✓✗]$/, '')}</span></td>
       <td rowspan="2" style="vertical-align:middle">${resultIcon}</td>
     </tr>`;
@@ -1800,7 +1815,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
       <td class="td-score" style="${scoreColor}${homeWinner ? ';color:#fff' : ''}">${hasScore ? m.homeScore : '-'}</td>
       <td class="td-spread">${hasSpread ? `<span class="spread-val">${spread > 0 ? '-' + absSpread : '+' + absSpread}</span>` : ''}</td>
       <td><span class="pct-val">${homeWin}%</span></td>
-      <td>${hasRealOdds && homeOddsShow > 0 ? `<span class="odds-val">${homeOddsShow.toFixed(2)}</span>` : '<span class="text-gray-600" style="font-size:11px">—</span>'}</td>
+      <td>${hasRealOdds && homeOddsShow > 0 ? `<span class="odds-val">${homeOddsShow.toFixed(2)}</span>` : ''}</td>
     </tr>`;
 
     // 展開面板行

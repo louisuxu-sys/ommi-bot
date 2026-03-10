@@ -590,7 +590,12 @@ const server = http.createServer(async (req, res) => {
                 if (gOdds.spreadAway) game.odds.spreadAway = gOdds.spreadAway;
                 if (gOdds.spreadOddsHome) game.odds.spreadOddsHome = gOdds.spreadOddsHome;
                 if (gOdds.spreadOddsAway) game.odds.spreadOddsAway = gOdds.spreadOddsAway;
-                console.log(`[PARSE] guess matched: ${gAway} vs ${gHome} → spread=${gOdds.spread}`);
+                // 標記有真正的讓分盤口（guess 頁面有讓分值如 "-1.5"）
+                if (gOdds.spreadHome && !game.odds.spreadValue) {
+                  const sv = (gOdds.spreadHome.match(/[+-]?\d+\.?\d*/)||[])[0];
+                  if (sv) game.odds.spreadValue = sv;
+                }
+                console.log(`[PARSE] guess matched: ${gAway} vs ${gHome} → spread=${gOdds.spread} ml=${gOdds.mlHome}/${gOdds.mlAway}`);
               }
             }
           }
