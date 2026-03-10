@@ -1351,11 +1351,13 @@ function _computePrediction(m) {
   const odds = m.odds || {};
   const spread = parseFloat(odds.spread);
   const hasSpread = !isNaN(spread) && spread !== 0;
+  // 只有運彩盤有讓分賠率時才推讓分（不能只靠 livescore 的讓分值）
+  const hasSpreadOdds = !!(odds.spreadOddsHome || odds.spreadOddsAway);
   const homeName = t(m.home), awayName = t(m.away);
   // 固定 seed：只基於原始隊名（非翻譯後）+ 日期，確保不可變
   const seed = Math.abs(hashCode(m.home + m.away + (m.date || ''))) % 100;
 
-  if (hasSpread) {
+  if (hasSpread && hasSpreadOdds) {
     // spread > 0 = 主隊讓分（主隊強）; spread < 0 = 客隊讓分（客隊強）
     const absSpread = Math.abs(spread);
     const favTeam = spread > 0 ? homeName : awayName;
