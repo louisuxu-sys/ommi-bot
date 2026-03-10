@@ -499,6 +499,8 @@ let currentFilter = 'all';
 let currentDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 let allMatches = [];
 let expandedId = null;
+// 鎖定推薦：一旦推薦產生就不再改變（即使盤口/比分更新）
+const lockedTips = {}; // { matchId: { prediction, spread, odds } }
 let refreshTimer = null;
 let countdown = 60;
 
@@ -1442,7 +1444,21 @@ function _computePrediction(m) {
 }
 
 function getAITip(m) {
-  const pred = _computePrediction(m);
+  const id = m.id;
+  // 如果尚未鎖定，計算並鎖定推薦（使用當前盤口）
+  if (!lockedTips[id]) {
+    const pred = _computePrediction(m);
+    lockedTips[id] = {
+      prediction: pred.prediction,
+      type: pred.type,
+      favIsHome: pred.favIsHome,
+      absSpread: pred.absSpread,
+      color: pred.color,
+      bg: pred.bg,
+      spread: (m.odds || {}).spread || null, // 鎖定盤口
+    };
+  }
+  const locked = lockedTips[id];
   const homeName = t(m.home), awayName = t(m.away);
 
   if (m.status === 'finished') {
@@ -1454,28 +1470,25 @@ function getAITip(m) {
     const winTeam = scoreDiff > 0 ? homeName : scoreDiff < 0 ? awayName : '平局';
     const resultText = scoreDiff === 0 ? '平局' : `${winTeam}勝 ${hs}:${as}`;
 
-    // 判斷推薦是否正確
+    // 用鎖定的推薦判斷是否正確
     let isCorrect = null;
-    if (pred.type === 'moneyline') {
-      isCorrect = pred.favIsHome ? scoreDiff > 0 : scoreDiff < 0;
-    } else if (pred.type === 'spread-fav' || pred.type === 'vspread-fav') {
-      // 讓分方需贏超過讓分數
-      isCorrect = pred.favIsHome ? (scoreDiff > pred.absSpread) : (-scoreDiff > pred.absSpread);
-    } else if (pred.type === 'spread-dog' || pred.type === 'vspread-dog') {
-      // 受讓方：不輸超過讓分即算贏
-      isCorrect = pred.favIsHome ? (-scoreDiff > -pred.absSpread) : (scoreDiff > -pred.absSpread);
+    if (locked.type === 'moneyline') {
+      isCorrect = locked.favIsHome ? scoreDiff > 0 : scoreDiff < 0;
+    } else if (locked.type === 'spread-fav' || locked.type === 'vspread-fav') {
+      isCorrect = locked.favIsHome ? (scoreDiff > locked.absSpread) : (-scoreDiff > locked.absSpread);
+    } else if (locked.type === 'spread-dog' || locked.type === 'vspread-dog') {
+      isCorrect = locked.favIsHome ? (-scoreDiff > -locked.absSpread) : (scoreDiff > -locked.absSpread);
     }
-    // type === 'skip' → isCorrect stays null
 
     const mark = isCorrect === null ? '' : isCorrect ? ' ✓' : ' ✗';
     const markColor = isCorrect === null ? 'text-gray-400' : isCorrect ? 'text-emerald-400' : 'text-red-400';
     const markBg = isCorrect === null ? 'bg-gray-800/30' : isCorrect ? 'bg-emerald-900/20' : 'bg-red-900/20';
 
-    return { label: pred.prediction + mark, result: resultText, color: markColor, bg: markBg };
+    return { label: locked.prediction + mark, result: resultText, color: markColor, bg: markBg };
   }
 
-  // 未開始 / 進行中：直接回傳固定推薦
-  return { label: pred.prediction, color: pred.color, bg: pred.bg };
+  // 未開始 / 進行中：回傳鎖定的推薦
+  return { label: locked.prediction, color: locked.color, bg: locked.bg };
 }
 
 // 聯賽圖標對照
@@ -1603,11 +1616,13 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     }
 
     const tip = getAITip(m);
-    const pred = _computePrediction(m);
+    const locked = lockedTips[m.id] || {};
     const hasScore = m.homeScore !== null && m.homeScore !== undefined;
     const isLive = m.status === 'live';
+    // 使用鎖定的盤口（避免盤口變動導致顯示不一致）
+    const lockedSpread = locked.spread != null ? parseFloat(locked.spread) : NaN;
     const odds = m.odds || {};
-    const spread = odds.spread ? parseFloat(odds.spread) : NaN;
+    const spread = !isNaN(lockedSpread) ? lockedSpread : (odds.spread ? parseFloat(odds.spread) : NaN);
     const hasSpread = !isNaN(spread) && spread !== 0;
 
     // 讓分盤顯示
@@ -1633,7 +1648,7 @@ function renderLeagueSection(leagueName, leagueId, matches) {
     // spreadOdds 可能是百分比格式(如 "-50", "50")，轉為十進位賠率
     if (mlOdds && Math.abs(mlOdds) > 10) mlOdds = 0; // 非十進位賠率，忽略
     if (!mlOdds || mlOdds <= 0) mlOdds = 1.9; // 預設
-    const favWin = pred.favIsHome ? homeWin : awayWin;
+    const favWin = locked.favIsHome ? homeWin : awayWin;
     const ev = ((favWin / 100) * mlOdds - 1) * 100;
 
     // AI推薦
