@@ -1231,7 +1231,7 @@ async function fetchAllData(showLoading = true) {
     const fetchedLeagues = [...new Set(allMatches.map(m => m.leagueId))];
     for (const lid of fetchedLeagues) {
       try {
-        const pResp = await fetch(`${LOCAL_PROXY}/predict?allianceid=${lid}`, { signal: AbortSignal.timeout(12000) });
+        const pResp = await fetch(`${LOCAL_PROXY}/predict?allianceid=${lid}&gameday=today`, { signal: AbortSignal.timeout(12000) });
         if (pResp.ok) {
           const pData = await pResp.json();
           if (pData.success && pData.games) {

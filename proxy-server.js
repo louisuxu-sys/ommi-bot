@@ -641,7 +641,8 @@ const server = http.createServer(async (req, res) => {
   // /predict?allianceid=3 — 從 playsport.cc/predict/games 抓取盤口預測資料
   if (parsed.pathname === '/predict' && parsed.query.allianceid) {
     const aid = parsed.query.allianceid;
-    const targetUrl = `https://www.playsport.cc/predict/games?allianceid=${aid}`;
+    const gameday = parsed.query.gameday || 'today';
+    const targetUrl = `https://www.playsport.cc/predict/games?allianceid=${aid}&gameday=${gameday}`;
     console.log(`[PREDICT] ${new Date().toLocaleTimeString()} → ${targetUrl}`);
     const fetchOpts = {
       headers: {
